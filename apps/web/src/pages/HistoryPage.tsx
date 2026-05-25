@@ -114,14 +114,14 @@ export function HistoryPage({ onNavigate, onOpenSession }: HistoryPageProps) {
   return (
     <div className="mx-auto grid max-w-6xl gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
       <section className={cn(sectionClass, "p-5")}>
-        <h2 className="text-sm font-semibold text-foreground">Browse history</h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <h2 className="type-section-title">Browse history</h2>
+        <p className="type-body mt-2">
           Past web chat sessions are stored in SQLite. Open one to continue the conversation in
           Chat.
         </p>
 
         <div className="mt-5 space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">Profile</label>
+          <label className="type-label">Profile</label>
           <Select
             value={profileId}
             disabled={busy || profiles.length === 0}
@@ -150,7 +150,7 @@ export function HistoryPage({ onNavigate, onOpenSession }: HistoryPageProps) {
       <section className={sectionClass}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Saved sessions</h2>
+            <h2 className="type-section-title">Saved sessions</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {activeProfile
                 ? `Showing web chats for ${activeProfile.name}.`

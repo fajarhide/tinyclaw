@@ -37,9 +37,10 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Automations",
     description: "Draft workflows from natural language",
   },
-  {
-    id: "settings",
-    label: "Settings",
-    description: "Provider API key and model",
-  },
 ];
+
+export const SETTINGS_NAV_ITEM: NavItem = {
+  id: "settings",
+  label: "Settings",
+  description: "Provider API key and model",
+};

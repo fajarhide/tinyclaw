@@ -241,7 +241,7 @@ export function ProfilesPage() {
       <section className={sectionClass}>
         <div className="mb-4 flex items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Profiles</h2>
+            <h2 className="type-section-title">Profiles</h2>
             <p className="text-xs text-muted-foreground">{profiles.length} total</p>
           </div>
           <Button
@@ -272,7 +272,7 @@ export function ProfilesPage() {
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium text-foreground">{profile.name}</p>
                 {profile.isSuper ? (
-                  <span className="rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  <span className="type-badge rounded-md bg-primary/15 px-2 py-0.5 text-primary">
                     Super
                   </span>
                 ) : null}
@@ -298,8 +298,8 @@ export function ProfilesPage() {
             <div className={cn(sectionClass, "p-5")}>
               <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">{detail.name}</h2>
-                  <p className="mt-1 font-mono text-xs text-muted-foreground">{detail.id}</p>
+                  <h2 className="type-page-title">{detail.name}</h2>
+                  <p className="type-code mt-1 text-muted-foreground">{detail.id}</p>
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -358,7 +358,7 @@ export function ProfilesPage() {
 
             <div className={cn(sectionClass, "p-5")}>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-foreground">Allowed tools</h3>
+                <h3 className="type-section-title">Allowed tools</h3>
                 <div className="flex gap-2">
                   <Select
                     value={assignToolId}
@@ -400,7 +400,7 @@ export function ProfilesPage() {
                       <div>
                         <p className="text-sm font-medium text-foreground">{tool.name}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{tool.description}</p>
-                        <p className="mt-1 font-mono text-[11px] text-muted-foreground/80">
+                        <p className="type-code mt-1 text-muted-foreground/80">
                           {tool.handlerType}
                         </p>
                       </div>
@@ -489,7 +489,7 @@ function Field({
 }) {
   return (
     <div className={cn("space-y-2", className)}>
-      <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <label className="type-label">
         {label}
       </label>
       {children}

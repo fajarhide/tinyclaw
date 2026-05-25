@@ -1,10 +1,18 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TinyClaw</title>
     <link rel="icon" type="image/png" href="/tinyclaw.png" />
+    <script>
+      (function () {
+        var stored = localStorage.getItem("tinyclaw-theme");
+        var theme = stored === "light" || stored === "dark" ? stored : "dark";
+        document.documentElement.classList.toggle("dark", theme === "dark");
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

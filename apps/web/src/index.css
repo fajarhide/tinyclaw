@@ -1,7 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/source-serif-4";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -15,14 +17,18 @@
   --color-accent-400: #fbbf24;
   --color-accent-500: #f59e0b;
   --color-accent-600: #d97706;
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
 @layer base {
   html {
-    color-scheme: dark;
-    @apply font-sans;
+    color-scheme: light;
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    letter-spacing: -0.012em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   html,
@@ -33,13 +39,35 @@
   }
 
   body {
-    @apply antialiased bg-background text-foreground;
+    @apply bg-background text-foreground;
     font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+    font-feature-settings: normal;
   }
 
   ::selection {
     @apply bg-accent-500/30;
   }
+
   * {
     @apply border-border outline-ring/50;
   }
@@ -82,7 +110,87 @@
   }
 
   .label {
-    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-muted-foreground;
+    @apply mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground;
+  }
+
+  .type-brand {
+    @apply text-base font-semibold tracking-tight text-foreground;
+  }
+
+  .type-page-title {
+    @apply text-lg font-semibold tracking-tight text-foreground;
+  }
+
+  .type-section-title {
+    @apply text-sm font-semibold tracking-tight text-foreground;
+  }
+
+  .type-body {
+    @apply text-sm leading-relaxed text-muted-foreground;
+  }
+
+  .type-label {
+    @apply text-xs font-medium uppercase tracking-wider text-muted-foreground;
+  }
+
+  .type-code {
+    @apply font-mono text-xs tabular-nums;
+  }
+
+  .type-badge {
+    @apply text-xs font-semibold uppercase tracking-wide;
+  }
+
+  .sidebar-nav-link {
+    @apply w-full cursor-pointer rounded-md px-3 py-2 text-left text-sm transition text-muted-foreground;
+  }
+
+  .sidebar-nav-link:hover {
+    @apply bg-muted text-foreground;
+  }
+
+  .dark .sidebar-nav-link:hover {
+    @apply bg-sidebar-accent/60 text-sidebar-foreground;
+  }
+
+  .sidebar-nav-link[data-active] {
+    @apply bg-primary/12 font-semibold text-primary ring-1 ring-primary/25;
+  }
+
+  .dark .sidebar-nav-link[data-active] {
+    @apply bg-sidebar-accent text-sidebar-foreground ring-0 shadow-sm;
+  }
+
+  .scope-item {
+    @apply w-full cursor-pointer rounded-md border border-border px-3 py-2.5 text-left transition;
+  }
+
+  .scope-item:hover {
+    @apply bg-muted/60;
+  }
+
+  .scope-item[data-active] {
+    @apply border-primary/25 bg-primary/10 ring-1 ring-primary/20;
+  }
+
+  .dark .scope-item[data-active] {
+    @apply border-primary/35 bg-sidebar-accent ring-primary/25;
+  }
+
+  .scope-badge {
+    @apply shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold normal-case tracking-normal;
+  }
+
+  .scope-badge-active {
+    @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300;
+  }
+
+  .chat-markdown {
+    font-family: var(--font-prose);
+    font-size: 1rem;
+    line-height: 1.65;
+    letter-spacing: 0.01em;
+    max-width: 68ch;
   }
 
   /* Streamdown code fences in chat — single compact block, no 200px placeholder */
@@ -194,7 +302,7 @@
   }
 
   .chat-markdown p {
-    margin-block: 0.5rem;
+    margin-block: 0.625rem;
   }
 
   .chat-markdown p:first-child {
@@ -204,11 +312,119 @@
   .chat-markdown p:last-child {
     margin-block-end: 0;
   }
+
+  .chat-markdown h1,
+  .chat-markdown h2,
+  .chat-markdown h3,
+  .chat-markdown h4 {
+    font-family: var(--font-prose);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.35;
+    color: var(--foreground);
+  }
+
+  .chat-markdown h1 {
+    font-size: 1.375rem;
+    margin-block: 1.25rem 0.625rem;
+  }
+
+  .chat-markdown h2 {
+    font-size: 1.2rem;
+    margin-block: 1.125rem 0.5rem;
+  }
+
+  .chat-markdown h3 {
+    font-size: 1.0625rem;
+    margin-block: 1rem 0.375rem;
+  }
+
+  .chat-markdown h4 {
+    font-size: 1rem;
+    margin-block: 0.875rem 0.375rem;
+  }
+
+  .chat-markdown ul,
+  .chat-markdown ol {
+    margin-block: 0.625rem;
+    padding-inline-start: 1.375rem;
+  }
+
+  .chat-markdown li {
+    margin-block: 0.25rem;
+  }
+
+  .chat-markdown li::marker {
+    color: var(--muted-foreground);
+  }
+
+  .chat-markdown blockquote {
+    margin-block: 0.75rem;
+    padding-inline-start: 1rem;
+    border-inline-start: 3px solid var(--border);
+    color: var(--muted-foreground);
+    font-style: italic;
+  }
+
+  .chat-markdown a {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in oklab, var(--primary) 45%, transparent);
+  }
+
+  .chat-markdown a:hover {
+    text-decoration-color: var(--primary);
+  }
+
+  .chat-markdown strong {
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  .chat-markdown hr {
+    margin-block: 1.25rem;
+    border: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .chat-markdown table {
+    width: 100%;
+    margin-block: 0.75rem;
+    border-collapse: collapse;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .chat-markdown th,
+  .chat-markdown td {
+    border: 1px solid var(--border);
+    padding: 0.375rem 0.625rem;
+    text-align: start;
+  }
+
+  .chat-markdown th {
+    font-weight: 600;
+    background: var(--muted);
+  }
 }
 
 @theme inline {
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --font-prose: "Source Serif 4 Variable", ui-serif, Georgia, serif;
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.5;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.55;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.6;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.45;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.35;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -256,8 +472,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: #d97706;
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -267,7 +483,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: #d97706;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -276,12 +492,12 @@
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-primary: #d97706;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: oklch(0.96 0.01 75);
+  --sidebar-accent-foreground: oklch(0.35 0.08 55);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: #d97706;
 }
 
 .dark {

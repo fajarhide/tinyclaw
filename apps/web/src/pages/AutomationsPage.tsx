@@ -33,8 +33,8 @@ export function AutomationsPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="panel p-5">
-        <h2 className="text-sm font-semibold text-zinc-100">Draft automation</h2>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h2 className="type-section-title">Draft automation</h2>
+        <p className="type-body mt-1">
           Describe what you want in plain language. The server returns a JSON automation definition.
           Execution and scheduling are not wired up yet.
         </p>
@@ -61,17 +61,19 @@ export function AutomationsPage() {
       </div>
 
       {error ? (
-        <div className="panel border-red-900/40 bg-red-950/20 p-4 text-sm text-red-200">{error}</div>
+        <div className="panel border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200">
+          {error}
+        </div>
       ) : null}
 
       {automation ? (
         <div className="panel overflow-hidden">
-          <div className="border-b border-zinc-800 px-5 py-4">
-            <h2 className="text-sm font-semibold text-zinc-100">{automation.name}</h2>
-            <p className="mt-1 text-sm text-zinc-400">{automation.description}</p>
+          <div className="border-b border-border px-5 py-4">
+            <h2 className="type-section-title">{automation.name}</h2>
+            <p className="type-body mt-1">{automation.description}</p>
           </div>
 
-          <div className="grid gap-4 border-b border-zinc-800 px-5 py-4 sm:grid-cols-3">
+          <div className="grid gap-4 border-b border-border px-5 py-4 sm:grid-cols-3">
             <Meta label="ID" value={automation.id} mono />
             <Meta label="Trigger" value={formatTrigger(automation)} />
             <Meta label="Steps" value={String(automation.steps.length)} />
@@ -79,16 +81,16 @@ export function AutomationsPage() {
 
           {automation.steps.length > 0 ? (
             <div className="space-y-3 px-5 py-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Steps</h3>
+              <h3 className="type-label">Steps</h3>
               {automation.steps.map((step, index) => (
                 <div
                   key={step.id}
-                  className="rounded-lg border border-zinc-800 bg-surface-850 px-4 py-3"
+                  className="rounded-lg border border-border bg-muted/40 px-4 py-3"
                 >
-                  <p className="text-sm font-medium text-zinc-100">
+                  <p className="text-sm font-medium text-foreground">
                     {index + 1}. {step.tool}
                   </p>
-                  <pre className="mt-2 overflow-x-auto font-mono text-xs leading-relaxed text-zinc-400">
+                  <pre className="type-code mt-2 overflow-x-auto leading-relaxed text-muted-foreground">
                     {JSON.stringify(step.input, null, 2)}
                   </pre>
                 </div>
@@ -96,12 +98,12 @@ export function AutomationsPage() {
             </div>
           ) : null}
 
-          <pre className="overflow-x-auto border-t border-zinc-800 bg-surface-950 px-5 py-4 font-mono text-xs leading-relaxed text-zinc-300">
+          <pre className="type-code overflow-x-auto border-t border-border bg-muted/30 px-5 py-4 leading-relaxed text-foreground">
             {JSON.stringify(automation, null, 2)}
           </pre>
         </div>
       ) : (
-        <div className="panel flex min-h-48 items-center justify-center p-8 text-sm text-zinc-500">
+        <div className="panel flex min-h-48 items-center justify-center p-8 text-sm text-muted-foreground">
           Draft results will appear here as JSON.
         </div>
       )}
@@ -120,8 +122,8 @@ function Meta({
 }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className={`mt-1 text-sm text-zinc-200 ${mono ? "font-mono text-xs break-all" : ""}`}>
+      <p className="type-label">{label}</p>
+      <p className={`type-body mt-1 ${mono ? "type-code break-all" : ""}`}>
         {value}
       </p>
     </div>

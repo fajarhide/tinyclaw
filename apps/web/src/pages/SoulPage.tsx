@@ -235,8 +235,8 @@ export function SoulPage() {
       <div className="mx-auto grid max-w-6xl gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
         <section className={sectionClass}>
           <div className="mb-4">
-            <h2 className="text-sm font-semibold text-foreground">Scope</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <h2 className="type-section-title">Scope</h2>
+            <p className="type-body mt-1 text-xs">
               Global files apply to every profile. Profile overrides merge on top.
             </p>
           </div>
@@ -262,7 +262,7 @@ export function SoulPage() {
             ))}
           </div>
 
-          <div className="mt-5 rounded-md border border-border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
+          <div className="type-body mt-5 rounded-md border border-border bg-muted/40 p-3 text-xs dark:bg-muted/30">
             <p className="font-medium text-foreground">How it works</p>
             <p className="mt-2">
               Soul files shape the agent&apos;s identity and voice. Click a file to view its
@@ -279,7 +279,7 @@ export function SoulPage() {
           ) : null}
 
           {initResult ? (
-            <p className="rounded-md border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200">
+            <p className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800/40 dark:bg-emerald-950/20 dark:text-emerald-200">
               {initResult.length === 0
                 ? "Templates already exist — nothing created."
                 : `Created: ${initResult.join(", ")}`}
@@ -289,9 +289,9 @@ export function SoulPage() {
           <div className={cn(sectionClass, "p-5")}>
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">{scopeLabel}</h2>
+                <h2 className="type-page-title">{scopeLabel}</h2>
                 {status ? (
-                  <p className="mt-1 font-mono text-xs text-muted-foreground break-all">
+                  <p className="type-code mt-1 break-all text-muted-foreground">
                     {status.directory}
                   </p>
                 ) : null}
@@ -413,22 +413,23 @@ function ScopeButton({
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "w-full rounded-md border px-3 py-3 text-left transition",
-        active
-          ? "border-primary/40 bg-muted"
-          : "border-border bg-transparent hover:bg-muted/50",
-      )}
+      data-active={active || undefined}
+      className="scope-item"
     >
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p
+          className={cn(
+            "text-sm font-medium",
+            active ? "text-primary" : "text-foreground",
+          )}
+        >
+          {title}
+        </p>
         {activeLabel ? (
-          <span className="rounded-md bg-emerald-950/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
-            {activeLabel}
-          </span>
+          <span className="scope-badge scope-badge-active">{activeLabel}</span>
         ) : null}
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
     </button>
   );
 }
@@ -446,13 +447,15 @@ function FileStatusCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center justify-between rounded-md border border-border bg-muted/20 px-4 py-3 text-left transition hover:bg-muted/40"
+      className="flex cursor-pointer items-center justify-between rounded-md border border-border bg-muted/20 px-4 py-3 text-left transition hover:bg-muted/50"
     >
       <span className="font-mono text-sm text-foreground">{label}</span>
       <span
         className={cn(
           "flex items-center gap-1 text-xs font-medium",
-          present ? "text-emerald-300" : "text-muted-foreground",
+          present
+            ? "text-emerald-700 dark:text-emerald-300"
+            : "text-muted-foreground",
         )}
       >
         {present ? <CheckIcon className="size-3.5" /> : <CircleIcon className="size-3.5" />}

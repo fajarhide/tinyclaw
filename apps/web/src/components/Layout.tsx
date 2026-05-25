@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAppContext } from "@/context/app-context";
-import { NAV_ITEMS, type PageId } from "@/lib/navigation";
+import { NAV_ITEMS, SETTINGS_NAV_ITEM, type PageId } from "@/lib/navigation";
 import { filterModelsByProvider, formatProviderLabel } from "@/lib/models";
-import { cn } from "@/lib/utils";
 
 interface LayoutProps {
   page: PageId;
@@ -13,7 +13,10 @@ interface LayoutProps {
 
 export function Layout({ page, onNavigate, children }: LayoutProps) {
   const { health, models, loading, error, refresh, setModel } = useAppContext();
-  const activeNav = NAV_ITEMS.find((item) => item.id === page);
+  const activeNav =
+    page === "settings"
+      ? SETTINGS_NAV_ITEM
+      : NAV_ITEMS.find((item) => item.id === page);
 
   return (
     <div className="flex h-svh overflow-hidden bg-background">
@@ -26,7 +29,7 @@ export function Layout({ page, onNavigate, children }: LayoutProps) {
               className="size-9 shrink-0 rounded-lg object-contain"
             />
             <div>
-              <p className="font-semibold text-foreground">TinyClaw</p>
+              <p className="type-brand">TinyClaw</p>
             </div>
           </div>
         </div>
@@ -42,12 +45,8 @@ export function Layout({ page, onNavigate, children }: LayoutProps) {
                 title={item.description}
                 aria-current={active ? "page" : undefined}
                 onClick={() => onNavigate(item.id)}
-                className={cn(
-                  "w-full rounded-md py-2 pr-3 text-left text-sm transition",
-                  active
-                    ? "border-l-2 border-sidebar-primary bg-sidebar-accent pl-[calc(0.75rem-2px)] font-semibold text-sidebar-foreground shadow-sm"
-                    : "border-l-2 border-transparent pl-3 text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-                )}
+                data-active={active || undefined}
+                className="sidebar-nav-link"
               >
                 {item.label}
               </button>
@@ -55,8 +54,18 @@ export function Layout({ page, onNavigate, children }: LayoutProps) {
           })}
         </nav>
 
-        <div className="shrink-0 border-t border-border p-4 text-xs text-muted-foreground">
-          Server must be running on port 4310.
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border p-3">
+          <button
+            type="button"
+            title={SETTINGS_NAV_ITEM.description}
+            aria-current={page === "settings" ? "page" : undefined}
+            onClick={() => onNavigate("settings")}
+            data-active={page === "settings" || undefined}
+            className="sidebar-nav-link !w-auto shrink-0"
+          >
+            {SETTINGS_NAV_ITEM.label}
+          </button>
+          <ThemeToggle />
         </div>
       </aside>
 
@@ -64,8 +73,8 @@ export function Layout({ page, onNavigate, children }: LayoutProps) {
         {page !== "chat" ? (
           <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-border bg-card px-6 py-4">
             <div>
-              <h1 className="text-lg font-semibold text-foreground">{activeNav?.label}</h1>
-              <p className="text-sm text-muted-foreground">{activeNav?.description}</p>
+              <h1 className="type-page-title">{activeNav?.label}</h1>
+              <p className="type-body">{activeNav?.description}</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -98,7 +107,7 @@ export function Layout({ page, onNavigate, children }: LayoutProps) {
                 <button
                   type="button"
                   onClick={() => onNavigate("settings")}
-                  className="rounded-full border border-amber-800/60 bg-amber-950/40 px-3 py-1 text-xs font-medium text-amber-200 transition hover:bg-amber-950/60"
+                  className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60"
                 >
                   No provider — configure
                 </button>
@@ -112,7 +121,7 @@ export function Layout({ page, onNavigate, children }: LayoutProps) {
         ) : null}
 
         {error ? (
-          <div className="shrink-0 border-b border-red-900/40 bg-red-950/30 px-6 py-3 text-sm text-red-200">
+          <div className="shrink-0 border-b border-red-200 bg-red-50 px-6 py-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
             {error}
           </div>
         ) : null}
@@ -140,11 +149,11 @@ function StatusPill({
 }) {
   const toneClass =
     tone === "ok"
-      ? "border-emerald-800/60 bg-emerald-950/40 text-emerald-200"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200"
       : tone === "bad"
-        ? "border-red-800/60 bg-red-950/40 text-red-200"
+        ? "border-red-200 bg-red-50 text-red-800 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-200"
         : tone === "warn"
-          ? "border-amber-800/60 bg-amber-950/40 text-amber-200"
+          ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200"
           : "border-border bg-muted text-muted-foreground";
 
   return (

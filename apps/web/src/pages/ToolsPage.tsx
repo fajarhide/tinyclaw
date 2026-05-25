@@ -76,10 +76,10 @@ export function ToolsPage({ onNavigate }: ToolsPageProps) {
   return (
     <div className="mx-auto grid max-w-6xl gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
       <section className={cn(sectionClass, "p-5")}>
-        <h2 className="text-sm font-semibold text-foreground">Create via agent</h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <h2 className="type-section-title">Create via agent</h2>
+        <p className="type-body mt-2">
           New tools are registered by <strong className="text-foreground">Super Bot</strong> in
-          Chat using the <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">create_tool</code>{" "}
+          Chat using the <code className="rounded bg-muted px-1 py-0.5 type-code">create_tool</code>{" "}
           meta-tool.
         </p>
 
@@ -116,7 +116,7 @@ export function ToolsPage({ onNavigate }: ToolsPageProps) {
         <div className={cn(sectionClass, "p-5")}>
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold text-foreground">All tools</h2>
+              <h2 className="type-section-title">All tools</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 {loading ? "Loading…" : `${tools.length} registered`}
               </p>
@@ -152,7 +152,7 @@ export function ToolsPage({ onNavigate }: ToolsPageProps) {
                       <p className="mt-1 text-sm text-muted-foreground">{tool.description}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <span className="rounded-md border border-border bg-muted px-2.5 py-1 font-mono text-[11px] text-muted-foreground">
+                      <span className="rounded-md border border-border bg-muted px-2.5 py-1 type-code text-muted-foreground">
                         {tool.handlerType}
                       </span>
                       {isDeletableTool(tool) ? (
@@ -169,7 +169,7 @@ export function ToolsPage({ onNavigate }: ToolsPageProps) {
                       ) : null}
                     </div>
                   </div>
-                  <p className="mt-3 font-mono text-[11px] text-muted-foreground/80">{tool.id}</p>
+                  <p className="type-code mt-3 text-muted-foreground/80">{tool.id}</p>
                 </article>
               ))}
             </div>

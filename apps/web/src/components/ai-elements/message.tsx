@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/context/theme-context";
 import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
@@ -323,18 +324,18 @@ export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
 const streamdownPlugins = { cjk, code, math, mermaid };
 
-export const MessageResponse = memo(
+const MessageResponseBody = memo(
   ({
     className,
     lineNumbers = false,
     controls = { code: { copy: true, download: false } },
-    shikiTheme = ["github-dark", "github-dark"],
+    shikiTheme,
     ...props
   }: MessageResponseProps) => (
     <Streamdown
       className={cn(
-        "chat-markdown size-full text-sm leading-relaxed text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-        className
+        "chat-markdown size-full text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+        className,
       )}
       controls={controls}
       lineNumbers={lineNumbers}
@@ -345,10 +346,22 @@ export const MessageResponse = memo(
   ),
   (prevProps, nextProps) =>
     prevProps.children === nextProps.children &&
-    nextProps.isAnimating === prevProps.isAnimating
+    nextProps.isAnimating === prevProps.isAnimating &&
+    prevProps.shikiTheme === nextProps.shikiTheme,
 );
 
-MessageResponse.displayName = "MessageResponse";
+MessageResponseBody.displayName = "MessageResponseBody";
+
+export function MessageResponse(props: MessageResponseProps) {
+  const { theme } = useTheme();
+  const shikiTheme =
+    props.shikiTheme ??
+    (theme === "dark"
+      ? (["github-dark", "github-dark"] as const)
+      : (["github-light", "github-light"] as const));
+
+  return <MessageResponseBody {...props} shikiTheme={shikiTheme} />;
+}
 
 export type MessageToolbarProps = ComponentProps<"div">;
 
