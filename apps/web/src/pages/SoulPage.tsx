@@ -435,9 +435,9 @@ export function SoulPage() {
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <ul className="divide-y divide-border rounded-md border border-border">
                 {SOUL_FILES.map((file) => (
-                  <FileStatusCard
+                  <FileStatusListItem
                     key={file.key}
                     label={file.label}
                     description={file.description}
@@ -446,7 +446,7 @@ export function SoulPage() {
                     onClick={() => handleOpenFile(file.key)}
                   />
                 ))}
-              </div>
+              </ul>
 
               <div className="type-body mt-5 rounded-md border border-border bg-muted/40 p-3 text-xs lg:hidden dark:bg-muted/30">
                 <p className="font-medium text-foreground">How it works</p>
@@ -592,7 +592,7 @@ function ScopeButton({
   );
 }
 
-function FileStatusCard({
+function FileStatusListItem({
   label,
   description,
   writable,
@@ -606,56 +606,52 @@ function FileStatusCard({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "group flex min-h-11 w-full cursor-pointer flex-col gap-3 rounded-md border border-border bg-muted/20 p-4 text-left transition",
-        "hover:border-primary/20 hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-        present && "border-emerald-200/60 dark:border-emerald-900/40",
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span
-            className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-background",
-              present
-                ? "text-emerald-700 dark:text-emerald-300"
-                : "text-muted-foreground",
-            )}
-          >
-            {writable ? (
-              <FileTextIcon className="size-4" aria-hidden />
-            ) : (
-              <FolderIcon className="size-4" aria-hidden />
-            )}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate font-mono text-sm text-foreground">{label}</p>
-            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-              {description}
-            </p>
-          </div>
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          "group flex min-h-11 w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition",
+          "hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset",
+          present && "bg-emerald-50/40 dark:bg-emerald-950/10",
+        )}
+      >
+        <span
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-background",
+            present ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground",
+          )}
+        >
+          {writable ? (
+            <FileTextIcon className="size-4" aria-hidden />
+          ) : (
+            <FolderIcon className="size-4" aria-hidden />
+          )}
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-mono text-sm text-foreground">{label}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">{description}</p>
         </div>
+
+        <span
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+            present
+              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+              : "bg-muted text-muted-foreground",
+          )}
+        >
+          {present ? <CheckIcon className="size-3.5" /> : <CircleIcon className="size-3.5" />}
+          {present ? "Present" : "Missing"}
+        </span>
+
         <ChevronRightIcon
           className="size-4 shrink-0 text-muted-foreground/50 transition group-hover:text-muted-foreground"
           aria-hidden
         />
-      </div>
-
-      <span
-        className={cn(
-          "inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-          present
-            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-            : "bg-muted text-muted-foreground",
-        )}
-      >
-        {present ? <CheckIcon className="size-3.5" /> : <CircleIcon className="size-3.5" />}
-        {present ? "Present" : "Missing"}
-      </span>
-    </button>
+      </button>
+    </li>
   );
 }
 
