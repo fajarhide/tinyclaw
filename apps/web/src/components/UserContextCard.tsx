@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { UserIcon } from "lucide-react";
+import { TinyClawApiError } from "@tinyclaw/core/api-error";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +18,14 @@ import {
 } from "@/hooks/use-resource-mutations";
 import { formatError } from "@/lib/client";
 import { cn } from "@/lib/utils";
+
+function formatUserContextError(error: unknown): string {
+  if (error instanceof TinyClawApiError && error.status === 404) {
+    return "This feature needs a newer TinyClaw server. Restart the server and try again.";
+  }
+
+  return formatError(error);
+}
 
 export function UserContextCard() {
   const {
@@ -47,12 +56,6 @@ export function UserContextCard() {
     }
   }, [status]);
 
-  useEffect(() => {
-    if (loadError) {
-      setFormError(formatError(loadError));
-    }
-  }, [loadError]);
-
   async function handleInit() {
     setFormError(null);
     setHint(null);
@@ -62,7 +65,7 @@ export function UserContextCard() {
       await refetch();
       setHint(result.created ? "Template created." : "USER.md already exists.");
     } catch (error) {
-      setFormError(formatError(error));
+      setFormError(formatUserContextError(error));
     }
   }
 
@@ -76,7 +79,7 @@ export function UserContextCard() {
       setHint("Saved. Start a new chat session to apply changes.");
       await refetch();
     } catch (error) {
-      setFormError(formatError(error));
+      setFormError(formatUserContextError(error));
     }
   }
 
@@ -112,25 +115,37 @@ export function UserContextCard() {
             <Spinner />
             Loading…
           </div>
+        ) : loadError ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3">
+            <p className="text-sm text-destructive" role="alert">
+              {formatError(loadError)}
+            </p>
+          </div>
         ) : (
           <>
-            {status?.path ? (
+            {isActive && status?.path ? (
               <p className="text-xs text-muted-foreground break-all">{status.path}</p>
             ) : null}
 
             {!isActive ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" size="sm" disabled={busy} onClick={() => void handleInit()}>
-                  {initMutation.isPending ? (
-                    <>
-                      <Spinner className="mr-2" />
-                      Initializing…
-                    </>
-                  ) : (
-                    "Initialize template"
-                  )}
-                </Button>
-                <p className="text-xs text-muted-foreground">
+              <div className="rounded-md border border-dashed border-border/80 bg-muted/20 px-4 py-4">
+                <p className="text-sm text-muted-foreground">
+                  No USER.md yet. Add a short file so the agent knows who you are — your name,
+                  preferences, and current projects.
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Button type="button" size="sm" disabled={busy} onClick={() => void handleInit()}>
+                    {initMutation.isPending ? (
+                      <>
+                        <Spinner className="mr-2" />
+                        Initializing…
+                      </>
+                    ) : (
+                      "Initialize template"
+                    )}
+                  </Button>
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
                   Or create USER.md manually in your TinyClaw config directory.
                 </p>
               </div>

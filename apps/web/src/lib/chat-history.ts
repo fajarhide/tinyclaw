@@ -10,6 +10,11 @@ export function buildChatBasePath(): string {
   return "/chat";
 }
 
+export function chatProfileIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/chat\/([^/]+)\//);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
 export function buildChatPath(profileId: string, sessionId: string): string {
   return `/chat/${encodeURIComponent(profileId)}/${encodeURIComponent(sessionId)}`;
 }

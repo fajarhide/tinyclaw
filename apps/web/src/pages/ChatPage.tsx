@@ -1,7 +1,7 @@
 import type { ProfileSummary } from "@tinyclaw/core/contract";
 import type { ChatStatus } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import {
   Conversation,
@@ -43,7 +43,14 @@ import {
 import { useAppContext } from "@/context/app-context";
 import { useAppNavigation } from "@/hooks/use-app-navigation";
 import { cn } from "@/lib/utils";
-import { ArrowUpIcon, ChevronRightIcon, EllipsisIcon, ImageIcon, WifiOffIcon, XIcon } from "lucide-react";
+import {
+  ArrowUpIcon,
+  ChevronRightIcon,
+  ImageIcon,
+  MessageCircleIcon,
+  WifiOffIcon,
+  XIcon,
+} from "lucide-react";
 import type { FileUIPart } from "ai";
 import { filePartsToImageAttachments } from "@/lib/chat-images";
 import { client, formatError } from "@/lib/client";
@@ -60,7 +67,10 @@ import { Spinner } from "@/components/ui/spinner";
 import type { RemoteChatSession } from "@tinyclaw/client";
 
 const composerIconButtonClass =
-  "size-10 shrink-0 rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-40";
+  "size-8 shrink-0 rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-40";
+
+const composerToolbarClass =
+  "flex min-w-0 flex-1 flex-wrap items-center gap-1.5";
 
 const composerShellClass =
   "[&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:flex-col [&_[data-slot=input-group]]:items-stretch [&_[data-slot=input-group]]:gap-0 [&_[data-slot=input-group]]:rounded-xl [&_[data-slot=input-group]]:border-border [&_[data-slot=input-group]]:bg-card [&_[data-slot=input-group]]:p-3 [&_[data-slot=input-group]]:shadow-sm [&_[data-slot=input-group]]:transition-[box-shadow,border-color] sm:[&_[data-slot=input-group]]:p-4 [&_[data-slot=input-group]:focus-within]:border-primary/30 [&_[data-slot=input-group]:focus-within]:ring-2 [&_[data-slot=input-group]:focus-within]:ring-ring/25";
@@ -186,6 +196,7 @@ export function ChatPage() {
   const params = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { navigateToPage } = useAppNavigation();
   const routeSession = useMemo(() => parseChatRouteParams(params), [params]);
   const { health, models, setModel } = useAppContext();
@@ -198,6 +209,7 @@ export function ChatPage() {
   const skipNextProfileSessionRef = useRef(false);
   const loadedRouteRef = useRef<string | null>(null);
   const profileSwitchInFlightRef = useRef(false);
+  const pendingForceNewRef = useRef(false);
 
   const syncChatUrl = useCallback(
     (nextProfileId: string, sessionId: string) => {
@@ -225,6 +237,17 @@ export function ChatPage() {
     [models?.models, models?.provider],
   );
 
+  const renderModelLabel = useCallback(
+    (modelId: string | null) => {
+      if (!modelId) {
+        return null;
+      }
+
+      return providerModels.find((model) => model.id === modelId)?.name ?? modelId;
+    },
+    [providerModels],
+  );
+
   const activeProfile = useMemo(
     () => profiles.find((profile) => profile.id === profileId),
     [profiles, profileId]
@@ -246,51 +269,20 @@ export function ChatPage() {
     }
   }, [profileId, routeSession]);
 
-  const startSession = useCallback(
-    async (
-      nextProfileId: string,
-      options?: { forceNew?: boolean },
-    ): Promise<RemoteChatSession | null> => {
-      setBusy(true);
+  const enterDraftChat = useCallback(
+    (nextProfileId: string) => {
+      localStorage.removeItem(sessionStorageKey(nextProfileId));
+      skipNextProfileSessionRef.current = true;
+      loadedRouteRef.current = null;
+      setSession(null);
+      setMessages([]);
       setError(null);
 
-      try {
-        const storageKey = sessionStorageKey(nextProfileId);
-
-        if (!options?.forceNew) {
-          const storedSessionId = localStorage.getItem(storageKey);
-
-          if (storedSessionId) {
-            try {
-              const { messages: storedMessages } =
-                await client.getSessionMessages(storedSessionId);
-              const nextSession = client.createChatSession(storedSessionId, "web");
-              setSession(nextSession);
-              setMessages(chatMessagesToListItems(storedMessages));
-              return nextSession;
-            } catch {
-              localStorage.removeItem(storageKey);
-            }
-          }
-        } else {
-          localStorage.removeItem(storageKey);
-        }
-
-        const nextSession = await client.createSession("web", {
-          profileId: nextProfileId || undefined,
-        });
-        localStorage.setItem(storageKey, nextSession.id);
-        setSession(nextSession);
-        setMessages([]);
-        return nextSession;
-      } catch (err) {
-        setError(formatError(err));
-        return null;
-      } finally {
-        setBusy(false);
+      if (location.pathname !== buildChatBasePath()) {
+        navigate(buildChatBasePath(), { replace: true });
       }
     },
-    [],
+    [location.pathname, navigate],
   );
 
   const resumeSession = useCallback(
@@ -323,27 +315,32 @@ export function ChatPage() {
       }
 
       profileSwitchInFlightRef.current = true;
-      skipNextProfileSessionRef.current = true;
-      loadedRouteRef.current = `switch:${nextProfileId}`;
-      setSession(null);
-      setMessages([]);
-      setError(null);
       setProfileId(nextProfileId);
-
-      if (location.pathname !== buildChatBasePath()) {
-        navigate(buildChatBasePath(), { replace: true });
-      }
-
-      const nextSession = await startSession(nextProfileId);
-
-      if (nextSession) {
-        syncChatUrl(nextProfileId, nextSession.id);
-      }
-
+      enterDraftChat(nextProfileId);
       profileSwitchInFlightRef.current = false;
     },
-    [profileId, busy, location.pathname, navigate, startSession, syncChatUrl],
+    [profileId, busy, enterDraftChat],
   );
+
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") {
+      return;
+    }
+
+    const requestedProfile = searchParams.get("profile");
+    setSearchParams({}, { replace: true });
+    pendingForceNewRef.current = true;
+
+    if (requestedProfile && requestedProfile !== profileId) {
+      setProfileId(requestedProfile);
+      return;
+    }
+
+    if (profileId) {
+      pendingForceNewRef.current = false;
+      enterDraftChat(profileId);
+    }
+  }, [searchParams, setSearchParams, profileId, enterDraftChat]);
 
   useEffect(() => {
     if (!profileId) {
@@ -359,12 +356,9 @@ export function ChatPage() {
       return;
     }
 
-    void startSession(profileId).then((nextSession) => {
-      if (nextSession) {
-        syncChatUrl(profileId, nextSession.id);
-      }
-    });
-  }, [profileId, routeSession, startSession, syncChatUrl]);
+    pendingForceNewRef.current = false;
+    enterDraftChat(profileId);
+  }, [profileId, routeSession, enterDraftChat]);
 
   useEffect(() => {
     if (!routeSession || profileSwitchInFlightRef.current) {
@@ -398,12 +392,28 @@ export function ChatPage() {
     async (text: string, files: FileUIPart[] = []) => {
       const images = filePartsToImageAttachments(files);
 
-      if ((!text.trim() && images.length === 0) || !session || busy) {
+      if ((!text.trim() && images.length === 0) || !profileId || busy) {
         return;
       }
 
       setBusy(true);
       setError(null);
+
+      let activeSession = session;
+
+      if (!activeSession) {
+        try {
+          activeSession = await client.createSession("web", { profileId });
+          localStorage.setItem(sessionStorageKey(profileId), activeSession.id);
+          setSession(activeSession);
+          syncChatUrl(profileId, activeSession.id);
+        } catch (err) {
+          setError(formatError(err));
+          setBusy(false);
+          return;
+        }
+      }
+
       setMessages((current) => [
         ...current,
         {
@@ -422,7 +432,7 @@ export function ChatPage() {
       ]);
 
       try {
-        await session.sendStream({ message: text, images: images.length > 0 ? images : undefined }, {
+        await activeSession.sendStream({ message: text, images: images.length > 0 ? images : undefined }, {
           onChunk: (delta) => {
             setMessages((current) => {
               const next = [...current];
@@ -522,32 +532,17 @@ export function ChatPage() {
         setBusy(false);
       }
     },
-    [session, busy, profileId],
+    [session, busy, profileId, syncChatUrl],
   );
-
-  async function handleClear() {
-    if (!session || busy) {
-      return;
-    }
-
-    setBusy(true);
-    setError(null);
-
-    try {
-      await session.clear();
-      setMessages([]);
-    } catch (err) {
-      setError(formatError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col px-6">
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
         <Conversation className="min-h-0 flex-1">
           <ConversationContent className="gap-6 py-4">
+            {messages.length === 0 && !busy ? (
+              <ChatWelcome profile={activeProfile} />
+            ) : null}
             {messages.map((message) => (
               <Message
                 key={message.id}
@@ -609,21 +604,59 @@ export function ChatPage() {
               <PromptInputTextarea
                 className="min-h-11 max-h-36 px-1 py-1.5 text-base leading-relaxed placeholder:text-muted-foreground sm:min-h-10 sm:text-sm"
                 placeholder="Message…"
-                disabled={busy || !session}
+                disabled={busy || !profileId}
               />
             </PromptInputBody>
-            <PromptInputFooter className="w-full flex-wrap items-center gap-3 border-0 px-0 pt-3 pb-0">
+            <PromptInputFooter className="w-full flex-wrap items-center gap-2 border-0 px-0 pt-2.5 pb-0">
               <div
                 role="toolbar"
                 aria-label="Composer options"
-                className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+                className={composerToolbarClass}
               >
-                <PromptInputTools className="gap-2">
-                  <ChatAttachmentButton disabled={busy || !session} />
+                <PromptInputTools className="gap-1.5">
+                  <ChatAttachmentButton disabled={busy || !profileId} />
                 </PromptInputTools>
 
-                <span className="hidden h-6 w-px bg-border sm:block" aria-hidden />
+                <span className="hidden h-5 w-px bg-border sm:block" aria-hidden />
 
+                {health?.providerConfigured && models ? (
+                  <PromptInputSelect
+                    value={models.currentModel ?? ""}
+                    disabled={!providerModels.length || busy}
+                    onValueChange={(value) =>
+                      void setModel(value != null ? String(value) : "")
+                    }
+                  >
+                    <PromptInputSelectTrigger className="h-8 max-w-[min(12rem,42vw)] truncate rounded-full bg-muted px-2.5 text-[11px] font-medium leading-none text-foreground hover:bg-muted/80 sm:text-xs">
+                      <PromptInputSelectValue placeholder="Model">
+                        {renderModelLabel}
+                      </PromptInputSelectValue>
+                    </PromptInputSelectTrigger>
+                    <PromptInputSelectContent className="text-xs">
+                      {providerModels.map((model) => (
+                        <PromptInputSelectItem
+                          key={model.id}
+                          value={model.id}
+                          label={model.name}
+                        >
+                          {model.name}
+                        </PromptInputSelectItem>
+                      ))}
+                    </PromptInputSelectContent>
+                  </PromptInputSelect>
+                ) : (
+                  <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 text-xs font-medium text-amber-800 dark:text-amber-200">
+                    <WifiOffIcon className="size-3.5 shrink-0" aria-hidden />
+                    Offline
+                  </span>
+                )}
+              </div>
+
+              <div
+                role="toolbar"
+                aria-label="Composer actions"
+                className="ml-auto flex shrink-0 items-center gap-1.5"
+              >
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
@@ -643,12 +676,12 @@ export function ChatPage() {
                     }
                   >
                     {activeProfile ? (
-                      <ProfileAvatar profile={activeProfile} size="md" />
+                      <ProfileAvatar profile={activeProfile} size="sm" className="size-7" />
                     ) : (
-                      "?"
+                      <span className="text-xs font-medium">?</span>
                     )}
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="min-w-52 w-auto">
+                  <DropdownMenuContent align="end" className="min-w-52 w-auto">
                     {profiles.map((profile) => (
                       <DropdownMenuItem
                         key={profile.id}
@@ -667,90 +700,43 @@ export function ChatPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {health?.providerConfigured && models ? (
-                  <PromptInputSelect
-                    value={models.currentModel ?? ""}
-                    disabled={!providerModels.length || busy}
-                    onValueChange={(value) =>
-                      void setModel(value != null ? String(value) : "")
-                    }
-                  >
-                    <PromptInputSelectTrigger className="h-10 max-w-[min(12rem,42vw)] truncate rounded-full bg-muted px-3.5 text-sm font-medium text-foreground hover:bg-muted/80">
-                      <PromptInputSelectValue placeholder="Model" />
-                    </PromptInputSelectTrigger>
-                    <PromptInputSelectContent>
-                      {providerModels.map((model) => (
-                        <PromptInputSelectItem key={model.id} value={model.id}>
-                          {model.name}
-                        </PromptInputSelectItem>
-                      ))}
-                    </PromptInputSelectContent>
-                  </PromptInputSelect>
-                ) : (
-                  <span className="inline-flex h-10 items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3.5 text-xs font-medium text-amber-800 dark:text-amber-200">
-                    <WifiOffIcon className="size-3.5 shrink-0" aria-hidden />
-                    Offline
-                  </span>
-                )}
-              </div>
-
-              <div
-                role="toolbar"
-                aria-label="Composer actions"
-                className="ml-auto flex shrink-0 items-center gap-2"
-              >
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Chat actions"
-                        title="Chat actions"
-                        className={composerIconButtonClass}
-                      />
-                    }
-                  >
-                    <EllipsisIcon className="size-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      disabled={busy || !session}
-                      onClick={() =>
-                        void startSession(profileId, { forceNew: true }).then((nextSession) => {
-                          if (nextSession) {
-                            syncChatUrl(profileId, nextSession.id);
-                          }
-                        })
-                      }
-                    >
-                      New session
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={busy || !session}
-                      onClick={() => void handleClear()}
-                    >
-                      Clear history
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <span className="h-6 w-px bg-border" aria-hidden />
+                <span className="h-5 w-px bg-border" aria-hidden />
 
                 <PromptInputSubmit
                   status={chatStatus}
-                  disabled={busy || !session}
+                  disabled={busy || !profileId}
                   aria-label={busy ? "Sending message" : "Send message"}
-                  className="size-10 shrink-0 rounded-full bg-primary text-primary-foreground shadow-none transition-colors hover:bg-primary/90 disabled:opacity-50"
+                  className="size-8 shrink-0 rounded-full bg-primary text-primary-foreground shadow-none transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
-                  <ArrowUpIcon className="size-4" />
+                  <ArrowUpIcon className="size-3.5" />
                 </PromptInputSubmit>
               </div>
             </PromptInputFooter>
           </PromptInput>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ChatWelcome({ profile }: { profile: ProfileSummary | undefined }) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center px-6 pb-10 pt-16 text-center">
+      <div className="flex size-14 items-center justify-center rounded-2xl border border-border/80 bg-card shadow-sm">
+        {profile ? (
+          <ProfileAvatar profile={profile} size="lg" className="size-12" />
+        ) : (
+          <MessageCircleIcon className="size-6 text-muted-foreground" aria-hidden="true" />
+        )}
+      </div>
+      <h2 className="type-section-title mt-5">
+        {profile ? `Chat with ${profile.name}` : "Start chatting"}
+      </h2>
+      <p className="type-body mt-1.5 max-w-sm">
+        {profile?.isSuper
+          ? "Ask anything, attach images, or run tools."
+          : "Ask a question or attach an image to get started."}
+      </p>
     </div>
   );
 }
@@ -826,7 +812,7 @@ function ChatAttachmentButton({ disabled }: { disabled: boolean }) {
             className={composerIconButtonClass}
             onClick={() => attachments.openFileDialog()}
           >
-            <ImageIcon className="size-4" />
+            <ImageIcon className="size-3.5" />
           </Button>
         }
       />

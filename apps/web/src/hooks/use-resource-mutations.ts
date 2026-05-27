@@ -5,9 +5,30 @@ import type {
   ImageAttachment,
   SoulStackFiles,
   UpdateProfileRequest,
+  UserContextStatusResponse,
 } from "@tinyclaw/core/contract";
+import { TinyClawApiError } from "@tinyclaw/core/api-error";
 import { client } from "@/lib/client";
 import { queryKeys } from "@/lib/query-keys";
+
+const EMPTY_USER_CONTEXT: UserContextStatusResponse = {
+  path: "",
+  active: false,
+};
+
+async function fetchUserContext(
+  includeContent?: boolean,
+): Promise<UserContextStatusResponse> {
+  try {
+    return await client.getUserContext({ includeContent });
+  } catch (error) {
+    if (error instanceof TinyClawApiError && error.status === 404) {
+      return EMPTY_USER_CONTEXT;
+    }
+
+    throw error;
+  }
+}
 
 export function useDeleteToolMutation() {
   const queryClient = useQueryClient();
@@ -260,7 +281,7 @@ export function useWriteSoulFileMutation() {
 export function useUserContextQuery(options: { includeContent?: boolean } = {}) {
   return useQuery({
     queryKey: [...queryKeys.userContext, options.includeContent ? "content" : "status"] as const,
-    queryFn: () => client.getUserContext({ includeContent: options.includeContent }),
+    queryFn: () => fetchUserContext(options.includeContent),
   });
 }
 

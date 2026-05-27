@@ -14,6 +14,7 @@ import { useAppNavigation } from "@/hooks/use-app-navigation";
 import { usePrefetchAppData } from "@/hooks/use-app-queries";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { cn } from "@/lib/utils";
+import { chatProfileIdFromPath } from "@/lib/chat-history";
 import {
   findNavItem,
   NAV_GROUPS,
@@ -25,8 +26,9 @@ import {
 
 export function Layout() {
   const location = useLocation();
-  const { navigateToPage } = useAppNavigation();
+  const { navigateToPage, navigateToNewChat } = useAppNavigation();
   const page = pageIdFromPath(location.pathname) ?? "chat";
+  const chatProfileId = chatProfileIdFromPath(location.pathname);
   const { error } = useAppContext();
   const prefetchAppData = usePrefetchAppData();
   const { collapsed, toggle } = useSidebarCollapsed();
@@ -87,7 +89,11 @@ export function Layout() {
                         icon={NAV_ITEM_ICONS[item.id]}
                         active={item.id === page}
                         collapsed={collapsed}
-                        onClick={() => navigateToPage(item.id)}
+                        onClick={() =>
+                          item.id === "chat"
+                            ? navigateToNewChat(chatProfileId)
+                            : navigateToPage(item.id)
+                        }
                         onPrefetch={
                           item.id === "automations" ? prefetchAppData : undefined
                         }
