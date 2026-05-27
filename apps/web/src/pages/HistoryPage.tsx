@@ -1,22 +1,9 @@
 import type { SessionSummary } from "@tinyclaw/core/contract";
-import {
-  AlertTriangleIcon,
-  ChevronRightIcon,
-  ClockIcon,
-  HistoryIcon,
-  MessageSquareIcon,
-  MessagesSquareIcon,
-  RefreshCwIcon,
-  SearchIcon,
-  Trash2Icon,
-  UserIcon,
-  XIcon,
-} from "lucide-react";
+import { RefreshCwIcon, SearchIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +30,8 @@ import {
 } from "@/lib/chat-history";
 import { cn } from "@/lib/utils";
 import { useAppNavigation } from "@/hooks/use-app-navigation";
+
+const sectionClass = "rounded-md border border-border bg-card";
 
 export function HistoryPage() {
   const { navigateToPage, navigateToChat } = useAppNavigation();
@@ -107,11 +96,6 @@ export function HistoryPage() {
     setProfileId(defaultProfile.id);
   }, [profiles, searchParams, setProfileId]);
 
-  const activeProfile = useMemo(
-    () => profiles.find((profile) => profile.id === profileId),
-    [profiles, profileId],
-  );
-
   const filteredSessions = useMemo(() => {
     const query = trimmedSearch.toLowerCase();
     if (!query) {
@@ -122,34 +106,28 @@ export function HistoryPage() {
       const preview = session.preview?.trim().toLowerCase() ?? "";
       return preview.includes(query) || session.id.toLowerCase().includes(query);
     });
-  }, [sessions, trimmedSearch]);
+  }, [searchQuery, sessions, trimmedSearch]);
 
   const groupedSessions = useMemo(
     () => groupSessionsByDate(filteredSessions),
     [filteredSessions],
   );
 
-  const sessionCountLabel = useMemo(() => {
-    if (!profileId) {
-      return "Select a profile to browse saved chats.";
-    }
-
+  const countLabel = useMemo(() => {
     if (initialLoading) {
-      return "Loading saved chats…";
+      return "Loading…";
     }
 
     if (sessions.length === 0) {
-      return "No saved chats for this profile yet.";
+      return "No saved chats";
     }
 
     if (isSearching && filteredSessions.length !== sessions.length) {
-      return `${filteredSessions.length} of ${sessions.length} conversation${
-        sessions.length === 1 ? "" : "s"
-      } match your search`;
+      return `${filteredSessions.length} of ${sessions.length}`;
     }
 
-    return `${sessions.length} saved chat${sessions.length === 1 ? "" : "s"}`;
-  }, [filteredSessions.length, initialLoading, isSearching, profileId, sessions.length]);
+    return `${sessions.length} chat${sessions.length === 1 ? "" : "s"}`;
+  }, [filteredSessions.length, initialLoading, isSearching, sessions.length]);
 
   async function handleDeleteConfirm() {
     if (!deleteTarget || !profileId) {
@@ -179,188 +157,115 @@ export function HistoryPage() {
   return (
     <div className="space-y-4">
       {error ? (
-        <Card className="border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20">
-          <CardContent className="flex flex-wrap items-start gap-3 p-4">
-            <AlertTriangleIcon
-              className="mt-0.5 size-5 shrink-0 text-red-700 dark:text-red-300"
-              aria-hidden
-            />
-            <div className="min-w-0 flex-1 space-y-2">
-              <p className="text-sm font-medium text-red-900 dark:text-red-100">
-                Could not load chat history
-              </p>
-              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
-              {profileId ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="border-red-300 bg-white text-red-900 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-100 dark:hover:bg-red-950/60"
-                  onClick={() => void refetchSessions()}
-                >
-                  Try again
-                </Button>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </p>
       ) : null}
 
-      <Card>
-        <CardHeader className="gap-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40">
-                <HistoryIcon className="size-5 text-foreground" aria-hidden />
-              </div>
-              <div className="min-w-0">
-                <CardTitle>Saved chats</CardTitle>
-                <CardDescription className="mt-1">{sessionCountLabel}</CardDescription>
-              </div>
-            </div>
+      <section className={cn(sectionClass, "overflow-hidden")}>
+        <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
+          <Select
+            value={profileId}
+            disabled={busy || profiles.length === 0}
+            onValueChange={(value) => setProfileId(value != null ? String(value) : "")}
+          >
+            <SelectTrigger className="w-full min-w-44 sm:w-52" aria-label="Profile">
+              <SelectValue placeholder="Profile" />
+            </SelectTrigger>
+            <SelectContent>
+              {profiles.map((profile) => (
+                <SelectItem key={profile.id} value={profile.id}>
+                  <span className="flex items-center gap-2">
+                    <ProfileAvatar profile={profile} size="sm" />
+                    <span>{profile.name}</span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
+          <div className="relative min-w-0 flex-1">
+            <SearchIcon
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search…"
+              disabled={!profileId || initialLoading}
+              className={cn("pl-9", isSearching && "pr-9")}
+              aria-label="Search conversations"
+            />
+            {isSearching ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setSearchQuery("")}
+              >
+                <XIcon className="size-4" />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground tabular-nums">{countLabel}</span>
             <Button
               type="button"
               variant="ghost"
-              size="icon"
+              size="icon-sm"
               disabled={refreshing || busy || !profileId}
-              aria-label="Refresh session list"
-              className="shrink-0"
+              aria-label="Refresh"
               onClick={() => void refetchSessions()}
             >
-              {refreshing ? (
-                <Spinner className="size-4" />
-              ) : (
-                <RefreshCwIcon className="size-4" aria-hidden />
-              )}
+              {refreshing ? <Spinner className="size-4" /> : <RefreshCwIcon className="size-4" />}
             </Button>
           </div>
+        </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label className="label" htmlFor="history-profile">
-                Profile
-              </label>
-              <Select
-                value={profileId}
-                disabled={busy || profiles.length === 0}
-                onValueChange={(value) => setProfileId(value != null ? String(value) : "")}
-              >
-                <SelectTrigger id="history-profile" className="w-full">
-                  <SelectValue placeholder="Select profile" />
-                </SelectTrigger>
-                <SelectContent>
-                  {profiles.map((profile) => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      <span className="flex items-center gap-2">
-                        <ProfileAvatar profile={profile} size="sm" />
-                        <span>
-                          {profile.name}
-                          {profile.isSuper ? " (super)" : ""}
-                        </span>
-                      </span>
-                    </SelectItem>
+        {profiles.length === 0 ? (
+          <EmptyMessage
+            message="Create a profile first."
+            actionLabel="Go to Profiles"
+            onAction={() => navigateToPage("profiles")}
+          />
+        ) : initialLoading ? (
+          <ListSkeleton />
+        ) : filteredSessions.length === 0 ? (
+          <EmptyMessage
+            message={
+              sessions.length > 0
+                ? "No conversations match your search."
+                : "No saved chats for this profile."
+            }
+            actionLabel={sessions.length > 0 ? "Clear search" : "Go to Chat"}
+            onAction={() =>
+              sessions.length > 0 ? setSearchQuery("") : navigateToPage("chat")
+            }
+          />
+        ) : (
+          <div className="divide-y divide-border">
+            {groupedSessions.map((group) => (
+              <section key={group.label}>
+                <p className="px-4 py-2 text-xs text-muted-foreground">{group.label}</p>
+                <ul>
+                  {group.sessions.map((session) => (
+                    <li key={session.id}>
+                      <SessionRow
+                        session={session}
+                        disabled={busy}
+                        onOpen={() => handleOpen(session)}
+                        onDelete={() => setDeleteTarget(session)}
+                      />
+                    </li>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="label" htmlFor="history-search">
-                Search
-              </label>
-              <div className="relative">
-                <SearchIcon
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden
-                />
-                <Input
-                  id="history-search"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search by preview or ID…"
-                  disabled={!profileId || initialLoading}
-                  className={cn("pl-9", isSearching && "pr-9")}
-                  aria-label="Search saved conversations"
-                />
-                {isSearching ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Clear search"
-                    className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground"
-                    onClick={() => setSearchQuery("")}
-                  >
-                    <XIcon className="size-4" aria-hidden />
-                  </Button>
-                ) : null}
-              </div>
-            </div>
+                </ul>
+              </section>
+            ))}
           </div>
-
-          {refreshing && !initialLoading ? (
-            <p className="text-xs text-muted-foreground" aria-live="polite">
-              Updating list…
-            </p>
-          ) : null}
-        </CardHeader>
-
-        <CardContent className="p-0">
-          {profiles.length === 0 ? (
-            <HistoryEmptyState
-              variant="no-profiles"
-              onPrimaryAction={() => navigateToPage("profiles")}
-            />
-          ) : initialLoading ? (
-            <HistoryListSkeleton />
-          ) : filteredSessions.length === 0 ? (
-            <HistoryEmptyState
-              variant={sessions.length > 0 ? "no-results" : "no-sessions"}
-              profileName={activeProfile?.name}
-              onPrimaryAction={() => navigateToPage("chat")}
-              onClearSearch={() => setSearchQuery("")}
-            />
-          ) : (
-            <div
-              className={cn(
-                "divide-y divide-border transition-opacity duration-200",
-                refreshing && !initialLoading && "opacity-70",
-              )}
-            >
-              {groupedSessions.map((group) => (
-                <section key={group.label} aria-labelledby={`history-group-${group.label}`}>
-                  <div
-                    id={`history-group-${group.label}`}
-                    className="flex items-center gap-2 bg-muted/30 px-4 py-2.5"
-                  >
-                    <ClockIcon className="size-3.5 text-muted-foreground" aria-hidden />
-                    <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                      {group.label}
-                    </h3>
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      ({group.sessions.length})
-                    </span>
-                  </div>
-
-                  <ul>
-                    {group.sessions.map((session) => (
-                      <li key={session.id}>
-                        <SessionRow
-                          session={session}
-                          disabled={busy}
-                          onOpen={() => handleOpen(session)}
-                          onDelete={() => setDeleteTarget(session)}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </section>
 
       <Dialog
         open={deleteTarget !== null}
@@ -374,19 +279,15 @@ export function HistoryPage() {
           <DialogHeader className="gap-3">
             <DialogTitle>Delete conversation?</DialogTitle>
             <DialogDescription>
-              This permanently removes{" "}
-              <span className="font-medium text-foreground tabular-nums">
-                {deleteTarget?.messageCount ?? 0}
-              </span>{" "}
-              message{(deleteTarget?.messageCount ?? 0) === 1 ? "" : "s"} from SQLite. This cannot
-              be undone.
+              This removes {deleteTarget?.messageCount ?? 0} message
+              {(deleteTarget?.messageCount ?? 0) === 1 ? "" : "s"}. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
           {deleteTarget?.preview?.trim() ? (
-            <div className="rounded-md border border-border bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground">
-              <p className="line-clamp-2">{deleteTarget.preview.trim()}</p>
-            </div>
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {deleteTarget.preview.trim()}
+            </p>
           ) : null}
 
           <DialogFooter className="gap-3 border-t-0 bg-transparent p-0 pt-2 sm:justify-end">
@@ -404,8 +305,7 @@ export function HistoryPage() {
               disabled={busy}
               onClick={() => void handleDeleteConfirm()}
             >
-              {busy ? <Spinner className="size-4" /> : <Trash2Icon aria-hidden />}
-              Delete
+              {busy ? <Spinner className="size-4" /> : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -428,46 +328,30 @@ function SessionRow({
   const title = session.preview?.trim() || "Untitled conversation";
 
   return (
-    <div className="flex items-stretch gap-1 px-2 py-1 sm:px-3">
+    <div className="group flex items-center gap-2 px-4 py-3 hover:bg-muted/40">
       <button
         type="button"
         disabled={disabled}
-        aria-label={`Open conversation: ${title}`}
-        className={cn(
-          "flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md px-2 py-3 text-left transition-colors duration-200",
-          "hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-          "disabled:cursor-not-allowed disabled:opacity-50",
-        )}
+        className="min-w-0 flex-1 text-left disabled:opacity-50"
         onClick={onOpen}
       >
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40">
-          <MessagesSquareIcon className="size-4 text-muted-foreground" aria-hidden />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-sm font-medium text-foreground">{title}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-            <time dateTime={session.updatedAt} title={formatSessionTimestamp(session.updatedAt)}>
-              {formatSessionRelativeTime(session.updatedAt)}
-            </time>
-            <span aria-hidden>·</span>
-            <span className="tabular-nums">{session.messageCount} messages</span>
-          </div>
-        </div>
-
-        <ChevronRightIcon
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden
-        />
+        <p className="truncate text-sm text-foreground">{title}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          <time dateTime={session.updatedAt} title={formatSessionTimestamp(session.updatedAt)}>
+            {formatSessionRelativeTime(session.updatedAt)}
+          </time>
+          {" · "}
+          {session.messageCount} messages
+        </p>
       </button>
 
       <Button
         type="button"
         variant="ghost"
-        size="icon"
+        size="icon-sm"
         disabled={disabled}
         aria-label={`Delete ${title}`}
-        className="my-auto size-11 shrink-0 text-muted-foreground hover:text-destructive"
+        className="shrink-0 text-muted-foreground/60 hover:text-destructive"
         onClick={(event) => {
           event.stopPropagation();
           onDelete();
@@ -479,82 +363,34 @@ function SessionRow({
   );
 }
 
-function HistoryEmptyState({
-  variant,
-  profileName,
-  onPrimaryAction,
-  onClearSearch,
+function EmptyMessage({
+  message,
+  actionLabel,
+  onAction,
 }: {
-  variant: "no-profiles" | "no-sessions" | "no-results";
-  profileName?: string;
-  onPrimaryAction: () => void;
-  onClearSearch?: () => void;
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
-  const icon =
-    variant === "no-results" ? (
-      <SearchIcon className="size-5 text-muted-foreground" aria-hidden />
-    ) : (
-      <HistoryIcon className="size-5 text-muted-foreground" aria-hidden />
-    );
-
-  const title =
-    variant === "no-profiles"
-      ? "No profiles yet"
-      : variant === "no-results"
-        ? "No matching conversations"
-        : "No saved chats yet";
-
-  const description =
-    variant === "no-profiles"
-      ? "Create a profile first, then start chatting to build history."
-      : variant === "no-results"
-        ? "Try a shorter keyword, check spelling, or clear the filter."
-        : profileName
-          ? `Start a conversation with ${profileName} in Chat and it will appear here.`
-          : "Start a conversation in Chat and it will appear here for this profile.";
-
   return (
-    <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
-      <div className="flex size-12 items-center justify-center rounded-full border border-border bg-muted/40">
-        {icon}
-      </div>
-
-      <div className="space-y-1.5">
-        <h3 className="type-section-title">{title}</h3>
-        <p className="type-body max-w-sm text-muted-foreground">{description}</p>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        {variant === "no-results" && onClearSearch ? (
-          <Button type="button" variant="outline" onClick={onClearSearch}>
-            Clear search
-          </Button>
-        ) : null}
-        {variant !== "no-results" ? (
-          <Button type="button" onClick={onPrimaryAction}>
-            {variant === "no-profiles" ? (
-              <UserIcon aria-hidden />
-            ) : (
-              <MessageSquareIcon aria-hidden />
-            )}
-            {variant === "no-profiles" ? "Go to Profiles" : "Go to Chat"}
-          </Button>
-        ) : null}
-      </div>
+    <div className="px-4 py-12 text-center">
+      <p className="text-sm text-muted-foreground">{message}</p>
+      {actionLabel && onAction ? (
+        <Button type="button" variant="link" className="mt-2 h-auto p-0" onClick={onAction}>
+          {actionLabel}
+        </Button>
+      ) : null}
     </div>
   );
 }
 
-function HistoryListSkeleton() {
+function ListSkeleton() {
   return (
-    <div className="space-y-0 divide-y divide-border" aria-busy="true" aria-label="Loading sessions">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="flex items-center gap-3 px-4 py-4">
-          <div className="size-9 animate-pulse rounded-md bg-muted/50" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-4 w-2/3 animate-pulse rounded bg-muted/50" />
-            <div className="h-3 w-1/3 animate-pulse rounded bg-muted/40" />
-          </div>
+    <div className="divide-y divide-border" aria-busy="true">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="space-y-2 px-4 py-3">
+          <div className="h-4 w-2/3 animate-pulse rounded bg-muted/50" />
+          <div className="h-3 w-1/3 animate-pulse rounded bg-muted/40" />
         </div>
       ))}
     </div>
