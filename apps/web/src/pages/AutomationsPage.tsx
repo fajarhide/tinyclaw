@@ -7,12 +7,17 @@ import type {
 import {
   BotIcon,
   CalendarClockIcon,
+  CheckCircle2Icon,
+  ChevronRightIcon,
+  CopyIcon,
   HandIcon,
+  Loader2Icon,
   MessageSquareIcon,
   PencilIcon,
   PlayIcon,
   RefreshCwIcon,
   SearchIcon,
+  XCircleIcon,
   XIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -51,6 +56,11 @@ import { formatFutureRelativeTime, formatSessionRelativeTime, formatSessionTimes
 import { cn } from "@/lib/utils";
 
 const sectionClass = "rounded-md border border-border bg-card";
+
+/** Stable shell height inside the scrollable main area (header + padding). */
+const automationsShellMinHeight = "min-h-96 md:min-h-[calc(100dvh-11rem)]";
+const runHistoryScrollClass =
+  "min-h-[14rem] flex-1 overflow-y-auto overscroll-contain lg:min-h-[18rem]";
 
 export function AutomationsPage() {
   const { navigateToNewChat } = useAppNavigation();
@@ -215,7 +225,7 @@ export function AutomationsPage() {
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="flex min-h-full flex-col gap-4">
         {error ? (
           <p
             className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
@@ -225,8 +235,14 @@ export function AutomationsPage() {
           </p>
         ) : null}
 
-        <section className={cn(sectionClass, "overflow-hidden")}>
-          <div className="flex flex-col gap-3 border-b border-border p-4 lg:hidden">
+        <section
+          className={cn(
+            sectionClass,
+            automationsShellMinHeight,
+            "flex flex-col overflow-hidden",
+          )}
+        >
+          <div className="flex shrink-0 flex-col gap-3 border-b border-border p-4 lg:hidden">
             <div className="flex flex-wrap items-center gap-3">
               <Select
                 value={selectedId ?? undefined}
@@ -271,20 +287,18 @@ export function AutomationsPage() {
               </div>
             </div>
 
-            {automations.length > 0 ? (
-              <AutomationSearch
-                value={searchQuery}
-                disabled={initialLoading || busy}
-                isSearching={isSearching}
-                onChange={setSearchQuery}
-                onClear={() => setSearchQuery("")}
-              />
-            ) : null}
+            <AutomationSearch
+              value={searchQuery}
+              disabled={initialLoading || automations.length === 0 || busy}
+              isSearching={isSearching}
+              onChange={setSearchQuery}
+              onClear={() => setSearchQuery("")}
+            />
           </div>
 
-          <div className="grid gap-0 lg:grid-cols-[240px_minmax(0,1fr)]">
-            <aside className="hidden min-w-0 border-b border-border lg:block lg:border-r lg:border-b-0">
-              <div className="space-y-4 border-b border-border p-4">
+          <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[240px_minmax(0,1fr)]">
+            <aside className="hidden min-h-0 min-w-0 flex-col border-b border-border lg:flex lg:border-r lg:border-b-0">
+              <div className="shrink-0 space-y-4 border-b border-border p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40">
@@ -323,14 +337,16 @@ export function AutomationsPage() {
                 />
               </div>
 
-              <div className="p-2">
+              <div className="min-h-0 flex-1 overflow-y-auto p-2">
                 {initialLoading ? (
                   <AutomationListSkeleton />
                 ) : automations.length === 0 ? (
-                  <AutomationsEmptyState />
+                  <div className="flex min-h-[12rem] items-center justify-center">
+                    <AutomationsEmptyState />
+                  </div>
                 ) : filteredAutomations.length === 0 ? (
-                  <div className="px-2 py-10 text-center">
-                    <SearchIcon className="mx-auto size-5 text-muted-foreground" aria-hidden />
+                  <div className="flex min-h-[12rem] flex-col items-center justify-center px-2 py-10 text-center">
+                    <SearchIcon className="size-5 text-muted-foreground" aria-hidden />
                     <p className="mt-3 text-sm font-medium text-foreground">No matching automations</p>
                     <p className="mt-1 text-sm text-muted-foreground">Try a different search term.</p>
                   </div>
@@ -350,27 +366,24 @@ export function AutomationsPage() {
               </div>
             </aside>
 
-            <div className="min-w-0 p-4 sm:p-5">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col p-4 sm:p-5">
               {loading ? (
-                <div className="flex min-h-48 items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Spinner className="size-4" />
-                  Loading automations…
-                </div>
+                <AutomationDetailSkeleton />
               ) : automations.length === 0 ? (
-                <div className="flex min-h-48 flex-col items-center justify-center gap-3 text-center">
+                <AutomationPanelPlaceholder>
                   <AutomationsEmptyState />
                   <Button type="button" size="sm" onClick={goToCreateAutomation}>
                     Create automation
                   </Button>
-                </div>
+                </AutomationPanelPlaceholder>
               ) : !selected ? (
-                <div className="flex min-h-48 items-center justify-center text-sm text-muted-foreground">
+                <AutomationPanelPlaceholder>
                   Select an automation to view runs.
-                </div>
+                </AutomationPanelPlaceholder>
               ) : (
-                <>
-                  <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="mb-5 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-h-[4.75rem] min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="type-section-title">{selected.name}</h2>
                         {selected.enabled ? (
@@ -379,13 +392,18 @@ export function AutomationsPage() {
                           <span className="scope-badge bg-muted text-muted-foreground">disabled</span>
                         )}
                       </div>
-                      {selected.description ? (
-                        <p className="type-body mt-1 text-sm">{selected.description}</p>
-                      ) : null}
+                      <p
+                        className={cn(
+                          "type-body mt-1 line-clamp-2 min-h-[2.5rem] text-sm",
+                          selected.description ? "text-foreground" : "text-transparent",
+                        )}
+                      >
+                        {selected.description || "No description"}
+                      </p>
                       <p className="type-body mt-1 text-xs">{selectedSubtitle}</p>
                     </div>
 
-                    <div className="hidden shrink-0 flex-wrap items-center gap-2 lg:flex">
+                    <div className="hidden h-9 shrink-0 flex-wrap items-center gap-2 lg:flex">
                       <Button
                         type="button"
                         variant="outline"
@@ -439,7 +457,7 @@ export function AutomationsPage() {
                     </div>
                   </div>
 
-                  <div className="mb-5 flex flex-wrap gap-2 lg:hidden">
+                  <div className="mb-5 flex h-9 shrink-0 flex-wrap items-center gap-2 lg:hidden">
                     <Button
                       type="button"
                       variant="outline"
@@ -477,11 +495,11 @@ export function AutomationsPage() {
                     </Button>
                   </div>
 
-                  <div className="border-t border-border pt-5">
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                      <div>
+                  <div className="flex min-h-0 flex-1 flex-col border-t border-border pt-5">
+                    <div className="mb-4 flex h-10 shrink-0 items-center justify-between gap-3">
+                      <div className="min-w-0">
                         <h3 className="type-section-title">Run history</h3>
-                        <p className="type-body mt-1 text-xs">
+                        <p className="type-body mt-1 min-h-[1rem] text-xs">
                           {runsLoading
                             ? "Loading runs…"
                             : runs.length === 0
@@ -489,29 +507,44 @@ export function AutomationsPage() {
                               : `${runs.length} run${runs.length === 1 ? "" : "s"}`}
                         </p>
                       </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="shrink-0"
+                        disabled={runsLoading || busy}
+                        aria-label="Refresh run history"
+                        onClick={() => void refetchRuns()}
+                      >
+                        {runsLoading ? (
+                          <Spinner className="size-4" />
+                        ) : (
+                          <RefreshCwIcon className="size-4" aria-hidden />
+                        )}
+                      </Button>
                     </div>
 
-                    {runsLoading ? (
-                      <ListSkeleton rows={2} />
-                    ) : runs.length === 0 ? (
-                      <p className="type-body text-xs">No runs yet.</p>
-                    ) : (
-                      <ul className="divide-y divide-border rounded-md border border-border">
-                        {runs.map((run) => (
-                          <RunHistoryItem key={run.id} run={run} />
-                        ))}
-                      </ul>
-                    )}
+                    <div className={runHistoryScrollClass}>
+                      {runsLoading ? (
+                        <ListSkeleton rows={3} />
+                      ) : runs.length === 0 ? (
+                        <div className="flex min-h-[10rem] items-center justify-center">
+                          <p className="type-body text-xs text-muted-foreground">No runs yet.</p>
+                        </div>
+                      ) : (
+                        <RunHistoryList runs={runs} />
+                      )}
+                    </div>
                   </div>
 
-                  <div className="type-body mt-5 rounded-md border border-border bg-muted/40 p-3 text-xs lg:hidden dark:bg-muted/30">
+                  <div className="type-body mt-5 shrink-0 rounded-md border border-border bg-muted/40 p-3 text-xs lg:hidden dark:bg-muted/30">
                     <p className="font-medium text-foreground">How it works</p>
                     <p className="mt-2">
                       Run now triggers a manual execution. Scheduled automations run automatically
                       when enabled.
                     </p>
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -669,13 +702,18 @@ function StatusBadge({
 
 function AutomationListSkeleton() {
   return (
-    <div className="space-y-2 px-2 pb-2" aria-busy="true" aria-label="Loading automations">
-      {Array.from({ length: 4 }).map((_, index) => (
+    <div
+      className="min-h-[12rem] space-y-2 px-2 pb-2"
+      aria-busy="true"
+      aria-label="Loading automations"
+    >
+      {Array.from({ length: 5 }).map((_, index) => (
         <div key={index} className="flex items-start gap-3 rounded-md px-3 py-3">
-          <div className="size-8 animate-pulse rounded-md bg-muted/50" />
+          <div className="size-8 shrink-0 animate-pulse rounded-md bg-muted/50" />
           <div className="min-w-0 flex-1 space-y-2">
             <div className="h-4 w-2/3 animate-pulse rounded bg-muted/50" />
             <div className="h-3 w-1/2 animate-pulse rounded bg-muted/40" />
+            <div className="h-5 w-16 animate-pulse rounded-full bg-muted/35" />
           </div>
         </div>
       ))}
@@ -867,6 +905,43 @@ function AutomationEditorForm({
   );
 }
 
+function AutomationPanelPlaceholder({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-center">
+      {children}
+    </div>
+  );
+}
+
+function AutomationDetailSkeleton() {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col" aria-busy="true" aria-label="Loading automation">
+      <div className="mb-5 flex shrink-0 flex-col gap-4 sm:flex-row sm:justify-between">
+        <div className="min-h-[4.75rem] flex-1 space-y-2">
+          <div className="h-5 w-48 animate-pulse rounded bg-muted/50" />
+          <div className="h-10 animate-pulse rounded bg-muted/40" />
+          <div className="h-3 w-64 animate-pulse rounded bg-muted/35" />
+        </div>
+        <div className="hidden h-9 gap-2 lg:flex">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-7 w-20 animate-pulse rounded-md bg-muted/40" />
+          ))}
+        </div>
+      </div>
+      <div className="mb-5 h-9 animate-pulse rounded-md bg-muted/30 lg:hidden" />
+      <div className="flex min-h-0 flex-1 flex-col border-t border-border pt-5">
+        <div className="mb-4 h-10 shrink-0">
+          <div className="h-4 w-28 animate-pulse rounded bg-muted/50" />
+          <div className="mt-2 h-3 w-20 animate-pulse rounded bg-muted/35" />
+        </div>
+        <div className={runHistoryScrollClass}>
+          <ListSkeleton rows={3} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AutomationsEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center">
@@ -883,25 +958,389 @@ function AutomationsEmptyState() {
   );
 }
 
-function RunHistoryItem({ run }: { run: AutomationRunRecord }) {
+function RunHistoryList({ runs }: { runs: AutomationRunRecord[] }) {
+  const [expandedId, setExpandedId] = useState<string | null>(() => {
+    const running = runs.find((run) => run.status === "running");
+    return running?.id ?? runs[0]?.id ?? null;
+  });
+
+  useEffect(() => {
+    const running = runs.find((run) => run.status === "running");
+
+    if (running) {
+      setExpandedId(running.id);
+    }
+  }, [runs]);
+
   return (
-    <li className="px-4 py-4 first:rounded-t-md last:rounded-b-md">
-      <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-        <span className={runStatusClass(run.status)}>{run.status}</span>
-        <span className="text-xs text-muted-foreground" title={formatSessionTimestamp(run.startedAt)}>
-          {formatSessionRelativeTime(run.startedAt)}
-        </span>
-      </div>
+    <ul className="space-y-2">
+      {runs.map((run) => (
+        <RunHistoryItem
+          key={run.id}
+          run={run}
+          expanded={expandedId === run.id}
+          onToggle={() => {
+            setExpandedId((current) => (current === run.id ? null : run.id));
+          }}
+        />
+      ))}
+    </ul>
+  );
+}
 
-      {run.output ? (
-        <div className="mt-3">
-          <MessageResponse>{run.output}</MessageResponse>
+function RunHistoryItem({
+  run,
+  expanded,
+  onToggle,
+}: {
+  run: AutomationRunRecord;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const isRunning = run.status === "running";
+  const hasOutput = Boolean(run.output?.trim());
+  const hasError = Boolean(run.error?.trim());
+  const hasBody = hasOutput || hasError || isRunning;
+  const preview = runPreviewContent(run);
+  const duration = formatRunDuration(run.startedAt, run.completedAt);
+  const copyText = [hasError ? run.error : null, hasOutput ? run.output : null]
+    .filter(Boolean)
+    .join("\n\n");
+
+  async function handleCopy() {
+    if (!copyText) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(copyText);
+    } catch {
+      // Clipboard may be unavailable outside secure context.
+    }
+  }
+
+  return (
+    <li>
+      <article
+        className={cn(
+          "overflow-hidden rounded-md border bg-card shadow-sm transition-shadow",
+          runHistoryShellClass(run.status),
+          expanded && "ring-1 ring-ring/25",
+        )}
+      >
+        <button
+          type="button"
+          className={cn(
+            "flex w-full items-start gap-3 px-3 py-3 text-left transition-colors",
+            hasBody && "hover:bg-muted/40",
+            !hasBody && "cursor-default",
+          )}
+          disabled={!hasBody}
+          aria-expanded={hasBody ? expanded : undefined}
+          aria-label={
+            hasBody
+              ? `${expanded ? "Collapse" : "Expand"} run from ${formatSessionRelativeTime(run.startedAt)}`
+              : `Run from ${formatSessionRelativeTime(run.startedAt)}`
+          }
+          onClick={() => {
+            if (hasBody) {
+              onToggle();
+            }
+          }}
+        >
+          <RunStatusIcon status={run.status} />
+
+          <div className="min-w-0 flex-1 space-y-2.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <RunStatusBadge status={run.status} />
+              <span className="text-xs text-muted-foreground" aria-hidden>
+                ·
+              </span>
+              <time
+                className="text-xs text-muted-foreground"
+                dateTime={run.startedAt}
+                title={formatSessionTimestamp(run.startedAt)}
+              >
+                {formatSessionRelativeTime(run.startedAt)}
+              </time>
+              {duration ? (
+                <>
+                  <span className="text-xs text-muted-foreground" aria-hidden>
+                    ·
+                  </span>
+                  <span className="text-xs text-muted-foreground">{duration}</span>
+                </>
+              ) : null}
+            </div>
+
+            {preview ? (
+              <div
+                className={cn(
+                  "rounded-md border px-3 py-2.5",
+                  run.status === "failed"
+                    ? "border-destructive/25 bg-destructive/5"
+                    : "border-border/80 bg-muted/30",
+                )}
+              >
+                {preview.headline ? (
+                  <p
+                    className={cn(
+                      "text-sm font-medium leading-snug",
+                      run.status === "failed" ? "text-destructive" : "text-foreground",
+                    )}
+                  >
+                    {preview.headline}
+                  </p>
+                ) : null}
+                {preview.excerpt ? (
+                  <p
+                    className={cn(
+                      "line-clamp-2 text-sm leading-relaxed text-muted-foreground",
+                      preview.headline && "mt-1.5",
+                    )}
+                  >
+                    {preview.excerpt}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          {hasBody ? (
+            <ChevronRightIcon
+              className={cn(
+                "mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                expanded && "rotate-90",
+              )}
+              aria-hidden
+            />
+          ) : null}
+        </button>
+
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-200 ease-out",
+            expanded && hasBody ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="overflow-hidden">
+            <div className="border-t border-border bg-muted/20 px-3 py-3">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="type-code text-muted-foreground" title={formatSessionTimestamp(run.startedAt)}>
+                  {formatSessionTimestamp(run.startedAt)}
+                  {run.completedAt
+                    ? ` → ${formatSessionTimestamp(run.completedAt)}`
+                    : isRunning
+                      ? " · running"
+                      : ""}
+                </p>
+                {copyText ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1.5 px-2 text-xs"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleCopy();
+                    }}
+                  >
+                    <CopyIcon className="size-3.5" aria-hidden />
+                    Copy
+                  </Button>
+                ) : null}
+              </div>
+
+              {isRunning && !hasOutput && !hasError ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2Icon className="size-4 animate-spin" aria-hidden />
+                  Run in progress…
+                </div>
+              ) : null}
+
+              {hasError ? (
+                <div className={hasOutput ? "mb-3" : undefined}>
+                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-destructive">
+                    Error
+                  </p>
+                  <pre className="max-h-48 overflow-auto rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-destructive">
+                    {run.error}
+                  </pre>
+                </div>
+              ) : null}
+
+              {hasOutput ? (
+                <div>
+                  {hasError ? (
+                    <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Output
+                    </p>
+                  ) : null}
+                  <div className="max-h-[min(70vh,28rem)] overflow-auto rounded-md border border-border bg-background px-3 py-3">
+                    <MessageResponse>{run.output ?? ""}</MessageResponse>
+                  </div>
+                </div>
+              ) : null}
+
+              {!hasOutput && !hasError && !isRunning ? (
+                <p className="text-sm text-muted-foreground">No output returned.</p>
+              ) : null}
+            </div>
+          </div>
         </div>
-      ) : null}
-
-      {run.error ? <p className="mt-3 text-sm text-destructive">{run.error}</p> : null}
+      </article>
     </li>
   );
+}
+
+function RunStatusIcon({ status }: { status: AutomationRunStatus }) {
+  const className = "mt-0.5 size-8 shrink-0 rounded-md border p-1.5";
+
+  if (status === "completed") {
+    return (
+      <span
+        className={cn(
+          className,
+          "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300",
+        )}
+      >
+        <CheckCircle2Icon className="size-full" aria-hidden />
+      </span>
+    );
+  }
+
+  if (status === "failed") {
+    return (
+      <span
+        className={cn(
+          className,
+          "border-destructive/30 bg-destructive/10 text-destructive dark:bg-destructive/20",
+        )}
+      >
+        <XCircleIcon className="size-full" aria-hidden />
+      </span>
+    );
+  }
+
+  return (
+    <span className={cn(className, "border-border bg-muted/50 text-muted-foreground")}>
+      <Loader2Icon className="size-full animate-spin" aria-hidden />
+    </span>
+  );
+}
+
+function RunStatusBadge({ status }: { status: AutomationRunStatus }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
+        status === "completed" && "scope-badge scope-badge-active",
+        status === "failed" &&
+          "border border-destructive/30 bg-destructive/10 text-destructive dark:bg-destructive/20",
+        status === "running" && "border border-border bg-muted text-muted-foreground",
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
+function runHistoryShellClass(status: AutomationRunStatus): string {
+  if (status === "completed") {
+    return "border-emerald-200/70 dark:border-emerald-900/50";
+  }
+
+  if (status === "failed") {
+    return "border-destructive/35 dark:border-destructive/40";
+  }
+
+  return "border-border";
+}
+
+function runPreviewContent(
+  run: AutomationRunRecord,
+): { headline: string | null; excerpt: string | null } | null {
+  if (run.status === "running" && !run.output?.trim() && !run.error?.trim()) {
+    return {
+      headline: "In progress",
+      excerpt: "The agent is working on this automation run.",
+    };
+  }
+
+  const source = run.error?.trim() || run.output?.trim();
+
+  if (!source) {
+    return null;
+  }
+
+  const lines = source
+    .split("\n")
+    .map((line) => stripMarkdownForPreview(line))
+    .filter(Boolean);
+
+  const headline = lines[0] ? truncatePlainText(lines[0], 120) : null;
+  const fullExcerpt = truncatePlainText(
+    lines.slice(1).join(" ") || lines[0] || "",
+    280,
+  );
+  const excerpt =
+    lines.length > 1
+      ? fullExcerpt
+      : headline && source.length > (lines[0]?.length ?? 0)
+        ? truncatePlainText(stripMarkdownForPreview(source), 280)
+        : null;
+
+  if (!headline && !excerpt) {
+    return null;
+  }
+
+  return { headline, excerpt: excerpt && excerpt !== headline ? excerpt : null };
+}
+
+function stripMarkdownForPreview(line: string): string {
+  return line
+    .replace(/^#{1,6}\s+/, "")
+    .replace(/^\s*[-*+]\s+/, "")
+    .replace(/^\s*\d+\.\s+/, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .trim();
+}
+
+function truncatePlainText(text: string, maxLength: number): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength).trimEnd()}…`;
+}
+
+function formatRunDuration(startedAt: string, completedAt: string | null): string | null {
+  if (!completedAt) {
+    return null;
+  }
+
+  const startMs = new Date(startedAt).getTime();
+  const endMs = new Date(completedAt).getTime();
+
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
+    return null;
+  }
+
+  const seconds = Math.max(0, Math.round((endMs - startMs) / 1000));
+
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+
+  return remainder > 0 ? `${minutes}m ${remainder}s` : `${minutes}m`;
 }
 
 function Field({
@@ -943,18 +1382,6 @@ function ListSkeleton({ rows = 4 }: { rows?: number }) {
       ))}
     </div>
   );
-}
-
-function runStatusClass(status: AutomationRunStatus): string {
-  if (status === "completed") {
-    return "font-medium text-foreground";
-  }
-
-  if (status === "failed") {
-    return "font-medium text-destructive";
-  }
-
-  return "font-medium text-muted-foreground";
 }
 
 function formatTrigger(trigger: AutomationTrigger): string {
