@@ -60,7 +60,8 @@ export function CreateTaskDialog({
         <DialogHeader>
           <DialogTitle>Create task</DialogTitle>
           <DialogDescription>
-            Add a work item for an agent profile. Drag it to In Progress to run.
+            Add a work item for an agent profile. Move it to To Do and press play on the card to
+            run.
           </DialogDescription>
         </DialogHeader>
 

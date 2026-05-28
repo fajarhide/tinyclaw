@@ -1,7 +1,7 @@
-import type { StoredTask } from "@tinyclaw/core/contract";
+import type { ProfileSummary, StoredTask } from "@tinyclaw/core/contract";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { BotIcon, Loader2Icon, PlayIcon } from "lucide-react";
+import { Loader2Icon, PencilIcon, PlayIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { formatSessionRelativeTime } from "@/lib/chat-history";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 
 interface TaskCardProps {
   task: StoredTask;
+  profile?: ProfileSummary | null;
   isRunning: boolean;
   isStarting: boolean;
   isFocused: boolean;
@@ -19,6 +20,7 @@ interface TaskCardProps {
 
 export function TaskCard({
   task,
+  profile,
   isRunning,
   isStarting,
   isFocused,
@@ -36,64 +38,78 @@ export function TaskCard({
     transition,
   };
 
+  const dragDisabled = isRunning || isStarting;
   const showStart = !isRunning && !isStarting;
+  const profileLabel = profile?.name ?? task.profileId;
 
   return (
     <article
       ref={setNodeRef}
       style={style}
       className={cn(
-        "cursor-grab rounded-md border border-border bg-card p-3 shadow-sm active:cursor-grabbing",
+        "rounded-md border border-border bg-card p-3 shadow-sm",
+        "transition-shadow duration-150 motion-reduce:transition-none",
+        dragDisabled ? "cursor-default" : "cursor-grab active:cursor-grabbing",
+        "hover:shadow-md",
         isDragging && "opacity-60 ring-2 ring-primary/30",
         isFocused && "ring-2 ring-primary/50",
-        (isRunning || isStarting) && "cursor-default opacity-90",
       )}
-      {...attributes}
-      {...listeners}
+      {...(dragDisabled ? {} : { ...attributes, ...listeners })}
       onClick={onFocus}
-      onDoubleClick={(event) => {
-        event.stopPropagation();
-        onOpen();
-      }}
+      aria-current={isFocused ? "true" : undefined}
     >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="line-clamp-2 text-sm font-medium text-foreground">{task.title}</h3>
+      <div className="flex items-start gap-2">
+        <h3 className="min-w-0 flex-1 line-clamp-2 text-sm font-medium text-foreground">
+          {task.title}
+        </h3>
         {isRunning ? (
-          <Loader2Icon className="size-4 shrink-0 animate-spin text-primary" aria-hidden />
+          <Loader2Icon
+            className="size-4 shrink-0 text-amber-600 motion-safe:animate-spin motion-reduce:animate-none dark:text-amber-400"
+            aria-label="Running"
+          />
         ) : isStarting ? (
           <Spinner className="size-4 shrink-0" />
         ) : null}
       </div>
 
       {task.description ? (
-        <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{task.description}</p>
+        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{task.description}</p>
       ) : null}
 
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <BotIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="truncate text-xs text-muted-foreground">{task.profileId}</span>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
+      <div className="mt-2.5 flex items-center justify-between gap-2">
+        <p className="min-w-0 truncate text-xs text-muted-foreground">
+          <span>{profileLabel}</span>
+          <span aria-hidden> · </span>
+          <time dateTime={task.updatedAt}>{formatSessionRelativeTime(task.updatedAt)}</time>
+        </p>
+
+        <div
+          className="flex shrink-0 items-center gap-0.5"
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
           {showStart ? (
             <Button
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="size-7 text-primary hover:text-primary"
-              aria-label={`Start task ${task.title}`}
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation();
-                onStart();
-              }}
+              className="size-8 text-primary hover:bg-primary/10 hover:text-primary"
+              aria-label={`Start ${task.title}`}
+              onClick={() => onStart()}
             >
-              <PlayIcon className="size-3.5" aria-hidden />
+              <PlayIcon className="size-4" aria-hidden />
             </Button>
           ) : null}
-          <time className="text-[11px] text-muted-foreground" dateTime={task.updatedAt}>
-            {formatSessionRelativeTime(task.updatedAt)}
-          </time>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="size-8"
+            aria-label={`Edit ${task.title}`}
+            onClick={() => onOpen()}
+          >
+            <PencilIcon className="size-4" aria-hidden />
+          </Button>
         </div>
       </div>
     </article>

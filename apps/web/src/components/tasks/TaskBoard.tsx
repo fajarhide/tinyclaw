@@ -1,4 +1,4 @@
-import type { StoredTask, TaskStatus } from "@tinyclaw/core/contract";
+import type { ProfileSummary, StoredTask, TaskStatus } from "@tinyclaw/core/contract";
 import {
   DndContext,
   DragOverlay,
@@ -16,6 +16,7 @@ import { TASK_COLUMNS } from "@/hooks/use-tasks";
 
 interface TaskBoardProps {
   tasks: StoredTask[];
+  profileById: Map<string, ProfileSummary>;
   runningTaskIds: Set<string>;
   startingTaskId: string | null;
   focusedTaskId: string | null;
@@ -27,6 +28,7 @@ interface TaskBoardProps {
 
 export function TaskBoard({
   tasks,
+  profileById,
   runningTaskIds,
   startingTaskId,
   focusedTaskId,
@@ -93,13 +95,18 @@ export function TaskBoard({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div
+        className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth [-webkit-overflow-scrolling:touch]"
+        role="region"
+        aria-label="Agent swarm kanban board"
+      >
         {TASK_COLUMNS.map((column) => (
           <TaskColumn
             key={column.id}
             id={column.id}
             label={column.label}
             tasks={tasksByColumn[column.id]}
+            profileById={profileById}
             runningTaskIds={runningTaskIds}
             startingTaskId={startingTaskId}
             focusedTaskId={focusedTaskId}
@@ -115,6 +122,7 @@ export function TaskBoard({
           <div className="w-72">
             <TaskCard
               task={activeTask}
+              profile={profileById.get(activeTask.profileId) ?? null}
               isRunning={runningTaskIds.has(activeTask.id)}
               isStarting={startingTaskId === activeTask.id}
               isFocused={focusedTaskId === activeTask.id}

@@ -4,29 +4,47 @@ import { client } from "@/lib/client";
 
 export async function loadTaskMessages(taskId: string): Promise<TaskMessagesResponse> {
   try {
-    return await client.getTaskMessages(taskId);
+    const result = await client.getTaskMessages(taskId);
+
+    if (result.messages.length > 0) {
+      return result;
+    }
+
+    const fallback = await buildTaskMessagesFromRuns(taskId);
+
+    return {
+      sessionId: result.sessionId || fallback.sessionId,
+      messages: fallback.messages.length > 0 ? fallback.messages : result.messages,
+    };
   } catch (error) {
-    if (error instanceof TinyClawApiError && error.status === 404 && error.message === "Not found") {
-      return loadTaskMessagesFallback(taskId);
+    if (error instanceof TinyClawApiError && error.status === 404) {
+      return buildTaskMessagesFromRuns(taskId);
     }
 
     throw error;
   }
 }
 
-async function loadTaskMessagesFallback(taskId: string): Promise<TaskMessagesResponse> {
+async function buildTaskMessagesFromRuns(taskId: string): Promise<TaskMessagesResponse> {
   const task = await client.getTask(taskId);
 
   if (task.sessionId) {
-    const { messages } = await client.getSessionMessages(task.sessionId);
-    return { sessionId: task.sessionId, messages };
+    try {
+      const { messages } = await client.getSessionMessages(task.sessionId);
+
+      if (messages.length > 0) {
+        return { sessionId: task.sessionId, messages };
+      }
+    } catch {
+      // Fall through to run output synthesis.
+    }
   }
 
   const runs = await client.listTaskRuns(taskId);
   const latestRun = runs.find((run) => run.status !== "running");
 
   if (!latestRun) {
-    return { sessionId: "", messages: [] };
+    return { sessionId: task.sessionId ?? "", messages: [] };
   }
 
   const messages: ChatMessage[] = [{ role: "user", content: task.prompt }];
@@ -43,5 +61,5 @@ async function loadTaskMessagesFallback(taskId: string): Promise<TaskMessagesRes
     });
   }
 
-  return { sessionId: "", messages };
+  return { sessionId: task.sessionId ?? "", messages };
 }

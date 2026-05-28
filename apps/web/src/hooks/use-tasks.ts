@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateTaskRequest, TaskStatus, UpdateTaskRequest } from "@tinyclaw/core/contract";
+import type { CreateTaskRequest, UpdateTaskRequest } from "@tinyclaw/core/contract";
 import { client } from "@/lib/client";
+import { TASK_COLUMN_META } from "@/lib/task-board";
 import { loadTaskMessages } from "@/lib/task-messages";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -90,10 +91,7 @@ export function useRunTaskMutation() {
   });
 }
 
-export const TASK_COLUMNS: { id: TaskStatus; label: string }[] = [
-  { id: "backlog", label: "Backlog" },
-  { id: "todo", label: "To Do" },
-  { id: "in_progress", label: "In Progress" },
-  { id: "done", label: "Done" },
-  { id: "failed", label: "Failed" },
-];
+export const TASK_COLUMNS = TASK_COLUMN_META.map((column) => ({
+  id: column.id,
+  label: column.label,
+}));

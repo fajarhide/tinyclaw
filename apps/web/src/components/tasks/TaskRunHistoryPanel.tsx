@@ -1,5 +1,5 @@
 import type { StoredTask } from "@tinyclaw/core/contract";
-import { XIcon } from "lucide-react";
+import { MessageSquareIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChatComposer } from "@/components/chat/chat-composer";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/chat-stream";
 import { client, formatError } from "@/lib/client";
 import { queryKeys } from "@/lib/query-keys";
+import { TASK_STATUS_BADGE } from "@/lib/task-board";
 import { cn } from "@/lib/utils";
 
 interface TaskRunHistoryPanelProps {
@@ -26,7 +27,7 @@ interface TaskRunHistoryPanelProps {
 
 export function TaskRunHistoryPanel({ task, onClose }: TaskRunHistoryPanelProps) {
   const queryClient = useQueryClient();
-  const { data, isLoading, error: loadError } = useTaskMessagesQuery(task.id);
+  const { data, isLoading, isFetching, error: loadError } = useTaskMessagesQuery(task.id);
 
   const [messages, setMessages] = useState<ChatListItem[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(task.sessionId);
@@ -35,15 +36,27 @@ export function TaskRunHistoryPanel({ task, onClose }: TaskRunHistoryPanelProps)
   const [error, setError] = useState<string | null>(null);
 
   const streamAbortRef = useRef<AbortController | null>(null);
-  const loadedTaskRef = useRef<string | null>(null);
+  const statusBadge = TASK_STATUS_BADGE[task.status];
+
+  const waitingForMessages = isLoading || (isFetching && messages.length === 0);
+
+  // Reset local state when switching tasks (must run before applying query data).
+  useEffect(() => {
+    setMessages([]);
+    setSessionId(task.sessionId);
+    setError(null);
+    setBusy(false);
+    setCanStop(false);
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
+  }, [task.id]);
 
   useEffect(() => {
-    if (!data || loadedTaskRef.current === `${task.id}:${data.sessionId}`) {
+    if (!data) {
       return;
     }
 
-    loadedTaskRef.current = `${task.id}:${data.sessionId}`;
-    setSessionId(data.sessionId);
+    setSessionId(data.sessionId || task.sessionId);
     setMessages(chatMessagesToListItems(data.messages));
     setError(null);
 
@@ -51,15 +64,6 @@ export function TaskRunHistoryPanel({ task, onClose }: TaskRunHistoryPanelProps)
       void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
     }
   }, [data, queryClient, task.id, task.sessionId]);
-
-  useEffect(() => {
-    loadedTaskRef.current = null;
-    setMessages([]);
-    setSessionId(task.sessionId);
-    setError(null);
-    setBusy(false);
-    setCanStop(false);
-  }, [task.id]);
 
   const chatStatus = useMemo(
     () => deriveChatStatus(busy, error, messages),
@@ -113,7 +117,8 @@ export function TaskRunHistoryPanel({ task, onClose }: TaskRunHistoryPanelProps)
   );
 
   const displayError = error ?? (loadError ? formatError(loadError) : null);
-  const chatUnavailable = !sessionId && !isLoading && messages.length > 0;
+  const chatUnavailable = !sessionId && !waitingForMessages && messages.length > 0;
+  const emptyHistory = !waitingForMessages && !displayError && messages.length === 0;
 
   return (
     <aside
@@ -124,16 +129,26 @@ export function TaskRunHistoryPanel({ task, onClose }: TaskRunHistoryPanelProps)
         "xl:w-[26rem]",
         "lg:shadow-[-16px_0_40px_-24px_rgba(0,0,0,0.22)] dark:lg:shadow-[-16px_0_40px_-24px_rgba(0,0,0,0.5)]",
       )}
+      aria-label={`Run chat for ${task.title}`}
     >
-      <header className="flex items-start justify-between gap-3 border-b border-border/60 bg-background px-5 py-4">
-        <div className="min-w-0 space-y-1">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Task chat
-          </p>
+      <header className="flex items-start justify-between gap-3 border-b border-border/60 bg-muted/20 px-4 py-4 sm:px-5">
+        <div className="min-w-0 space-y-2">
+          <div className="flex items-center gap-2">
+            <MessageSquareIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            <p className="type-label">Run chat</p>
+          </div>
           <h2 className="truncate text-sm font-semibold text-foreground">{task.title}</h2>
-          <p className="text-xs text-muted-foreground capitalize">
-            {task.status.replace("_", " ")} · {task.profileId}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                statusBadge.className,
+              )}
+            >
+              {statusBadge.label}
+            </span>
+            <span className="truncate text-xs text-muted-foreground">{task.profileId}</span>
+          </div>
         </div>
         <Button
           type="button"
@@ -148,22 +163,32 @@ export function TaskRunHistoryPanel({ task, onClose }: TaskRunHistoryPanelProps)
       </header>
 
       <div className="relative min-h-0 flex-1">
-        {isLoading && messages.length === 0 ? (
+        {waitingForMessages ? (
           <div className="flex h-full min-h-48 items-center justify-center">
             <Spinner className="size-5" />
           </div>
         ) : (
           <ChatMessageList
             messages={messages}
-            emptyMessage="No messages yet. Send a follow-up below."
+            emptyMessage={
+              emptyHistory
+                ? "No run output yet. Open task details or run the agent again."
+                : undefined
+            }
             className="absolute inset-0 bg-background"
-            contentClassName="px-5 py-4"
+            contentClassName="px-4 py-4 sm:px-5"
           />
         )}
       </div>
 
+      {displayError ? (
+        <div className="shrink-0 border-t border-border/60 px-4 py-3 sm:px-5">
+          <p className="text-sm text-red-700 dark:text-red-300">{displayError}</p>
+        </div>
+      ) : null}
+
       {chatUnavailable ? (
-        <div className="shrink-0 space-y-2 border-t border-border/60 px-5 py-4">
+        <div className="shrink-0 space-y-2 border-t border-border/60 px-4 py-4 sm:px-5">
           <p className="text-sm text-muted-foreground">
             Run history is shown above. Restart the TinyClaw server to enable follow-up chat.
           </p>
@@ -174,10 +199,10 @@ export function TaskRunHistoryPanel({ task, onClose }: TaskRunHistoryPanelProps)
           chatStatus={chatStatus}
           busy={busy}
           canStop={canStop}
-          disabled={!sessionId || isLoading}
+          disabled={!sessionId || waitingForMessages}
           error={displayError}
           placeholder="Follow up on this task…"
-          className="border-t border-border/60 px-5 py-4"
+          className="border-t border-border/60 px-4 py-4 sm:px-5"
           onSubmit={(text) => void sendMessage(text)}
           onStop={stopStreaming}
         />

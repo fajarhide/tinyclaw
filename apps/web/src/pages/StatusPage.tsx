@@ -16,6 +16,9 @@ import { useRefreshSystemStatus, useSystemStatusQuery } from "@/hooks/use-system
 import { formatError } from "@/lib/client";
 import { cn } from "@/lib/utils";
 
+const METRICS_GRID_CLASS =
+  "grid min-w-0 gap-2 sm:gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,13.5rem),1fr))]";
+
 export function StatusPage() {
   const { data: status, error, isLoading, isFetching } = useSystemStatusQuery();
   const refreshSystemStatus = useRefreshSystemStatus();
@@ -26,7 +29,7 @@ export function StatusPage() {
   const overall = useMemo(() => deriveOverallHealth(status ?? null), [status]);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1.5">
           <h1 className="type-page-title">Status</h1>
@@ -106,7 +109,7 @@ export function StatusPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className={METRICS_GRID_CLASS}>
             <MetricTile
               label="Scheduled jobs"
               value={status.automationWorker.scheduledJobs}
@@ -136,7 +139,7 @@ export function StatusPage() {
             />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             <ServiceStatusCard
               icon={ServerIcon}
               title="Server"
@@ -278,13 +281,15 @@ function MetricTile({
   highlight?: boolean;
 }) {
   return (
-    <Card className={cn(highlight && "border-primary/30 bg-primary/5")}>
-      <CardHeader className="pb-2">
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl tabular-nums">{value}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-xs text-muted-foreground">{hint}</p>
+    <Card className={cn("min-w-0", highlight && "border-primary/30 bg-primary/5")}>
+      <CardContent className="space-y-1 p-3 sm:p-4">
+        <p className="truncate text-xs text-muted-foreground">{label}</p>
+        <p className="truncate text-xl font-semibold tabular-nums tracking-tight text-foreground sm:text-2xl">
+          {value}
+        </p>
+        <p className="line-clamp-2 text-[11px] leading-snug text-muted-foreground sm:text-xs">
+          {hint}
+        </p>
       </CardContent>
     </Card>
   );
@@ -308,30 +313,37 @@ function ServiceStatusCard({
   footer?: string;
 }) {
   return (
-    <Card>
-      <CardHeader className="gap-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
+    <Card className="min-w-0">
+      <CardHeader className="gap-4 p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40">
               <Icon className="size-5 text-foreground" aria-hidden />
             </div>
-            <div>
-              <CardTitle>{title}</CardTitle>
-              <CardDescription className="mt-1">{subtitle}</CardDescription>
+            <div className="min-w-0">
+              <CardTitle className="text-base sm:text-lg">{title}</CardTitle>
+              <CardDescription className="mt-1 line-clamp-2">{subtitle}</CardDescription>
             </div>
           </div>
-          <StatusBadge label={statusLabel} tone={healthy ? "ok" : "bad"} />
+          <StatusBadge
+            label={statusLabel}
+            tone={healthy ? "ok" : "bad"}
+            className="shrink-0 self-start sm:self-center"
+          />
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 px-4 pb-4 sm:px-6 sm:pb-6">
         <dl className="space-y-3">
           {rows.map((row) => (
-            <div key={row.label} className="flex items-center justify-between gap-4 text-sm">
-              <dt className="text-muted-foreground">{row.label}</dt>
-              <dd>
+            <div
+              key={row.label}
+              className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+            >
+              <dt className="shrink-0 text-muted-foreground">{row.label}</dt>
+              <dd className="min-w-0 sm:text-right">
                 {row.tone ? (
-                  <StatusBadge label={row.value} tone={row.tone} />
+                  <StatusBadge label={row.value} tone={row.tone} className="max-w-full" />
                 ) : (
                   <span className="font-medium tabular-nums text-foreground">{row.value}</span>
                 )}
@@ -351,7 +363,15 @@ function ServiceStatusCard({
   );
 }
 
-function StatusBadge({ label, tone }: { label: string; tone: StatusTone | "neutral" }) {
+function StatusBadge({
+  label,
+  tone,
+  className,
+}: {
+  label: string;
+  tone: StatusTone | "neutral";
+  className?: string;
+}) {
   const toneClass =
     tone === "ok"
       ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200"
@@ -373,12 +393,13 @@ function StatusBadge({ label, tone }: { label: string; tone: StatusTone | "neutr
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+        "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
         toneClass,
+        className,
       )}
     >
       {Icon ? <Icon className="size-3.5 shrink-0" aria-hidden /> : null}
-      {label}
+      <span className="truncate">{label}</span>
     </span>
   );
 }
@@ -387,17 +408,21 @@ function StatusPageSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading system status">
       <div className="h-24 animate-pulse rounded-md border border-border bg-muted/40" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
+      <div className={METRICS_GRID_CLASS}>
+        {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={index}
-            className="h-28 animate-pulse rounded-md border border-border bg-muted/40"
+            className="h-24 animate-pulse rounded-md border border-border bg-muted/40 sm:h-28"
           />
         ))}
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="h-72 animate-pulse rounded-md border border-border bg-muted/40" />
-        <div className="h-72 animate-pulse rounded-md border border-border bg-muted/40" />
+      <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className="h-72 animate-pulse rounded-md border border-border bg-muted/40"
+          />
+        ))}
       </div>
     </div>
   );
