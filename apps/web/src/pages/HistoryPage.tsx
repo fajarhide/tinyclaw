@@ -178,7 +178,7 @@ export function HistoryPage() {
               <SelectValue placeholder="Profile">
                 {selectedProfile ? (
                   <span className="flex items-center gap-2">
-                    <ProfileAvatar profile={selectedProfile} size="sm" />
+                    <ProfileAvatar profile={selectedProfile} size="xs" />
                     <span>{selectedProfile.name}</span>
                   </span>
                 ) : null}
@@ -188,7 +188,7 @@ export function HistoryPage() {
               {profiles.map((profile) => (
                 <SelectItem key={profile.id} value={profile.id}>
                   <span className="flex items-center gap-2">
-                    <ProfileAvatar profile={profile} size="sm" />
+                    <ProfileAvatar profile={profile} size="xs" />
                     <span>{profile.name}</span>
                   </span>
                 </SelectItem>

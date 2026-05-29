@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 type ProfileAvatarProfile = Pick<ProfileSummary, "id" | "name" | "hasAvatar" | "updatedAt">;
 
 const sizeClasses = {
+  xs: "size-5 text-[10px]",
   sm: "size-7 text-xs",
   md: "size-9 text-sm",
   lg: "size-16 text-xl",
