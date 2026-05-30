@@ -9,7 +9,11 @@ COPY package.json bun.lock ./
 COPY apps apps
 COPY packages packages
 
-RUN bun install --frozen-lockfile \
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 python3-pip ffmpeg \
+  && pip3 install --no-cache-dir --break-system-packages yt-dlp \
+  && rm -rf /var/lib/apt/lists/* \
+  && bun install --frozen-lockfile \
   && bun run --filter @tinyclaw/web build \
   && mkdir -p data/sqlite data/automations data/logs
 
