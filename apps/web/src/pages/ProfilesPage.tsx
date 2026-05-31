@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
+import { ExpandableTextarea } from "@/components/ui/expandable-textarea";
 import { useProfileQuery, useProfilesQuery, useToolsQuery } from "@/hooks/use-app-queries";
 import {
   useAssignToolMutation,
@@ -40,6 +40,9 @@ import { formatError } from "@/lib/client";
 const defaultCreatePrompt = "You are a helpful assistant.";
 const sectionClass = "rounded-md border border-border bg-card";
 const profilesTagline = "Separate prompt, tools, and soul for each bot.";
+const profileSaveDelayMs = 600;
+
+type ProfileSaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
 
 export function ProfilesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -72,8 +75,6 @@ export function ProfilesPage() {
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [discardOpen, setDiscardOpen] = useState(false);
-  const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [createName, setCreateName] = useState("");
   const [createPrompt, setCreatePrompt] = useState(defaultCreatePrompt);
@@ -83,7 +84,29 @@ export function ProfilesPage() {
   const [createAssignToolId, setCreateAssignToolId] = useState("");
   const [editName, setEditName] = useState("");
   const [editPrompt, setEditPrompt] = useState("");
+  const [savedName, setSavedName] = useState("");
+  const [savedPrompt, setSavedPrompt] = useState("");
+  const [saveStatus, setSaveStatus] = useState<ProfileSaveStatus>("idle");
   const [assignToolId, setAssignToolId] = useState("");
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savingRef = useRef(false);
+  const editStateRef = useRef({
+    editName,
+    editPrompt,
+    savedName,
+    savedPrompt,
+    selectedId,
+    detail,
+  });
+  editStateRef.current = {
+    editName,
+    editPrompt,
+    savedName,
+    savedPrompt,
+    selectedId,
+    detail,
+  };
 
   const busy =
     createMutation.isPending ||
@@ -104,8 +127,114 @@ export function ProfilesPage() {
       return false;
     }
 
-    return editName.trim() !== detail.name || editPrompt !== detail.systemPrompt;
-  }, [detail, editName, editPrompt]);
+    return editName.trim() !== savedName || editPrompt !== savedPrompt;
+  }, [detail, editName, editPrompt, savedName, savedPrompt]);
+
+  const performSave = useCallback(async (): Promise<boolean> => {
+    if (savingRef.current) {
+      return true;
+    }
+
+    const {
+      editName: nameDraft,
+      editPrompt: promptDraft,
+      savedName: baselineName,
+      savedPrompt: baselinePrompt,
+      selectedId: profileId,
+      detail: profileDetail,
+    } = editStateRef.current;
+
+    if (!profileId || !profileDetail) {
+      return true;
+    }
+
+    const name = nameDraft.trim();
+    if (!name) {
+      return false;
+    }
+
+    if (name === baselineName && promptDraft === baselinePrompt) {
+      setSaveStatus("idle");
+      return true;
+    }
+
+    savingRef.current = true;
+    setSaveStatus("saving");
+    setError(null);
+
+    try {
+      await updateMutation.mutateAsync({
+        profileId,
+        input: {
+          name,
+          systemPrompt: promptDraft,
+        },
+      });
+      setSavedName(name);
+      setSavedPrompt(promptDraft);
+      setSaveStatus("saved");
+
+      if (savedHintTimerRef.current) {
+        clearTimeout(savedHintTimerRef.current);
+      }
+
+      savedHintTimerRef.current = setTimeout(() => {
+        setSaveStatus("idle");
+      }, 2000);
+
+      return true;
+    } catch (err) {
+      setSaveStatus("error");
+      setError(formatError(err));
+      return false;
+    } finally {
+      savingRef.current = false;
+    }
+  }, [updateMutation]);
+
+  const scheduleSave = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    const {
+      editName: nameDraft,
+      editPrompt: promptDraft,
+      savedName: baselineName,
+      savedPrompt: baselinePrompt,
+      selectedId: profileId,
+      detail: profileDetail,
+    } = editStateRef.current;
+
+    if (!profileId || !profileDetail) {
+      return;
+    }
+
+    const name = nameDraft.trim();
+    if (!name) {
+      setSaveStatus("idle");
+      return;
+    }
+
+    if (name === baselineName && promptDraft === baselinePrompt) {
+      setSaveStatus("idle");
+      return;
+    }
+
+    setSaveStatus("pending");
+    saveTimerRef.current = setTimeout(() => {
+      void performSave();
+    }, profileSaveDelayMs);
+  }, [performSave]);
+
+  const flushSave = useCallback(async (): Promise<boolean> => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
+    return performSave();
+  }, [performSave]);
 
   const selectedProfile = useMemo(
     () => profiles.find((profile) => profile.id === selectedId),
@@ -163,11 +292,38 @@ export function ProfilesPage() {
   }, [profiles, searchParams, selectedId, setSelectedId]);
 
   useEffect(() => {
-    if (detail) {
-      setEditName(detail.name);
-      setEditPrompt(detail.systemPrompt);
+    if (!detail) {
+      return;
     }
-  }, [detail]);
+
+    setEditName(detail.name);
+    setEditPrompt(detail.systemPrompt);
+    setSavedName(detail.name);
+    setSavedPrompt(detail.systemPrompt);
+    setSaveStatus("idle");
+  }, [detail?.id]);
+
+  useEffect(() => {
+    scheduleSave();
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, [editName, editPrompt, scheduleSave]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+
+      if (savedHintTimerRef.current) {
+        clearTimeout(savedHintTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -194,27 +350,29 @@ export function ProfilesPage() {
 
   const createAvailableTools = allTools.filter((tool) => !createToolIds.includes(tool.id));
 
-  function handleSelectProfile(profileId: string) {
+  async function handleSelectProfile(profileId: string) {
     if (profileId === selectedId) {
       return;
     }
 
-    if (isDirty) {
-      setPendingSelectionId(profileId);
-      setDiscardOpen(true);
-      return;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
+    const { editName: nameDraft, editPrompt: promptDraft, savedName: baselineName, savedPrompt: baselinePrompt } =
+      editStateRef.current;
+    const hasPendingEdits =
+      nameDraft.trim() !== baselineName || promptDraft !== baselinePrompt;
+
+    if (hasPendingEdits && nameDraft.trim()) {
+      const saved = await performSave();
+      if (!saved) {
+        return;
+      }
     }
 
     setSelectedId(profileId);
-  }
-
-  function handleDiscardChanges() {
-    if (pendingSelectionId) {
-      setSelectedId(pendingSelectionId);
-      setPendingSelectionId(null);
-    }
-
-    setDiscardOpen(false);
   }
 
   function resetCreateAvatar() {
@@ -296,25 +454,6 @@ export function ProfilesPage() {
     }
   }
 
-  async function handleSave() {
-    if (!selectedId || !detail) {
-      return;
-    }
-
-    setError(null);
-
-    try {
-      await updateMutation.mutateAsync({
-        profileId: selectedId,
-        input: {
-          name: editName.trim(),
-          systemPrompt: editPrompt,
-        },
-      });
-    } catch (err) {
-      setError(formatError(err));
-    }
-  }
 
   async function handleDeleteConfirm() {
     if (!selectedId || !detail || detail.isSuper) {
@@ -653,11 +792,10 @@ export function ProfilesPage() {
                           ) : null}
                         </div>
                         <p className="type-body mt-1 text-xs">{profileSubtitle}</p>
-                        {isDirty ? (
-                          <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
-                            Unsaved changes
-                          </p>
-                        ) : null}
+                        <ProfileSaveIndicator
+                          saveStatus={saveStatus}
+                          nameMissing={isDirty && !editName.trim()}
+                        />
                       </div>
                     </div>
 
@@ -787,25 +925,15 @@ export function ProfilesPage() {
                       </Field>
                     </div>
 
-                    <Field label="System prompt" htmlFor="profile-prompt">
-                      <Textarea
-                        id="profile-prompt"
-                        className="min-h-36 font-mono text-xs leading-relaxed"
-                        value={editPrompt}
-                        disabled={busy}
-                        onChange={(event) => setEditPrompt(event.target.value)}
-                      />
-                    </Field>
-
-                    <div className="flex justify-end">
-                      <Button
-                        type="button"
-                        disabled={busy || !isDirty || !editName.trim()}
-                        onClick={() => void handleSave()}
-                      >
-                        {updateMutation.isPending ? <Spinner className="size-4" /> : "Save changes"}
-                      </Button>
-                    </div>
+                    <ExpandableTextarea
+                      label="System prompt"
+                      htmlFor="profile-prompt"
+                      dialogDescription="Instructions sent to the model at the start of each chat."
+                      value={editPrompt}
+                      disabled={busy}
+                      onChange={(event) => setEditPrompt(event.target.value)}
+                      onSave={flushSave}
+                    />
 
                     <div className="border-t border-border pt-5">
                       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -960,15 +1088,13 @@ export function ProfilesPage() {
                   onChange={(event) => setCreateName(event.target.value)}
                 />
               </Field>
-              <Field label="System prompt" htmlFor="create-profile-prompt">
-                <Textarea
-                  id="create-profile-prompt"
-                  className="min-h-32 font-mono text-sm"
-                  value={createPrompt}
-                  disabled={busy}
-                  onChange={(event) => setCreatePrompt(event.target.value)}
-                />
-              </Field>
+              <ExpandableTextarea
+                label="System prompt"
+                htmlFor="create-profile-prompt"
+                value={createPrompt}
+                disabled={busy}
+                onChange={(event) => setCreatePrompt(event.target.value)}
+              />
               <Field label="Tools">
                 {allTools.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No tools available.</p>
@@ -1094,41 +1220,51 @@ export function ProfilesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <Dialog
-        open={discardOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDiscardOpen(false);
-            setPendingSelectionId(null);
-          }
-        }}
-      >
-        <DialogContent className="gap-6 p-6 sm:max-w-md">
-          <DialogHeader className="gap-3">
-            <DialogTitle>Discard unsaved changes?</DialogTitle>
-            <DialogDescription>Switching profiles will lose your edits.</DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="gap-3 border-t-0 bg-transparent p-0 pt-2 sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setDiscardOpen(false);
-                setPendingSelectionId(null);
-              }}
-            >
-              Keep editing
-            </Button>
-            <Button type="button" variant="destructive" onClick={handleDiscardChanges}>
-              Discard
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
+}
+
+function ProfileSaveIndicator({
+  saveStatus,
+  nameMissing,
+}: {
+  saveStatus: ProfileSaveStatus;
+  nameMissing: boolean;
+}) {
+  if (nameMissing) {
+    return (
+      <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
+        Name is required
+      </p>
+    );
+  }
+
+  if (saveStatus === "pending" || saveStatus === "saving") {
+    return (
+      <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Spinner className="size-3" />
+        Saving…
+      </p>
+    );
+  }
+
+  if (saveStatus === "saved") {
+    return (
+      <p className="mt-2 text-xs text-muted-foreground" role="status">
+        Saved
+      </p>
+    );
+  }
+
+  if (saveStatus === "error") {
+    return (
+      <p className="mt-2 text-xs font-medium text-destructive" role="status">
+        Save failed
+      </p>
+    );
+  }
+
+  return null;
 }
 
 function ProfileScopeButton({
