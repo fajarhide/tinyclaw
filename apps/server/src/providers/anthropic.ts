@@ -41,6 +41,7 @@ export function createAnthropicProvider(
         messages: input.messages,
         tools: input.tools,
         webSearch: input.providerOptions?.webSearch ?? false,
+        thinking: input.providerOptions,
         stream: false,
       });
     },
@@ -52,6 +53,7 @@ export function createAnthropicProvider(
         messages: input.messages,
         tools: input.tools,
         webSearch: input.providerOptions?.webSearch ?? false,
+        thinking: input.providerOptions,
         stream: true,
         handlers,
       });

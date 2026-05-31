@@ -178,6 +178,14 @@ export const openApiSchemas = {
       },
       {
         type: "object",
+        required: ["type", "delta"],
+        properties: {
+          type: { type: "string", const: "thinking" },
+          delta: { type: "string" },
+        },
+      },
+      {
+        type: "object",
         required: ["type", "toolCallId", "tool", "input"],
         properties: {
           type: { type: "string", const: "tool_start" },
@@ -845,6 +853,33 @@ export const openApiSchemas = {
     required: ["timezone"],
     properties: {
       timezone: { type: "string" },
+    },
+  },
+  ThinkingEffort: {
+    type: "string",
+    enum: ["low", "medium", "high"],
+  },
+  ThinkingSettings: {
+    type: "object",
+    required: ["enabled", "effort"],
+    properties: {
+      enabled: { type: "boolean" },
+      effort: { $ref: "#/components/schemas/ThinkingEffort" },
+    },
+  },
+  ThinkingSettingsResponse: {
+    type: "object",
+    required: ["thinking"],
+    properties: {
+      thinking: { $ref: "#/components/schemas/ThinkingSettings" },
+    },
+  },
+  UpdateThinkingRequest: {
+    type: "object",
+    required: ["enabled"],
+    properties: {
+      enabled: { type: "boolean" },
+      effort: { $ref: "#/components/schemas/ThinkingEffort" },
     },
   },
   TelegramSettingsResponse: {

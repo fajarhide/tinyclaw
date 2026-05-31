@@ -74,6 +74,17 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / TOKEN_ESTIMATE_RATIO);
 }
 
+function stripThinkingFromProviderContent(content: unknown[]): unknown[] {
+  return content.filter((item) => {
+    if (typeof item !== "object" || item === null) {
+      return true;
+    }
+
+    const type = (item as { type?: unknown }).type;
+    return type !== "thinking" && type !== "reasoning";
+  });
+}
+
 function estimateMessageTokens(messages: readonly ChatMessage[]): number {
   let total = 0;
 
@@ -91,7 +102,9 @@ function estimateMessageTokens(messages: readonly ChatMessage[]): number {
       }
 
       if (message.providerContent?.length) {
-        total += estimateTokens(JSON.stringify(message.providerContent));
+        total += estimateTokens(
+          JSON.stringify(stripThinkingFromProviderContent(message.providerContent)),
+        );
       }
 
       continue;

@@ -28,6 +28,7 @@ export const queryKeys = {
     catalog: ["timezones", "catalog"] as const,
     settings: ["timezones", "settings"] as const,
   },
+  thinkingSettings: ["thinking", "settings"] as const,
   telegram: {
     settings: ["telegram", "settings"] as const,
   },

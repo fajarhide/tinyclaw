@@ -7,6 +7,7 @@ Short guide to what works today.
 - Talk to the agent from the **CLI** (primary client)
 - CLI **auto-starts the server** if it is not already running
 - **Streaming** replies over HTTP
+- **Extended thinking** — stream model reasoning separately from the answer (Anthropic adaptive thinking, OpenAI reasoning summaries); enabled by default, configurable in **Settings** or `/thinking` in the CLI
 - Works **offline** without an API key (limited responses)
 - Switch models at runtime (`/model` in CLI, or API)
 - **Image input** (vision) on configured providers:

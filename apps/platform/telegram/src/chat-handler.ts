@@ -205,6 +205,9 @@ export function createChatHandler(deps: ChatHandlerDeps) {
       reply = await session.sendStream(
         input,
         {
+          onThinking: () => {
+            typingLoop.ping();
+          },
           onChunk: (delta) => {
             reply += delta;
           },

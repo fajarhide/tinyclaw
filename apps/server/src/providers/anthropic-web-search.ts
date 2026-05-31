@@ -4,6 +4,7 @@ import type {
   GenerateChatInput,
   LlmToolDefinition,
   StreamChatHandlers,
+  ThinkingEffort,
   ToolCall,
 } from "@tinyclaw/core";
 import { toAnthropicUserContent, WEB_SEARCH_TOOL_NAME } from "@tinyclaw/core";
@@ -108,9 +109,15 @@ export function parseAnthropicContent(
   content: AnthropicContentBlock[] | undefined,
 ): ChatCompletionResult {
   const textParts: string[] = [];
+  const thinkingParts: string[] = [];
   const toolCalls: ToolCall[] = [];
 
   for (const block of content ?? []) {
+    if (block.type === "thinking" && typeof block.thinking === "string") {
+      thinkingParts.push(block.thinking);
+      continue;
+    }
+
     if (block.type === "text" && typeof block.text === "string") {
       textParts.push(block.text);
       continue;
@@ -126,6 +133,7 @@ export function parseAnthropicContent(
   }
 
   const contentText = textParts.join("").trim();
+  const thinkingText = thinkingParts.join("").trim();
   const providerContent = content?.length ? content : undefined;
 
   return {
@@ -134,6 +142,7 @@ export function parseAnthropicContent(
     assistantMessage: {
       role: "assistant",
       content: contentText,
+      ...(thinkingText ? { thinking: thinkingText } : {}),
       ...(toolCalls.length > 0 ? { toolCalls } : {}),
       ...(providerContent ? { providerContent } : {}),
     },
@@ -147,6 +156,7 @@ export async function continueAnthropicUntilDone(options: {
   messages: ChatMessage[];
   tools?: LlmToolDefinition[];
   webSearch: boolean;
+  thinking?: GenerateChatInput["providerOptions"];
   stream: boolean;
   handlers?: StreamChatHandlers;
 }): Promise<ChatCompletionResult> {
@@ -169,6 +179,7 @@ export async function continueAnthropicUntilDone(options: {
         ...(buildAnthropicTools(options.tools, options.webSearch)
           ? { tools: buildAnthropicTools(options.tools, options.webSearch) }
           : {}),
+        ...buildAnthropicThinkingRequest(options.thinking),
         ...(options.stream ? { stream: true } : {}),
       }),
     });
@@ -319,6 +330,15 @@ async function readAnthropicStream(
         const index = Number(payload.index ?? 0);
         const delta = payload.delta as Record<string, unknown> | undefined;
 
+        if (delta?.type === "thinking_delta" && typeof delta.thinking === "string") {
+          handlers?.onThinking?.(delta.thinking);
+
+          const block = contentBlocks.get(index) ?? { type: "thinking", thinking: "" };
+          block.thinking = `${String(block.thinking ?? "")}${delta.thinking}`;
+          contentBlocks.set(index, block);
+          providerContent[index] = block;
+        }
+
         if (delta?.type === "text_delta" && typeof delta.text === "string") {
           content += delta.text;
           handlers?.onChunk(delta.text);
@@ -393,7 +413,7 @@ async function readAnthropicStream(
     toolCalls,
     stopReason,
     assistantMessage: {
-      role: "assistant",
+      ...parsed.assistantMessage,
       content: content.trim() || parsed.content,
       ...(toolCalls.length > 0 ? { toolCalls } : {}),
       ...(normalizedContent.length > 0 ? { providerContent: normalizedContent } : {}),
@@ -406,20 +426,48 @@ function finalizeAnthropicResult(
   toolCalls: ToolCall[],
   providerContent: AnthropicContentBlock[],
 ): ChatCompletionResult {
+  const parsed = parseAnthropicContent(providerContent);
+
   if (!content.trim() && toolCalls.length === 0 && providerContent.length === 0) {
     throw new Error("Anthropic returned an empty response.");
   }
 
   return {
-    content,
+    content: content.trim() || parsed.content,
     toolCalls,
     assistantMessage: {
       role: "assistant",
-      content,
+      content: content.trim() || parsed.content,
+      ...(parsed.assistantMessage.thinking
+        ? { thinking: parsed.assistantMessage.thinking }
+        : {}),
       ...(toolCalls.length > 0 ? { toolCalls } : {}),
       ...(providerContent.length > 0 ? { providerContent } : {}),
     },
   };
+}
+
+function buildAnthropicThinkingRequest(
+  providerOptions: GenerateChatInput["providerOptions"],
+): Record<string, unknown> {
+  if (!providerOptions?.thinking?.enabled) {
+    return {};
+  }
+
+  const effort = mapAnthropicEffort(providerOptions.thinking.effort);
+
+  return {
+    thinking: { type: "adaptive" },
+    output_config: { effort },
+  };
+}
+
+function mapAnthropicEffort(effort: ThinkingEffort | undefined): ThinkingEffort {
+  if (effort === "low" || effort === "medium" || effort === "high") {
+    return effort;
+  }
+
+  return "medium";
 }
 
 function emitHostedToolEvents(

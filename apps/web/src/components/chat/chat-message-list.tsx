@@ -46,9 +46,20 @@ export function ChatMessageList({
               ) : message.role === "tool" ? (
                 <ToolMessageContent message={message} />
               ) : (
-                <MessageResponse isAnimating={message.streaming}>
-                  {message.content || (message.streaming ? "…" : "")}
-                </MessageResponse>
+                <div className="space-y-3">
+                  {message.thinkingStreaming ? (
+                    <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                      {message.thinking?.trim() || "Thinking…"}
+                    </p>
+                  ) : null}
+                  {message.content || (message.streaming && !message.thinkingStreaming) ? (
+                    <MessageResponse
+                      isAnimating={message.streaming && !message.thinkingStreaming}
+                    >
+                      {message.content || "…"}
+                    </MessageResponse>
+                  ) : null}
+                </div>
               )}
             </MessageContent>
           </Message>

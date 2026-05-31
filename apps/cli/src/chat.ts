@@ -188,6 +188,62 @@ export async function runChat(options: RunChatOptions): Promise<void> {
         continue;
       }
 
+      if (line === "/thinking" || line.startsWith("/thinking ")) {
+        const arg = line.slice("/thinking".length).trim().toLowerCase();
+
+        if (!arg) {
+          try {
+            const settings = await options.client.getThinkingSettings();
+            console.log(
+              `\nThinking: ${settings.enabled ? "on" : "off"} (${settings.effort} effort)\n`,
+            );
+          } catch (error) {
+            console.log(`${formatError(error)}\n`);
+          }
+
+          continue;
+        }
+
+        if (processing) {
+          continue;
+        }
+
+        processing = true;
+
+        try {
+          const current = await options.client.getThinkingSettings();
+          let enabled = current.enabled;
+          let effort = current.effort;
+
+          if (arg === "on") {
+            enabled = true;
+          } else if (arg === "off") {
+            enabled = false;
+          } else if (arg === "low" || arg === "medium" || arg === "high") {
+            enabled = true;
+            effort = arg;
+          } else {
+            console.log("\nUsage: /thinking [on|off|low|medium|high]\n");
+            continue;
+          }
+
+          const saved = await options.client.setThinkingSettings({ enabled, effort });
+          session = await options.client.createSession(options.channel, {
+            profileId: currentProfileId,
+          });
+          lastUserMessage = null;
+          console.log(
+            `\nThinking ${saved.enabled ? "enabled" : "disabled"} (${saved.effort} effort). Chat history reset.\n`,
+          );
+        } catch (error) {
+          console.log(`${formatError(error)}\n`);
+        } finally {
+          processing = false;
+        }
+
+        continue;
+      }
+
       if (line === "/model" || line.startsWith("/model ")) {
         const modelId = line.slice("/model".length).trim();
 
@@ -495,8 +551,23 @@ function isExitCommand(line: string): boolean {
   return normalized === "/exit" || normalized === "/quit";
 }
 
+let thinkingOutputActive = false;
+
 const streamHandlers = {
+  onThinking: (delta: string) => {
+    if (!thinkingOutputActive) {
+      process.stdout.write("\n\x1b[2m[thinking]\x1b[0m\n");
+      thinkingOutputActive = true;
+    }
+
+    process.stdout.write(`\x1b[2m${delta}\x1b[0m`);
+  },
   onChunk: (delta: string) => {
+    if (thinkingOutputActive) {
+      process.stdout.write("\n\n");
+      thinkingOutputActive = false;
+    }
+
     process.stdout.write(delta);
   },
   onToolStart: (event: { tool: string }) => {
@@ -508,6 +579,8 @@ const streamHandlers = {
 } as const;
 
 function finishStreamOutput(aborted: boolean): void {
+  thinkingOutputActive = false;
+
   if (aborted) {
     process.stdout.write("\n\x1b[2m[stopped]\x1b[0m");
   }

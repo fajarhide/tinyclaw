@@ -6,6 +6,7 @@
     ".": "./src/index.ts",
     "./api-error": "./src/api-error.ts",
     "./contract": "./src/contract.ts",
+    "./thinking-content": "./src/thinking-content.ts",
     "./message-content": "./src/message-content.ts",
     "./normalize-task-prompt": "./src/normalize-task-prompt.ts",
     "./provider-inference": "./src/provider-inference.ts",

@@ -37,6 +37,11 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { useAppContext } from "@/context/app-context";
 import { useModelsQuery } from "@/hooks/use-app-queries";
+import {
+  isThinkingEffort,
+  useSaveThinkingSettings,
+  useThinkingSettings,
+} from "@/hooks/use-thinking-settings";
 import { useSaveUserTimezone, useUserTimezone } from "@/hooks/use-timezones";
 import { formatError } from "@/lib/client";
 import {
@@ -75,6 +80,11 @@ export function SettingsPage() {
   const [timezoneHint, setTimezoneHint] = useState<string | null>(null);
   const { data: savedTimezone } = useUserTimezone();
   const saveTimezoneMutation = useSaveUserTimezone();
+  const { data: savedThinking } = useThinkingSettings();
+  const saveThinkingMutation = useSaveThinkingSettings();
+  const [thinkingEnabled, setThinkingEnabled] = useState(true);
+  const [thinkingEffort, setThinkingEffort] = useState<"low" | "medium" | "high">("medium");
+  const [thinkingHint, setThinkingHint] = useState<string | null>(null);
 
   const isConfigured = health?.providerConfigured === true && models != null;
 
@@ -197,6 +207,13 @@ export function SettingsPage() {
     }
   }, [savedTimezone]);
 
+  useEffect(() => {
+    if (savedThinking) {
+      setThinkingEnabled(savedThinking.enabled);
+      setThinkingEffort(savedThinking.effort);
+    }
+  }, [savedThinking]);
+
   const handleSaveTimezone = useCallback(() => {
     setFormError(null);
     setTimezoneHint(null);
@@ -211,6 +228,27 @@ export function SettingsPage() {
       },
     });
   }, [saveTimezoneMutation, timezone]);
+
+  const handleSaveThinking = useCallback(() => {
+    setFormError(null);
+    setThinkingHint(null);
+
+    saveThinkingMutation.mutate(
+      { enabled: thinkingEnabled, effort: thinkingEffort },
+      {
+        onSuccess: (saved) => {
+          setThinkingEnabled(saved.enabled);
+          setThinkingEffort(saved.effort);
+          setThinkingHint(
+            saved.enabled ? `Saved · ${saved.effort} effort` : "Saved · thinking off",
+          );
+        },
+        onError: (err) => {
+          setFormError(formatError(err));
+        },
+      },
+    );
+  }, [saveThinkingMutation, thinkingEnabled, thinkingEffort]);
 
   const handleSaveModel = useCallback(async () => {
     if (!modelDraft || modelDraft === models?.currentModel) {
@@ -292,6 +330,75 @@ export function SettingsPage() {
           {timezoneHint ? (
             <p className="text-xs text-emerald-200" role="status">
               {timezoneHint}
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card className="w-full">
+        <CardHeader className="pb-2">
+          <CardTitle>Extended thinking</CardTitle>
+          <CardDescription>
+            Show the model&apos;s reasoning while it works. Uses more tokens when enabled.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="max-w-md space-y-4">
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              className="size-4 rounded border-border"
+              checked={thinkingEnabled}
+              disabled={saveThinkingMutation.isPending}
+              onChange={(event) => {
+                setThinkingEnabled(event.target.checked);
+                setThinkingHint(null);
+              }}
+            />
+            <span className="text-sm text-foreground">Enable thinking in chat</span>
+          </label>
+
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Reasoning depth</p>
+            <Select
+              value={thinkingEffort}
+              disabled={!thinkingEnabled || saveThinkingMutation.isPending}
+              onValueChange={(value) => {
+                if (isThinkingEffort(value)) {
+                  setThinkingEffort(value);
+                  setThinkingHint(null);
+                }
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            type="button"
+            size="sm"
+            disabled={saveThinkingMutation.isPending}
+            onClick={handleSaveThinking}
+          >
+            {saveThinkingMutation.isPending ? (
+              <>
+                <Spinner className="mr-2" />
+                Saving…
+              </>
+            ) : (
+              "Save"
+            )}
+          </Button>
+
+          {thinkingHint ? (
+            <p className="text-xs text-emerald-200" role="status">
+              {thinkingHint}
             </p>
           ) : null}
         </CardContent>

@@ -21,11 +21,19 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: "/user", description: "show or initialize USER.md" },
   { name: "/models", description: "list available models" },
   { name: "/model", description: "show or switch model" },
+  { name: "/thinking", description: "show or change extended thinking" },
   { name: "/profile", description: "show or switch bot profile" },
   { name: "/exit", description: "quit" },
 ];
 
-const COMMANDS_WITH_ARGS = new Set(["/model", "/profile", "/create", "/soul", "/user"]);
+const COMMANDS_WITH_ARGS = new Set([
+  "/model",
+  "/thinking",
+  "/profile",
+  "/create",
+  "/soul",
+  "/user",
+]);
 
 export interface ResolveSuggestionsOptions {
   input: string;

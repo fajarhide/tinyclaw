@@ -143,6 +143,7 @@ export interface SendMessageResponse {
 
 export type StreamEvent =
   | { type: "chunk"; delta: string }
+  | { type: "thinking"; delta: string }
   | {
       type: "tool_start";
       toolCallId: string;
@@ -288,6 +289,22 @@ export interface TimezoneSettingsResponse {
 
 export interface UpdateTimezoneRequest {
   timezone: string;
+}
+
+export type ThinkingEffort = "low" | "medium" | "high";
+
+export interface ThinkingSettings {
+  enabled: boolean;
+  effort: ThinkingEffort;
+}
+
+export interface ThinkingSettingsResponse {
+  thinking: ThinkingSettings;
+}
+
+export interface UpdateThinkingRequest {
+  enabled: boolean;
+  effort?: ThinkingEffort;
 }
 
 export interface TelegramSettingsResponse {
@@ -523,6 +540,8 @@ export type ChatMessage =
   | {
       role: "assistant";
       content: string;
+      /** Model reasoning trace for display; not sent as plain assistant text to providers. */
+      thinking?: string;
       summary?: boolean;
       toolCalls?: ToolCall[];
       /** Provider-specific assistant payload for multi-turn replay (Anthropic blocks, OpenAI response items). */
@@ -539,6 +558,10 @@ export interface ChatCompletionResult {
 export interface ProviderChatOptions {
   /** Use the active provider's hosted web search instead of executing web_search locally. */
   webSearch?: boolean;
+  thinking?: {
+    enabled: boolean;
+    effort?: ThinkingEffort;
+  };
 }
 
 export interface GenerateChatInput {
@@ -550,6 +573,7 @@ export interface GenerateChatInput {
 
 export interface StreamChatHandlers {
   onChunk: (delta: string) => void;
+  onThinking?: (delta: string) => void;
   onToolStart?: (event: {
     toolCallId: string;
     tool: string;

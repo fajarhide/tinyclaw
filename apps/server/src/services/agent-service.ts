@@ -33,10 +33,15 @@ import type {
   UpdateTelegramSettingsRequest,
   UpdateUserContextRequest,
   UserContextStatusResponse,
+  ThinkingSettings,
+  ThinkingSettingsResponse,
+  UpdateThinkingRequest,
   UserProviderConfig,
+  type ProviderChatOptions,
   type ProviderClient,
 } from "@tinyclaw/core";
 import {
+  buildThinkingProviderOptions,
   composeSoulSystemPrompt,
   createId,
   createSessionId,
@@ -56,7 +61,9 @@ import {
   regenerateTelegramHandshake,
   resolveSoulStackForProfile,
   saveTelegramConfig,
+  loadUserThinkingSettings,
   saveUserConfig,
+  saveUserThinkingSettings,
   saveUserTimezone,
   writeSoulFile,
   writeUserContext as persistUserContext,
@@ -146,6 +153,69 @@ export class AgentService {
     }
 
     return timezone;
+  }
+
+  async getThinkingSettings(): Promise<ThinkingSettingsResponse> {
+    const thinking = await this.resolveThinkingSettings();
+    return { thinking };
+  }
+
+  async setThinkingSettings(
+    input: UpdateThinkingRequest,
+  ): Promise<ThinkingSettingsResponse> {
+    const effort = input.effort ?? (await this.resolveThinkingSettings()).effort;
+    const thinking: ThinkingSettings = {
+      enabled: input.enabled,
+      effort,
+    };
+
+    await saveUserThinkingSettings(thinking);
+
+    if (this.userConfig) {
+      this.userConfig = {
+        ...this.userConfig,
+        thinkingEnabled: thinking.enabled,
+        thinkingEffort: thinking.effort,
+      };
+    }
+
+    this.harness = this.createHarness(
+      createProviderFromSources(process.env, this.userConfig),
+    );
+    this.sessions.clear();
+
+    return { thinking };
+  }
+
+  private async resolveThinkingSettings(): Promise<ThinkingSettings> {
+    if (
+      this.userConfig?.thinkingEnabled !== undefined ||
+      this.userConfig?.thinkingEffort !== undefined
+    ) {
+      return {
+        enabled: this.userConfig.thinkingEnabled ?? true,
+        effort: this.userConfig.thinkingEffort ?? "medium",
+      };
+    }
+
+    return loadUserThinkingSettings();
+  }
+
+  private resolveChatProviderOptions(
+    overrides?: Partial<ProviderChatOptions>,
+  ): ProviderChatOptions | undefined {
+    const thinking = buildThinkingProviderOptions(this.userConfig);
+    const webSearch = overrides?.webSearch;
+    const mergedThinking = overrides?.thinking ?? thinking;
+
+    if (!webSearch && !mergedThinking) {
+      return undefined;
+    }
+
+    return {
+      ...(webSearch ? { webSearch } : {}),
+      ...(mergedThinking ? { thinking: mergedThinking } : {}),
+    };
   }
 
   async getTelegramSettings(): Promise<TelegramSettingsResponse> {
@@ -569,10 +639,14 @@ export class AgentService {
       ? resolveModel(provider, model.trim())
       : getDefaultModel(provider);
     const option = getModelById(selectedModel);
+    const thinking = await this.resolveThinkingSettings();
     const nextConfig: UserProviderConfig = {
       provider: option?.provider ?? provider,
       apiKey: trimmedKey,
       model: selectedModel,
+      ...(this.userConfig?.timezone ? { timezone: this.userConfig.timezone } : {}),
+      thinkingEnabled: thinking.enabled,
+      thinkingEffort: thinking.effort,
     };
 
     this.userConfig = nextConfig;
@@ -760,6 +834,7 @@ export class AgentService {
   private createHarness(provider: ProviderClient | null): AgentHarness {
     return createAgentHarness({
       provider: provider ?? undefined,
+      chatOptions: this.resolveChatProviderOptions(),
     });
   }
 

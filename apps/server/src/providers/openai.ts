@@ -85,6 +85,10 @@ function usesResponsesApi(input: GenerateChatInput): boolean {
     return true;
   }
 
+  if (input.providerOptions?.thinking?.enabled) {
+    return true;
+  }
+
   return Boolean(input.providerOptions?.webSearch) && !messagesIncludeUserImages(input.messages);
 }
 

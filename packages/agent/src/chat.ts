@@ -2,6 +2,7 @@ import type {
   AutomationDefinition,
   ChatMessage,
   CompactionResponse,
+  ProviderChatOptions,
   ProviderClient,
   SendMessageInput,
   ToolCall,
@@ -17,6 +18,7 @@ export interface AgentRequest {
 export interface AgentDependencies {
   provider?: ProviderClient;
   tools?: ToolDefinition[];
+  chatOptions?: ProviderChatOptions;
 }
 import {
   getUserMessageText,
@@ -44,6 +46,7 @@ const MAX_TOOL_ITERATIONS = 5;
 
 export interface StreamHandlers {
   onChunk: (delta: string) => void;
+  onThinking?: (delta: string) => void;
   onToolStart?: (event: {
     toolCallId: string;
     tool: string;
@@ -230,10 +233,11 @@ async function sendMessage(
   const enableTools = options.enableToolLoop && (localTools.length > 0 || hasWebSearch);
   const llmTools =
     enableTools && localTools.length > 0 ? toLlmToolDefinitions(localTools) : undefined;
-  const providerOptions =
-    enableTools && hasWebSearch && dependencies.provider && !multimodalTurn
-      ? { webSearch: true }
-      : undefined;
+  const providerOptions = buildProviderOptions(dependencies, {
+    webSearch:
+      enableTools && hasWebSearch && Boolean(dependencies.provider) && !multimodalTurn,
+    multimodalTurn,
+  });
 
   if (options.runCompaction) {
     await options.runCompaction(false);
@@ -290,7 +294,7 @@ async function runConversation(
   mode: "send" | "stream",
   enableToolLoop: boolean,
   llmTools: ReturnType<typeof toLlmToolDefinitions> | undefined,
-  providerOptions: { webSearch?: boolean } | undefined,
+  providerOptions: ProviderChatOptions | undefined,
   handlers?: StreamHandlers,
   toolContext?: ToolContext,
 ): Promise<string> {
@@ -359,7 +363,7 @@ async function generateReply(
   systemPrompt: string,
   history: ChatMessage[],
   tools: ReturnType<typeof toLlmToolDefinitions> | undefined,
-  providerOptions: { webSearch?: boolean } | undefined,
+  providerOptions: ProviderChatOptions | undefined,
   mode: "send" | "stream",
   handlers?: StreamHandlers,
 ) {
@@ -373,12 +377,32 @@ async function generateReply(
   if (mode === "stream" && handlers) {
     return provider.streamChat(input, {
       onChunk: handlers.onChunk,
+      onThinking: handlers.onThinking,
       onToolStart: handlers.onToolStart,
       onToolEnd: handlers.onToolEnd,
     });
   }
 
   return provider.generateChat(input);
+}
+
+function buildProviderOptions(
+  dependencies: AgentDependencies,
+  options: { webSearch: boolean; multimodalTurn: boolean },
+): ProviderChatOptions | undefined {
+  const base = dependencies.chatOptions;
+  const thinking =
+    options.multimodalTurn || !base?.thinking?.enabled ? undefined : base.thinking;
+  const webSearch = options.webSearch ? true : undefined;
+
+  if (!webSearch && !thinking) {
+    return undefined;
+  }
+
+  return {
+    ...(webSearch ? { webSearch: true } : {}),
+    ...(thinking ? { thinking } : {}),
+  };
 }
 
 export function getLastUserMessage(history: readonly ChatMessage[]): string | null {

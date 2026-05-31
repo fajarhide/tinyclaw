@@ -1,4 +1,5 @@
 import type { ChatMessage, MessageContentPart } from "@tinyclaw/core/contract";
+import { extractThinkingFromAssistantMessage } from "@tinyclaw/core/thinking-content";
 import { userContentToDisplayDocuments, userContentToDisplayImages } from "@/lib/chat-images";
 
 export interface RequestedChatSession {
@@ -47,6 +48,8 @@ export interface ChatListItem {
   id: string;
   role: "user" | "assistant" | "tool";
   content: string;
+  thinking?: string;
+  thinkingStreaming?: boolean;
   images?: Array<{ url: string; mediaType: string }>;
   documents?: Array<{ filename: string; mediaType: string }>;
   streaming?: boolean;
@@ -110,10 +113,13 @@ export function chatMessagesToListItems(messages: ChatMessage[]): ChatListItem[]
         continue;
       }
 
+      const thinking = extractThinkingFromAssistantMessage(message);
+
       items.push({
         id: `history-${index}`,
         role: "assistant",
         content: message.content,
+        ...(thinking ? { thinking } : {}),
       });
       continue;
     }

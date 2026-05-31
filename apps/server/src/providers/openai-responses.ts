@@ -4,6 +4,7 @@ import type {
   GenerateChatInput,
   LlmToolDefinition,
   StreamChatHandlers,
+  ThinkingEffort,
   ToolCall,
 } from "@tinyclaw/core";
 import {
@@ -61,8 +62,32 @@ async function buildResponsesRequestBody(
     instructions: input.system,
     input: await toResponsesInput(input.messages),
     ...(tools.length > 0 ? { tools } : {}),
+    ...buildOpenAIReasoningRequest(input),
     ...(stream ? { stream: true } : {}),
   };
+}
+
+function buildOpenAIReasoningRequest(
+  input: GenerateChatInput,
+): Record<string, unknown> {
+  if (!input.providerOptions?.thinking?.enabled) {
+    return {};
+  }
+
+  return {
+    reasoning: {
+      effort: mapOpenAIReasoningEffort(input.providerOptions.thinking.effort),
+      summary: "auto",
+    },
+  };
+}
+
+function mapOpenAIReasoningEffort(effort: ThinkingEffort | undefined): ThinkingEffort {
+  if (effort === "low" || effort === "medium" || effort === "high") {
+    return effort;
+  }
+
+  return "medium";
 }
 
 function buildResponsesTools(tools: LlmToolDefinition[] | undefined, webSearch: boolean) {
@@ -166,9 +191,20 @@ function parseResponsesOutput(
   handlers?: StreamChatHandlers,
 ): ChatCompletionResult {
   const textParts: string[] = [];
+  const thinkingParts: string[] = [];
   const toolCalls: ToolCall[] = [];
 
   for (const item of output) {
+    if (item.type === "reasoning") {
+      const summaryText = extractReasoningSummaryText(item);
+
+      if (summaryText) {
+        thinkingParts.push(summaryText);
+      }
+
+      continue;
+    }
+
     if (item.type === "message") {
       const content = item.content;
 
@@ -211,6 +247,7 @@ function parseResponsesOutput(
   }
 
   const content = textParts.join("").trim();
+  const thinking = thinkingParts.join("\n\n").trim();
   const providerContent = output.length > 0 ? output : undefined;
 
   if (!content && toolCalls.length === 0 && !providerContent?.length) {
@@ -223,10 +260,39 @@ function parseResponsesOutput(
     assistantMessage: {
       role: "assistant",
       content,
+      ...(thinking ? { thinking } : {}),
       ...(toolCalls.length > 0 ? { toolCalls } : {}),
       ...(providerContent ? { providerContent } : {}),
     },
   };
+}
+
+function extractReasoningSummaryText(item: ResponseItem): string | undefined {
+  const summary = item.summary;
+
+  if (!Array.isArray(summary)) {
+    return undefined;
+  }
+
+  const parts: string[] = [];
+
+  for (const entry of summary) {
+    if (
+      typeof entry === "object" &&
+      entry !== null &&
+      "text" in entry &&
+      typeof (entry as { text?: unknown }).text === "string"
+    ) {
+      const text = (entry as { text: string }).text.trim();
+
+      if (text) {
+        parts.push(text);
+      }
+    }
+  }
+
+  const combined = parts.join("\n\n").trim();
+  return combined || undefined;
 }
 
 async function readOpenAIResponsesStream(
@@ -237,6 +303,7 @@ async function readOpenAIResponsesStream(
   const decoder = new TextDecoder();
   let buffer = "";
   let content = "";
+  let thinking = "";
   const output: ResponseItem[] = [];
   const outputIndex = new Map<string, ResponseItem>();
 
@@ -277,6 +344,12 @@ async function readOpenAIResponsesStream(
           const delta = String(payload.delta ?? "");
           content += delta;
           handlers?.onChunk(delta);
+        }
+
+        if (type === "response.reasoning_summary_text.delta") {
+          const delta = String(payload.delta ?? "");
+          thinking += delta;
+          handlers?.onThinking?.(delta);
         }
 
         if (type === "response.output_item.added") {
@@ -321,12 +394,15 @@ async function readOpenAIResponsesStream(
 
   const parsed = parseResponsesOutput(output, handlers);
 
+  const thinkingText = thinking.trim() || parsed.assistantMessage.thinking;
+
   return {
     ...parsed,
     content: content.trim() || parsed.content,
     assistantMessage: {
       ...parsed.assistantMessage,
       content: content.trim() || parsed.content,
+      ...(thinkingText ? { thinking: thinkingText } : {}),
     },
   };
 }

@@ -302,6 +302,76 @@
         }
       }
     },
+    "/v1/settings/thinking": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Get extended thinking settings",
+        "operationId": "getThinkingSettings",
+        "responses": {
+          "200": {
+            "description": "Thinking settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThinkingSettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Update extended thinking settings",
+        "operationId": "setThinkingSettings",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateThinkingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Thinking settings updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThinkingSettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/settings/telegram": {
       "get": {
         "tags": [
@@ -2653,6 +2723,26 @@
           }
         }
       },
+      "DocumentAttachment": {
+        "type": "object",
+        "required": [
+          "filename",
+          "mediaType",
+          "data"
+        ],
+        "properties": {
+          "filename": {
+            "type": "string"
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "data": {
+            "type": "string",
+            "description": "Base64-encoded document bytes"
+          }
+        }
+      },
       "MessageContentPartText": {
         "type": "object",
         "required": [
@@ -2689,6 +2779,30 @@
           }
         }
       },
+      "MessageContentPartDocument": {
+        "type": "object",
+        "required": [
+          "type",
+          "filename",
+          "mediaType",
+          "data"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "document"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "data": {
+            "type": "string"
+          }
+        }
+      },
       "SendMessageRequest": {
         "type": "object",
         "required": [
@@ -2702,6 +2816,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ImageAttachment"
+            }
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentAttachment"
             }
           },
           "stream": {
@@ -2767,6 +2887,22 @@
               "type": {
                 "type": "string",
                 "const": "chunk"
+              },
+              "delta": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "delta"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "thinking"
               },
               "delta": {
                 "type": "string"
@@ -4099,6 +4235,54 @@
         "properties": {
           "timezone": {
             "type": "string"
+          }
+        }
+      },
+      "ThinkingEffort": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "ThinkingSettings": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "effort"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "effort": {
+            "$ref": "#/components/schemas/ThinkingEffort"
+          }
+        }
+      },
+      "ThinkingSettingsResponse": {
+        "type": "object",
+        "required": [
+          "thinking"
+        ],
+        "properties": {
+          "thinking": {
+            "$ref": "#/components/schemas/ThinkingSettings"
+          }
+        }
+      },
+      "UpdateThinkingRequest": {
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "effort": {
+            "$ref": "#/components/schemas/ThinkingEffort"
           }
         }
       },

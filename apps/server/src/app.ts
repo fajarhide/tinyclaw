@@ -17,7 +17,9 @@ import {
   type AutomationResponse,
   type RunAutomationResponse,
   type TelegramSettingsResponse,
+  type ThinkingSettingsResponse,
   type TimezoneSettingsResponse,
+  type UpdateThinkingRequest,
   type ListTimezonesResponse,
   type UpdateAutomationRequest,
   type UpdateTimezoneRequest,
@@ -166,6 +168,15 @@ export function createApp(options: ServerOptions) {
           const timezone = await agent.setUserTimezone(body.timezone);
 
           return json<TimezoneSettingsResponse>({ timezone });
+        }
+
+        if (request.method === "GET" && url.pathname === "/v1/settings/thinking") {
+          return json<ThinkingSettingsResponse>(await agent.getThinkingSettings());
+        }
+
+        if (request.method === "PUT" && url.pathname === "/v1/settings/thinking") {
+          const body = await readJson<UpdateThinkingRequest>(request);
+          return json<ThinkingSettingsResponse>(await agent.setThinkingSettings(body));
         }
 
         if (request.method === "GET" && url.pathname === "/v1/settings/telegram") {
@@ -783,6 +794,7 @@ function streamMessage(session: AgentChatSession, input: SendMessageInput): Resp
       try {
         const reply = await session.sendStream(input, {
           onChunk: (delta) => send({ type: "chunk", delta }),
+          onThinking: (delta) => send({ type: "thinking", delta }),
           onToolStart: (event) =>
             send({
               type: "tool_start",

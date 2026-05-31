@@ -165,6 +165,27 @@ export function buildOpenApiSpec() {
           },
         },
       },
+      "/v1/settings/thinking": {
+        get: {
+          tags: ["Models"],
+          summary: "Get extended thinking settings",
+          operationId: "getThinkingSettings",
+          responses: {
+            "200": jsonResponse("ThinkingSettingsResponse", "Thinking settings"),
+            "500": errorResponse,
+          },
+        },
+        put: {
+          tags: ["Models"],
+          summary: "Update extended thinking settings",
+          operationId: "setThinkingSettings",
+          requestBody: jsonBody("UpdateThinkingRequest"),
+          responses: {
+            "200": jsonResponse("ThinkingSettingsResponse", "Thinking settings updated"),
+            "500": errorResponse,
+          },
+        },
+      },
       "/v1/settings/telegram": {
         get: {
           tags: ["Models"],

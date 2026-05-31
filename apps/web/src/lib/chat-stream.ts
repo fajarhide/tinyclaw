@@ -120,7 +120,11 @@ export function finalizeStreamingMessages(messages: ChatListItem[]): ChatListIte
     const message = next[index];
 
     if (message?.role === "assistant") {
-      next[index] = { ...message, streaming: false };
+      next[index] = {
+        ...message,
+        streaming: false,
+        thinkingStreaming: false,
+      };
       break;
     }
   }
@@ -154,6 +158,23 @@ export function buildStreamHandlers(
   setMessages: Dispatch<SetStateAction<ChatListItem[]>>,
 ): StreamHandlers {
   return {
+    onThinking: (delta) => {
+      setMessages((current) => {
+        const next = [...current];
+        const last = next[next.length - 1];
+
+        if (last?.role === "assistant" && last.streaming) {
+          next[next.length - 1] = {
+            ...last,
+            thinking: `${last.thinking ?? ""}${delta}`,
+            thinkingStreaming: true,
+          };
+          return next;
+        }
+
+        return next;
+      });
+    },
     onChunk: (delta) => {
       setMessages((current) => {
         const next = [...current];
@@ -164,6 +185,7 @@ export function buildStreamHandlers(
             ...last,
             content: last.content + delta,
             streaming: true,
+            ...(last.thinkingStreaming ? { thinkingStreaming: false } : {}),
           };
           return next;
         }
@@ -221,6 +243,7 @@ export function appendOutgoingMessages(
   text: string,
   images: Array<{ mediaType: string; url: string }> = [],
   documents: Array<{ filename: string; mediaType: string }> = [],
+  options: { thinkingEnabled?: boolean } = {},
 ): void {
   setMessages((current) => [
     ...current,
@@ -231,7 +254,13 @@ export function appendOutgoingMessages(
       images: images.length > 0 ? images : undefined,
       documents: documents.length > 0 ? documents : undefined,
     },
-    { id: crypto.randomUUID(), role: "assistant", content: "", streaming: true },
+    {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: "",
+      streaming: true,
+      ...(options.thinkingEnabled ? { thinking: "", thinkingStreaming: true } : {}),
+    },
   ]);
 }
 

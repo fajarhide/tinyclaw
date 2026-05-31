@@ -42,8 +42,11 @@ import type {
   StoredAutomation,
   SystemStatusResponse,
   TelegramSettingsResponse,
+  ThinkingSettings,
+  ThinkingSettingsResponse,
   TimezoneSettingsResponse,
   UpdateAutomationRequest,
+  UpdateThinkingRequest,
   UpdateTelegramSettingsRequest,
   UpdateTimezoneRequest,
   ListTimezonesResponse,
@@ -74,6 +77,7 @@ export type StreamHandler = (delta: string) => void;
 
 export interface StreamHandlers {
   onChunk: StreamHandler;
+  onThinking?: StreamHandler;
   onToolStart?: (event: {
     toolCallId: string;
     tool: string;
@@ -582,6 +586,21 @@ export class TinyClawClient {
     return response.timezone;
   }
 
+  async getThinkingSettings(): Promise<ThinkingSettings> {
+    const response = await this.request<ThinkingSettingsResponse>("/v1/settings/thinking");
+    return response.thinking;
+  }
+
+  async setThinkingSettings(
+    settings: UpdateThinkingRequest,
+  ): Promise<ThinkingSettings> {
+    const response = await this.request<ThinkingSettingsResponse>("/v1/settings/thinking", {
+      method: "PUT",
+      body: JSON.stringify(settings satisfies UpdateThinkingRequest),
+    });
+    return response.thinking;
+  }
+
   async getTelegramSettings(): Promise<TelegramSettingsResponse> {
     return this.request<TelegramSettingsResponse>("/v1/settings/telegram");
   }
@@ -675,6 +694,10 @@ async function readStreamEvents(
           if (payload.type === "chunk") {
             handlers.onChunk(payload.delta);
             reply += payload.delta;
+          }
+
+          if (payload.type === "thinking") {
+            handlers.onThinking?.(payload.delta);
           }
 
           if (payload.type === "tool_start") {

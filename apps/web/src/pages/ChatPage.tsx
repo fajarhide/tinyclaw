@@ -8,6 +8,7 @@ import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { useAppContext } from "@/context/app-context";
+import { useThinkingSettings } from "@/hooks/use-thinking-settings";
 import { filePartsToDocumentAttachments, filePartsToImageAttachments } from "@/lib/chat-images";
 import {
   buildChatBasePath,
@@ -36,6 +37,7 @@ export function ChatPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const routeSession = useMemo(() => parseChatRouteParams(params), [params]);
   const { health, models, setModel } = useAppContext();
+  const { data: thinkingSettings } = useThinkingSettings();
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [profileId, setProfileId] = useState(
     () => readRequestedProfileFromNewChatSearch(location.search) ?? "",
@@ -275,6 +277,7 @@ export function ChatPage() {
           filename: document.filename,
           mediaType: document.mediaType,
         })),
+        { thinkingEnabled: thinkingSettings?.enabled ?? true },
       );
 
       const abortController = new AbortController();
@@ -324,7 +327,7 @@ export function ChatPage() {
         setBusy(false);
       }
     },
-    [session, busy, profileId, syncChatUrl],
+    [session, busy, profileId, syncChatUrl, thinkingSettings?.enabled],
   );
 
   return (
