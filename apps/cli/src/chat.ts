@@ -22,6 +22,7 @@ import {
 } from "./profile";
 import { PromptCancelledError, promptLine } from "./prompt";
 import { sendStreamCancellable } from "./stream-abort";
+import { ThinkingIndicator } from "./thinking-indicator";
 
 const HELP_TEXT = `${formatSlashCommands()}\n\n@/path/to/image.png [message]   attach an image from file\n/paste                            attach image from clipboard (recommended)\nCtrl+V / Cmd+V (empty paste)      attach image when terminal supports it`;
 
@@ -168,10 +169,9 @@ export async function runChat(options: RunChatOptions): Promise<void> {
 
           lastUserMessage = "";
 
-          const { aborted } = await sendStreamCancellable(
+          const { aborted } = await sendMessageStream(
             session,
             { message: "", images: [image] },
-            streamHandlers,
           );
           finishStreamOutput(aborted);
         } catch (error) {
@@ -423,7 +423,7 @@ export async function runChat(options: RunChatOptions): Promise<void> {
       lastUserMessage = sendInput.message || line;
 
       try {
-        const { aborted } = await sendStreamCancellable(session, sendInput, streamHandlers);
+        const { aborted } = await sendMessageStream(session, sendInput);
         finishStreamOutput(aborted);
       } catch (error) {
         console.log(`${formatError(error)}\n`);
@@ -551,26 +551,32 @@ function isExitCommand(line: string): boolean {
   return normalized === "/exit" || normalized === "/quit";
 }
 
-let thinkingOutputActive = false;
+const thinkingIndicator = new ThinkingIndicator();
+
+async function sendMessageStream(
+  session: Parameters<typeof sendStreamCancellable>[0],
+  input: Parameters<typeof sendStreamCancellable>[1],
+): Promise<{ aborted: boolean }> {
+  thinkingIndicator.start();
+
+  try {
+    return await sendStreamCancellable(session, input, streamHandlers);
+  } catch (error) {
+    thinkingIndicator.stop();
+    throw error;
+  }
+}
 
 const streamHandlers = {
-  onThinking: (delta: string) => {
-    if (!thinkingOutputActive) {
-      process.stdout.write("\n\x1b[2m[thinking]\x1b[0m\n");
-      thinkingOutputActive = true;
-    }
-
-    process.stdout.write(`\x1b[2m${delta}\x1b[0m`);
+  onThinking: () => {
+    thinkingIndicator.start();
   },
   onChunk: (delta: string) => {
-    if (thinkingOutputActive) {
-      process.stdout.write("\n\n");
-      thinkingOutputActive = false;
-    }
-
+    thinkingIndicator.stop();
     process.stdout.write(delta);
   },
   onToolStart: (event: { tool: string }) => {
+    thinkingIndicator.stop();
     process.stdout.write(`\n\x1b[2m[tool: ${event.tool}]\x1b[0m\n`);
   },
   onToolEnd: (event: { tool: string }) => {
@@ -579,7 +585,7 @@ const streamHandlers = {
 } as const;
 
 function finishStreamOutput(aborted: boolean): void {
-  thinkingOutputActive = false;
+  thinkingIndicator.stop();
 
   if (aborted) {
     process.stdout.write("\n\x1b[2m[stopped]\x1b[0m");

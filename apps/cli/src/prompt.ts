@@ -2,6 +2,11 @@ import * as readline from "node:readline/promises";
 import type { ImageAttachment } from "@tinyclaw/core";
 import type { PromptSuggestion } from "./commands";
 import { isClipboardImagePasteSupported, readClipboardImage } from "./clipboard-image";
+import {
+  formatInputForDisplay,
+  normalizePastedText,
+  splitInputDisplayLines,
+} from "./prompt-display";
 
 const BRACKETED_PASTE_START = "\x1b[200~";
 const BRACKETED_PASTE_END = "\x1b[201~";
@@ -44,34 +49,78 @@ export async function promptLine(
     let cursorVisible = true;
     let closed = false;
     let selectedIndex = 0;
+    let previousBlockHeight = 1;
+    let cursorOffsetFromBlockStart = 0;
     let previousRenderedLines = 0;
     let hasNavigated = false;
     let pasteBuffer = "";
     let inBracketedPaste = false;
+    let blinkTimer: ReturnType<typeof setInterval> | null = null;
     let clipboardAttachTask: Promise<void> = Promise.resolve();
     const clipboardPasteSupported = isClipboardImagePasteSupported();
 
-    const blinkTimer = setInterval(() => {
-      cursorVisible = !cursorVisible;
-      render();
-    }, BLINK_INTERVAL_MS);
+    function writeCursorCell() {
+      stdout.write(cursorVisible ? CURSOR_CHAR : " ");
+    }
+
+    function toggleCursorBlink() {
+      stdout.write("\b");
+      writeCursorCell();
+    }
+
+    function startBlink() {
+      if (blinkTimer || closed) {
+        return;
+      }
+
+      blinkTimer = setInterval(() => {
+        cursorVisible = !cursorVisible;
+        toggleCursorBlink();
+      }, BLINK_INTERVAL_MS);
+    }
+
+    function stopBlink() {
+      if (!blinkTimer) {
+        return;
+      }
+
+      clearInterval(blinkTimer);
+      blinkTimer = null;
+    }
 
     function currentSuggestions(): PromptSuggestion[] {
       return getSuggestions(value).slice(0, MAX_VISIBLE_SUGGESTIONS);
     }
 
-    function cursorColumn(): number {
-      return prefix.length + value.length + 1;
+    function moveToBlockStart() {
+      if (cursorOffsetFromBlockStart > 0) {
+        stdout.write(`\x1b[${cursorOffsetFromBlockStart}A`);
+      }
     }
 
     function render() {
       const suggestions = currentSuggestions();
-      const cursor = cursorVisible ? CURSOR_CHAR : " ";
-      const renderedLines = Math.max(suggestions.length, previousRenderedLines);
+      const display = formatInputForDisplay(value);
+      const width = stdout.columns ?? 80;
+      const inputLines = splitInputDisplayLines(display, prefix.length, width);
+      const suggestionLines = Math.max(suggestions.length, previousRenderedLines);
+      const continuationPrefix = " ".repeat(prefix.length);
+      const totalLines = inputLines.length + suggestionLines;
 
-      stdout.write(`\r\x1b[K${prefix}${value}${cursor}`);
+      moveToBlockStart();
 
-      for (let index = 0; index < renderedLines; index += 1) {
+      for (let index = 0; index < inputLines.length; index += 1) {
+        const lineText = inputLines[index] ?? "";
+        const linePrefix = index === 0 ? prefix : continuationPrefix;
+
+        if (index === 0) {
+          stdout.write(`\r\x1b[K${linePrefix}${lineText}`);
+        } else {
+          stdout.write(`\n\x1b[K${linePrefix}${lineText}`);
+        }
+      }
+
+      for (let index = 0; index < suggestionLines; index += 1) {
         const suggestion = suggestions[index];
 
         if (suggestion) {
@@ -89,16 +138,33 @@ export async function promptLine(
         }
       }
 
-      if (renderedLines > 0) {
-        stdout.write(`\x1b[${renderedLines}A`);
+      if (totalLines < previousBlockHeight) {
+        for (let index = totalLines; index < previousBlockHeight; index += 1) {
+          stdout.write("\n\x1b[K");
+        }
+
+        const extraLines = previousBlockHeight - totalLines;
+
+        if (extraLines > 0) {
+          stdout.write(`\x1b[${extraLines}A`);
+        }
       }
 
-      previousRenderedLines = suggestions.length;
-      stdout.write(`\r\x1b[${cursorColumn()}C`);
-    }
+      const lastInputRow = inputLines.length - 1;
+      const lastLine = inputLines[lastInputRow] ?? "";
+      const lastLinePrefix = lastInputRow === 0 ? prefix : continuationPrefix;
+      const rowsUpFromBottom = totalLines - 1 - lastInputRow;
 
-    function clearBelowInput() {
-      stdout.write(`\r\x1b[${cursorColumn()}C\x1b[J`);
+      if (rowsUpFromBottom > 0) {
+        stdout.write(`\x1b[${rowsUpFromBottom}A`);
+      }
+
+      stdout.write(`\r\x1b[${lastLinePrefix.length + lastLine.length}C`);
+      writeCursorCell();
+
+      previousBlockHeight = Math.max(totalLines, 1);
+      cursorOffsetFromBlockStart = lastInputRow;
+      previousRenderedLines = suggestions.length;
     }
 
     function applySuggestion(suggestion: PromptSuggestion, submitAfter = false) {
@@ -126,18 +192,41 @@ export async function promptLine(
       hasNavigated = false;
     }
 
+    function echoSubmittedValue(text: string) {
+      const lines = text.split("\n");
+
+      for (let index = 0; index < lines.length; index += 1) {
+        const linePrefix = index === 0 ? prefix : " ".repeat(prefix.length);
+        stdout.write(`${linePrefix}${lines[index] ?? ""}\n`);
+      }
+    }
+
     function cleanup() {
       if (closed) {
         return;
       }
 
       closed = true;
-      clearInterval(blinkTimer);
+      stopBlink();
       stdin.setRawMode(false);
       stdin.off("data", onData);
+      stdout.write("\x1b[?2004l");
       stdout.write("\x1b[?25h");
-      clearBelowInput();
-      stdout.write(`\r\x1b[K${prefix}${value}\n`);
+      moveToBlockStart();
+
+      for (let index = 0; index < previousBlockHeight; index += 1) {
+        stdout.write("\r\x1b[K");
+
+        if (index < previousBlockHeight - 1) {
+          stdout.write("\n");
+        }
+      }
+
+      if (previousBlockHeight > 1) {
+        stdout.write(`\x1b[${previousBlockHeight - 1}A`);
+      }
+
+      echoSubmittedValue(value);
     }
 
     function notifyClipboard(message: string) {
@@ -183,9 +272,12 @@ export async function promptLine(
     function finishBracketedPaste(pasted: string) {
       inBracketedPaste = false;
       pasteBuffer = "";
+      startBlink();
 
-      if (pasted.trim()) {
-        value += pasted;
+      const normalized = normalizePastedText(pasted);
+
+      if (normalized.trim()) {
+        value += normalized;
         resetSelection();
         cursorVisible = true;
         render();
@@ -238,6 +330,7 @@ export async function promptLine(
       }
 
       if (key.includes(BRACKETED_PASTE_START)) {
+        stopBlink();
         const startIndex = key.indexOf(BRACKETED_PASTE_START);
         const before = key.slice(0, startIndex);
 
@@ -337,10 +430,12 @@ export async function promptLine(
           return;
         }
 
-        value += printable;
+        stopBlink();
+        value += normalizePastedText(printable);
         resetSelection();
         cursorVisible = true;
         render();
+        startBlink();
         return;
       }
 
@@ -356,7 +451,9 @@ export async function promptLine(
     stdin.resume();
     stdin.setEncoding("utf8");
     stdout.write("\x1b[?25l");
+    stdout.write("\x1b[?2004h");
     stdin.on("data", onData);
+    startBlink();
     render();
   });
 }
