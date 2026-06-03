@@ -2,6 +2,7 @@ import type { ConfigureProviderResponse } from "@tinyclaw/core/contract";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ModelListRow } from "@/components/ModelListEditor";
 import { toCustomModelEntries } from "@/components/CustomCompatibleProviderFields";
+import type { ModelsDevRow } from "@/hooks/use-models-dev";
 import { useAppContext } from "@/context/app-context";
 import { useModelsQuery } from "@/hooks/use-app-queries";
 import { formatError } from "@/lib/client";
@@ -111,6 +112,27 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
       setModelsError(null);
     }
   }, []);
+
+  const handleBrowseSelect = useCallback(
+    (provider: SelectedProvider, modelId: string, row: ModelsDevRow) => {
+      handleProviderSelect(provider);
+      if (provider === "openrouter") {
+        setCustomModel(modelId);
+        setCustomModelError(null);
+      } else if (provider === "openai_compatible") {
+        setDisplayName(row.providerName);
+        setBaseUrl(row.apiUrl.replace(/\/$/, ""));
+        setCustomModels([{ id: modelId, name: row.modelName }]);
+        setSelectedModel(modelId);
+        if (row.isZen && row.isFree && !row.deprecated) {
+          setApiKey("public");
+        }
+      } else {
+        setSelectedModel(modelId);
+      }
+    },
+    [handleProviderSelect],
+  );
 
   const handleCustomModelChange = useCallback((value: string) => {
     setCustomModel(value);
@@ -245,6 +267,7 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
     handleApiKeyBlur,
     handleApiKeyChange,
     handleProviderSelect,
+    handleBrowseSelect,
     handleCustomModelChange,
     handleSubmit,
     formatSuccessMessage: (result: ConfigureProviderResponse) =>
