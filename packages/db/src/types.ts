@@ -91,6 +91,23 @@ export interface StoredTaskRunRecord {
   error: string | null;
 }
 
+export interface StoredLlmUsageStatsRecord {
+  id: string;
+  requestCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
+  trackedSince: string;
+  updatedAt: string;
+}
+
+export interface LlmUsageStatsDelta {
+  requestCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
+}
+
 export interface DatabaseAdapter {
   listAutomations(): Promise<StoredAutomationRecord[]>;
   getAutomation(id: string): Promise<StoredAutomationRecord | null>;
@@ -146,4 +163,10 @@ export interface DatabaseAdapter {
   getActiveTaskRun(taskId: string): Promise<StoredTaskRunRecord | null>;
   insertTaskRun(record: StoredTaskRunRecord): Promise<void>;
   updateTaskRun(record: StoredTaskRunRecord): Promise<void>;
+
+  getLlmUsageStats(): Promise<StoredLlmUsageStatsRecord | null>;
+  incrementLlmUsageStats(
+    delta: LlmUsageStatsDelta,
+    trackedSince: string,
+  ): Promise<void>;
 }

@@ -43,7 +43,7 @@ const database = await createDatabase(config.databaseUrl, { baseDir: projectRoot
 
 await seedDatabase(database.adapter);
 
-const llmUsageTracker = new LlmUsageTracker();
+const llmUsageTracker = await LlmUsageTracker.create(database.adapter);
 const agent = new AgentService(userConfig, provider, database.adapter, llmUsageTracker);
 
 try {

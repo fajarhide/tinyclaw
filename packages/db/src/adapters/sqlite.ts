@@ -3,10 +3,13 @@ import type { ChatMessage } from "@tinyclaw/core";
 import { getUserMessageText } from "@tinyclaw/core";
 import { ensureDatabaseDirectory, resolveDatabasePath } from "../database-url";
 import { migrateDatabase } from "../migrate";
+import { LLM_USAGE_STATS_ID } from "../constants";
 import type {
   DatabaseAdapter,
+  LlmUsageStatsDelta,
   StoredAutomationRecord,
   StoredAutomationRunRecord,
+  StoredLlmUsageStatsRecord,
   StoredProfileRecord,
   StoredSessionMessageRecord,
   StoredSessionRecord,
@@ -108,6 +111,16 @@ interface SessionSummaryRow {
   updated_at: string;
   message_count: number;
   first_user_payload: string | null;
+}
+
+interface LlmUsageStatsRow {
+  id: string;
+  request_count: number;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number;
+  tracked_since: string;
+  updated_at: string;
 }
 
 export async function createSqliteDatabase(databaseUrl: string): Promise<SqliteDatabase> {
@@ -292,6 +305,28 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
     UPDATE task_runs
     SET status = ?, completed_at = ?, output = ?, error = ?
     WHERE id = ?
+  `);
+
+  const getLlmUsageStatsStmt = db.prepare(
+    "SELECT * FROM llm_usage_stats WHERE id = ?",
+  );
+  const incrementLlmUsageStatsStmt = db.prepare(`
+    INSERT INTO llm_usage_stats (
+      id,
+      request_count,
+      input_tokens,
+      output_tokens,
+      estimated_cost_usd,
+      tracked_since,
+      updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      request_count = llm_usage_stats.request_count + excluded.request_count,
+      input_tokens = llm_usage_stats.input_tokens + excluded.input_tokens,
+      output_tokens = llm_usage_stats.output_tokens + excluded.output_tokens,
+      estimated_cost_usd = llm_usage_stats.estimated_cost_usd + excluded.estimated_cost_usd,
+      updated_at = excluded.updated_at
   `);
 
   return {
@@ -557,6 +592,24 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
         record.id,
       );
     },
+
+    async getLlmUsageStats() {
+      const row = getLlmUsageStatsStmt.get(LLM_USAGE_STATS_ID) as LlmUsageStatsRow | null;
+      return row ? toLlmUsageStatsRecord(row) : null;
+    },
+
+    async incrementLlmUsageStats(delta, trackedSince) {
+      const updatedAt = new Date().toISOString();
+      incrementLlmUsageStatsStmt.run(
+        LLM_USAGE_STATS_ID,
+        delta.requestCount,
+        delta.inputTokens,
+        delta.outputTokens,
+        delta.estimatedCostUsd,
+        trackedSince,
+        updatedAt,
+      );
+    },
   };
 }
 
@@ -683,6 +736,18 @@ function toSessionSummaryRecord(row: SessionSummaryRow): StoredSessionSummaryRec
     updatedAt: row.updated_at,
     messageCount: row.message_count,
     preview: previewFromFirstUserPayload(row.first_user_payload),
+  };
+}
+
+function toLlmUsageStatsRecord(row: LlmUsageStatsRow): StoredLlmUsageStatsRecord {
+  return {
+    id: row.id,
+    requestCount: row.request_count,
+    inputTokens: row.input_tokens,
+    outputTokens: row.output_tokens,
+    estimatedCostUsd: row.estimated_cost_usd,
+    trackedSince: row.tracked_since,
+    updatedAt: row.updated_at,
   };
 }
 

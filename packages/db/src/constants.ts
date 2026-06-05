@@ -1,5 +1,6 @@
 export const SUPER_BOT_PROFILE_ID = "profile_super_bot";
 export const DEFAULT_PROFILE_ID = "profile_default";
+export const LLM_USAGE_STATS_ID = "default";
 
 export const SUPER_BOT_SYSTEM_PROMPT = `You are Super Bot, the TinyClaw orchestrator.
 

@@ -107,3 +107,13 @@ CREATE TABLE IF NOT EXISTS task_runs (
 
 CREATE INDEX IF NOT EXISTS task_runs_task_started
   ON task_runs (task_id, started_at DESC);
+
+CREATE TABLE IF NOT EXISTS llm_usage_stats (
+  id TEXT PRIMARY KEY NOT NULL,
+  request_count INTEGER NOT NULL DEFAULT 0,
+  input_tokens INTEGER NOT NULL DEFAULT 0,
+  output_tokens INTEGER NOT NULL DEFAULT 0,
+  estimated_cost_usd REAL NOT NULL DEFAULT 0,
+  tracked_since TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);

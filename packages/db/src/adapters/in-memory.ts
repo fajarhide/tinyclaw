@@ -1,8 +1,11 @@
 import { getUserMessageText, type MessageContentPart } from "@tinyclaw/core";
+import { LLM_USAGE_STATS_ID } from "../constants";
 import type {
   DatabaseAdapter,
+  LlmUsageStatsDelta,
   StoredAutomationRecord,
   StoredAutomationRunRecord,
+  StoredLlmUsageStatsRecord,
   StoredProfileRecord,
   StoredSessionMessageRecord,
   StoredSessionRecord,
@@ -23,6 +26,7 @@ export function createInMemoryDatabaseAdapter(): DatabaseAdapter {
   const profileTools = new Map<string, Set<string>>();
   const sessions = new Map<string, StoredSessionRecord>();
   const sessionMessages = new Map<string, StoredSessionMessageRecord[]>();
+  let llmUsageStats: StoredLlmUsageStatsRecord | null = null;
 
   return {
     async listAutomations() {
@@ -245,6 +249,36 @@ export function createInMemoryDatabaseAdapter(): DatabaseAdapter {
         record.taskId,
         existing.map((run) => (run.id === record.id ? record : run)),
       );
+    },
+
+    async getLlmUsageStats() {
+      return llmUsageStats;
+    },
+
+    async incrementLlmUsageStats(delta: LlmUsageStatsDelta, trackedSince: string) {
+      const updatedAt = new Date().toISOString();
+
+      if (!llmUsageStats) {
+        llmUsageStats = {
+          id: LLM_USAGE_STATS_ID,
+          requestCount: delta.requestCount,
+          inputTokens: delta.inputTokens,
+          outputTokens: delta.outputTokens,
+          estimatedCostUsd: delta.estimatedCostUsd,
+          trackedSince,
+          updatedAt,
+        };
+        return;
+      }
+
+      llmUsageStats = {
+        ...llmUsageStats,
+        requestCount: llmUsageStats.requestCount + delta.requestCount,
+        inputTokens: llmUsageStats.inputTokens + delta.inputTokens,
+        outputTokens: llmUsageStats.outputTokens + delta.outputTokens,
+        estimatedCostUsd: llmUsageStats.estimatedCostUsd + delta.estimatedCostUsd,
+        updatedAt,
+      };
     },
   };
 }
