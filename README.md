@@ -21,9 +21,11 @@ Requires [Bun](https://bun.sh).
 # Install dependencies
 bun install
 
-# Start the CLI (starts the server automatically if needed)
-bun run dev:cli
+# Start the web (starts the server automatically if needed)
+bun run dev:web
 ```
+
+Visit web dashboard: http://localhost:300
 
 Or run the server on its own:
 
