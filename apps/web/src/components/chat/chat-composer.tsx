@@ -200,12 +200,23 @@ export function ChatComposer(props: ChatComposerProps) {
                       void props.onModelChange(value != null ? String(value) : "")
                     }
                   >
-                    <PromptInputSelectTrigger className="h-8 max-w-[min(12rem,42vw)] truncate rounded-full bg-muted px-2.5 text-[11px] font-medium leading-none text-foreground hover:bg-muted/80 sm:text-xs">
+                    <PromptInputSelectTrigger
+                      className="h-8 w-auto max-w-[min(16rem,52vw)] rounded-full bg-muted px-2.5 text-[11px] font-medium leading-none text-foreground hover:bg-muted/80 sm:max-w-[min(20rem,60vw)] sm:text-xs"
+                      title={
+                        props.currentModel
+                          ? (props.renderModelLabel(props.currentModel) ?? undefined)
+                          : undefined
+                      }
+                    >
                       <PromptInputSelectValue placeholder="Model">
                         {props.renderModelLabel}
                       </PromptInputSelectValue>
                     </PromptInputSelectTrigger>
-                    <PromptInputSelectContent className="text-xs">
+                    <PromptInputSelectContent
+                      align="start"
+                      alignItemWithTrigger={false}
+                      className="w-max max-w-[min(24rem,92vw)] text-xs"
+                    >
                       {props.providerModels.map((model) => (
                         <PromptInputSelectItem
                           key={model.id}

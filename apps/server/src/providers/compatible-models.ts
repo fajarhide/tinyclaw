@@ -21,6 +21,12 @@ export function openRouterCustomModelsToCatalog(
     contextWindow: DEFAULT_CONTEXT_WINDOW,
     maxOutputTokens: DEFAULT_MAX_OUTPUT,
     ...(entry.default ? { default: true } : {}),
+    ...(entry.inputPerMillionUsd !== undefined
+      ? { inputPerMillionUsd: entry.inputPerMillionUsd }
+      : {}),
+    ...(entry.outputPerMillionUsd !== undefined
+      ? { outputPerMillionUsd: entry.outputPerMillionUsd }
+      : {}),
   }));
 }
 
@@ -43,6 +49,12 @@ export function mergeOpenRouterCatalog(
       name: entry.name?.trim() || existing?.name || entry.id,
       provider: "openrouter",
       ...(entry.default ? { default: true } : existing?.default ? { default: true } : {}),
+      ...(entry.inputPerMillionUsd !== undefined
+        ? { inputPerMillionUsd: entry.inputPerMillionUsd }
+        : {}),
+      ...(entry.outputPerMillionUsd !== undefined
+        ? { outputPerMillionUsd: entry.outputPerMillionUsd }
+        : {}),
     });
   }
 

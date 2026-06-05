@@ -196,10 +196,12 @@ function LlmUsageSection({ usage }: { usage: LlmUsageStatus }) {
               </div>
               <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
                 {usage.costEstimated
-                  ? usage.provider === "openai_compatible"
-                    ? `Based on pricing you configured for ${modelLabel}. Actual billing may differ.`
+                  ? usage.provider === "openai_compatible" || usage.provider === "openrouter"
+                    ? `Based on pricing saved in Settings for ${modelLabel}. Actual billing may differ.`
                     : `Based on catalog pricing for ${modelLabel}. Actual billing may differ.`
-                  : "Add input/output $/1M per model in Settings → Manage models to estimate cost."}
+                  : usage.provider === "openrouter"
+                    ? "Browse or add models in Settings → Manage model to save OpenRouter pricing for cost estimates."
+                    : "Add input/output $/1M per model in Settings → Manage models to estimate cost."}
               </p>
             </div>
 

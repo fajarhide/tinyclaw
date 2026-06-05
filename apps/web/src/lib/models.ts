@@ -135,7 +135,11 @@ export function validateCustomModelsInput(
 }
 
 export function validateOpenRouterModelsInput(
-  models: Array<{ id: string }>,
+  models: Array<{
+    id: string;
+    inputPerMillionUsd?: number;
+    outputPerMillionUsd?: number;
+  }>,
 ): string | null {
   const listError = validateCustomModelsInput(models);
   if (listError) {
@@ -147,13 +151,25 @@ export function validateOpenRouterModelsInput(
     if (slugError) {
       return slugError;
     }
+
+    const hasInput = row.inputPerMillionUsd !== undefined;
+    const hasOutput = row.outputPerMillionUsd !== undefined;
+    if (hasInput !== hasOutput) {
+      return `Model "${row.id.trim()}" must set both input and output $/1M rates, or leave both blank.`;
+    }
   }
 
   return null;
 }
 
 export function modelsFromOpenRouterRows(
-  rows: Array<{ id: string; name?: string; default?: boolean }>,
+  rows: Array<{
+    id: string;
+    name?: string;
+    default?: boolean;
+    inputPerMillionUsd?: number;
+    outputPerMillionUsd?: number;
+  }>,
 ): ProviderModelOption[] {
   return rows
     .filter((row) => row.id.trim())
@@ -162,20 +178,45 @@ export function modelsFromOpenRouterRows(
       name: row.name?.trim() || row.id.trim(),
       provider: "openrouter" as const,
       ...(row.default ? { default: true } : {}),
+      ...(row.inputPerMillionUsd !== undefined
+        ? { inputPerMillionUsd: row.inputPerMillionUsd }
+        : {}),
+      ...(row.outputPerMillionUsd !== undefined
+        ? { outputPerMillionUsd: row.outputPerMillionUsd }
+        : {}),
     }));
 }
 
 export function appendOpenRouterModelRow(
-  rows: Array<{ id: string; name?: string; default?: boolean }>,
+  rows: Array<{
+    id: string;
+    name?: string;
+    default?: boolean;
+    inputPerMillionUsd?: number;
+    outputPerMillionUsd?: number;
+  }>,
   modelId: string,
   modelName: string,
-): Array<{ id: string; name: string; default?: boolean }> {
+  pricing?: { inputPerMillionUsd?: number; outputPerMillionUsd?: number },
+): Array<{
+  id: string;
+  name: string;
+  default?: boolean;
+  inputPerMillionUsd?: number;
+  outputPerMillionUsd?: number;
+}> {
   const base = rows
     .filter((row) => row.id.trim())
     .map((row) => ({
       id: row.id,
       name: row.name ?? row.id,
       ...(row.default ? { default: true } : {}),
+      ...(row.inputPerMillionUsd !== undefined
+        ? { inputPerMillionUsd: row.inputPerMillionUsd }
+        : {}),
+      ...(row.outputPerMillionUsd !== undefined
+        ? { outputPerMillionUsd: row.outputPerMillionUsd }
+        : {}),
     }));
 
   if (base.some((row) => row.id === modelId)) {
@@ -183,6 +224,12 @@ export function appendOpenRouterModelRow(
       id: row.id,
       name: row.name ?? row.id,
       default: row.id === modelId,
+      ...(row.inputPerMillionUsd !== undefined
+        ? { inputPerMillionUsd: row.inputPerMillionUsd }
+        : {}),
+      ...(row.outputPerMillionUsd !== undefined
+        ? { outputPerMillionUsd: row.outputPerMillionUsd }
+        : {}),
     }));
   }
 
@@ -190,8 +237,24 @@ export function appendOpenRouterModelRow(
     ...base.map((row) => ({
       id: row.id,
       name: row.name ?? row.id,
+      ...(row.inputPerMillionUsd !== undefined
+        ? { inputPerMillionUsd: row.inputPerMillionUsd }
+        : {}),
+      ...(row.outputPerMillionUsd !== undefined
+        ? { outputPerMillionUsd: row.outputPerMillionUsd }
+        : {}),
     })),
-    { id: modelId, name: modelName, default: true },
+    {
+      id: modelId,
+      name: modelName,
+      default: true,
+      ...(pricing?.inputPerMillionUsd !== undefined
+        ? { inputPerMillionUsd: pricing.inputPerMillionUsd }
+        : {}),
+      ...(pricing?.outputPerMillionUsd !== undefined
+        ? { outputPerMillionUsd: pricing.outputPerMillionUsd }
+        : {}),
+    },
   ];
 }
 

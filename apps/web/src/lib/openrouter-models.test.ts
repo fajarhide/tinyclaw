@@ -3,6 +3,7 @@ import {
   isOpenRouterModelFree,
   mergeOpenRouterModelOptions,
   normalizeOpenRouterModels,
+  openRouterPricingPerMillion,
 } from "./openrouter-models";
 
 const fixture = {
@@ -50,6 +51,32 @@ describe("isOpenRouterModelFree", () => {
   });
 });
 
+describe("openRouterPricingPerMillion", () => {
+  test("converts per-token API pricing to dollars per million tokens", () => {
+    expect(
+      openRouterPricingPerMillion({
+        prompt: "0.0000005",
+        completion: "0.0000025",
+      }),
+    ).toEqual({
+      inputPerMillionUsd: 0.5,
+      outputPerMillionUsd: 2.5,
+    });
+  });
+
+  test("returns zero rates for free models", () => {
+    expect(
+      openRouterPricingPerMillion({
+        prompt: "0",
+        completion: "0",
+      }),
+    ).toEqual({
+      inputPerMillionUsd: 0,
+      outputPerMillionUsd: 0,
+    });
+  });
+});
+
 describe("normalizeOpenRouterModels", () => {
   test("marks free models and sorts free first", () => {
     const rows = normalizeOpenRouterModels(fixture);
@@ -68,6 +95,8 @@ describe("normalizeOpenRouterModels", () => {
     expect(paid?.vision).toBe(true);
     expect(paid?.tools).toBe(true);
     expect(paid?.reasoning).toBe(false);
+    expect(paid?.inputPerMillionUsd).toBe(0.5);
+    expect(paid?.outputPerMillionUsd).toBe(2.5);
   });
 
   test("marks deprecated when expiration_date is set", () => {

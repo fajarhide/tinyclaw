@@ -135,9 +135,13 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
   );
 
   const selectOpenRouterModel = useCallback(
-    (modelId: string, modelName: string) => {
+    (
+      modelId: string,
+      modelName: string,
+      pricing?: { inputPerMillionUsd?: number; outputPerMillionUsd?: number },
+    ) => {
       setOpenRouterModels((current) =>
-        appendOpenRouterModelRow(current, modelId, modelName),
+        appendOpenRouterModelRow(current, modelId, modelName, pricing),
       );
       setSelectedModel(modelId);
       setOpenRouterModelsError(null);
@@ -186,7 +190,10 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
 
   const handleOpenRouterBrowseSelect = useCallback(
     (row: OpenRouterModelRow) => {
-      selectOpenRouterModel(row.id, row.name);
+      selectOpenRouterModel(row.id, row.name, {
+        inputPerMillionUsd: row.inputPerMillionUsd,
+        outputPerMillionUsd: row.outputPerMillionUsd,
+      });
     },
     [selectOpenRouterModel],
   );

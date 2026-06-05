@@ -13,6 +13,48 @@ describe("estimateUsageCostUsd", () => {
     expect(pricing?.outputPerMillionUsd).toBe(3);
   });
 
+  test("uses saved pricing for openrouter custom models", () => {
+    const cost = estimateUsageCostUsd("anthropic/claude-sonnet-4-6", 1_000_000, 1_000_000, {
+      provider: "openrouter",
+      userConfig: {
+        provider: "openrouter",
+        apiKey: "sk-test",
+        customModels: [
+          {
+            id: "anthropic/claude-sonnet-4-6",
+            inputPerMillionUsd: 3,
+            outputPerMillionUsd: 15,
+          },
+        ],
+      },
+    });
+
+    expect(cost).toBe(18);
+  });
+
+  test("does not estimate openrouter models without saved pricing", () => {
+    expect(
+      getModelPricing("anthropic/claude-sonnet-4-6", {
+        provider: "openrouter",
+        userConfig: {
+          provider: "openrouter",
+          apiKey: "sk-test",
+          customModels: [{ id: "anthropic/claude-sonnet-4-6" }],
+        },
+      }),
+    ).toBeNull();
+    expect(
+      estimateUsageCostUsd("anthropic/claude-sonnet-4-6", 1_000, 500, {
+        provider: "openrouter",
+        userConfig: {
+          provider: "openrouter",
+          apiKey: "sk-test",
+          customModels: [{ id: "anthropic/claude-sonnet-4-6" }],
+        },
+      }),
+    ).toBe(0);
+  });
+
   test("does not estimate compatible models without user pricing", () => {
     const pricing = getModelPricing("llama3.2", {
       provider: "openai_compatible",

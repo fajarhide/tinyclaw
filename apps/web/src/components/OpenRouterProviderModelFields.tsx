@@ -28,7 +28,17 @@ export function OpenRouterProviderModelFields({
   const [isBrowsing, setIsBrowsing] = useState(false);
 
   const handleBrowseSelect = (row: OpenRouterModelRow) => {
-    const nextModel = { id: row.id, name: row.name };
+    const nextModel: ModelListRow = {
+      id: row.id,
+      name: row.name,
+      ...(row.inputPerMillionUsd !== undefined
+        ? { inputPerMillionUsd: row.inputPerMillionUsd }
+        : {}),
+      ...(row.outputPerMillionUsd !== undefined
+        ? { outputPerMillionUsd: row.outputPerMillionUsd }
+        : {}),
+    };
+
     if (customModels.some((model) => model.id === nextModel.id)) {
       setIsBrowsing(false);
       return;
@@ -51,8 +61,8 @@ export function OpenRouterProviderModelFields({
           </p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Add models by ID or browse OpenRouter. The default row (marked in the list) is used
-            when you connect.
+            Add models by ID or browse OpenRouter. Pricing from browse is saved for usage cost on
+            the Status page.
           </p>
         )
       }
@@ -79,7 +89,7 @@ export function OpenRouterProviderModelFields({
         <ModelListEditor
           models={customModels}
           disabled={disabled}
-          showPricing={false}
+          showPricing
           browseLabel="Browse OpenRouter"
           onBrowse={() => setIsBrowsing(true)}
           onChange={onCustomModelsChange}

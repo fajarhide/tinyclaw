@@ -19,26 +19,33 @@ export interface PricingContext {
   userConfig?: UserProviderConfig | null;
 }
 
+function getCustomModelPricing(
+  modelId: string,
+  context: PricingContext,
+): ModelPricing | null {
+  const entry = findCustomModel(context.userConfig?.customModels, modelId);
+
+  if (
+    entry?.inputPerMillionUsd !== undefined &&
+    entry.outputPerMillionUsd !== undefined
+  ) {
+    return {
+      inputPerMillionUsd: entry.inputPerMillionUsd,
+      outputPerMillionUsd: entry.outputPerMillionUsd,
+    };
+  }
+
+  return null;
+}
+
 export function getModelPricing(
   modelId: string,
   context: PricingContext = {},
 ): ModelPricing | null {
   const provider = context.provider ?? context.userConfig?.provider ?? null;
 
-  if (provider === "openai_compatible") {
-    const entry = findCustomModel(context.userConfig?.customModels, modelId);
-
-    if (
-      entry?.inputPerMillionUsd !== undefined &&
-      entry.outputPerMillionUsd !== undefined
-    ) {
-      return {
-        inputPerMillionUsd: entry.inputPerMillionUsd,
-        outputPerMillionUsd: entry.outputPerMillionUsd,
-      };
-    }
-
-    return null;
+  if (provider === "openai_compatible" || provider === "openrouter") {
+    return getCustomModelPricing(modelId, context);
   }
 
   const catalog = getModelById(modelId);

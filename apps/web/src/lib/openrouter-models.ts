@@ -38,6 +38,26 @@ export interface OpenRouterModelRow {
   vision: boolean;
   tools: boolean;
   reasoning: boolean;
+  inputPerMillionUsd?: number;
+  outputPerMillionUsd?: number;
+}
+
+/** OpenRouter API prices are USD per token; convert to USD per 1M tokens. */
+export function openRouterPricingPerMillion(
+  pricing: OpenRouterApiPricing | undefined,
+): Pick<OpenRouterModelRow, "inputPerMillionUsd" | "outputPerMillionUsd"> | undefined {
+  if (!pricing?.prompt || !pricing?.completion) {
+    return undefined;
+  }
+
+  const inputPerMillionUsd = parseFloat(pricing.prompt) * 1_000_000;
+  const outputPerMillionUsd = parseFloat(pricing.completion) * 1_000_000;
+
+  if (!Number.isFinite(inputPerMillionUsd) || !Number.isFinite(outputPerMillionUsd)) {
+    return undefined;
+  }
+
+  return { inputPerMillionUsd, outputPerMillionUsd };
 }
 
 export function isOpenRouterModelFree(pricing: OpenRouterApiPricing | undefined): boolean {
@@ -53,6 +73,7 @@ export function isOpenRouterModelFree(pricing: OpenRouterApiPricing | undefined)
 export function normalizeOpenRouterModel(entry: OpenRouterApiModel): OpenRouterModelRow {
   const inputModalities = entry.architecture?.input_modalities ?? [];
   const supported = entry.supported_parameters ?? [];
+  const perMillion = openRouterPricingPerMillion(entry.pricing);
 
   return {
     id: entry.id,
@@ -64,6 +85,7 @@ export function normalizeOpenRouterModel(entry: OpenRouterApiModel): OpenRouterM
     vision: inputModalities.includes("image"),
     tools: supported.includes("tools"),
     reasoning: supported.includes("reasoning") || supported.includes("include_reasoning"),
+    ...(perMillion ?? {}),
   };
 }
 

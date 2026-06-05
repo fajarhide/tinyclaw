@@ -74,6 +74,8 @@ export function seedOpenRouterManageModelRows(
       id: model.id,
       name: model.name ?? model.id,
       default: model.default,
+      inputPerMillionUsd: model.inputPerMillionUsd,
+      outputPerMillionUsd: model.outputPerMillionUsd,
     }));
   }
 
