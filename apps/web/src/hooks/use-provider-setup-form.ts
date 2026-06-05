@@ -3,23 +3,27 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ModelListRow } from "@/components/ModelListEditor";
 import { toCustomModelEntries } from "@/components/CustomCompatibleProviderFields";
 import type { ModelsDevRow } from "@/hooks/use-models-dev";
+import type { OpenRouterModelRow } from "@/lib/openrouter-models";
 import { useAppContext } from "@/context/app-context";
 import { useModelsQuery } from "@/hooks/use-app-queries";
 import { formatError } from "@/lib/client";
 import {
+  appendOpenRouterModelRow,
   buildConfigureProviderRequest,
+  catalogToOpenRouterModelRows,
   defaultModelForProvider,
   filterModelsByProvider,
   formatProviderLabel,
   getModelDisplayName,
   modelsFromCustomRows,
+  modelsFromOpenRouterRows,
   type SelectedProvider,
-  resolveModelForProvider,
+  resolveOpenRouterSetupModel,
   validateApiKeyForProvider,
   validateBaseUrlInput,
   validateCustomModelsInput,
-  validateCustomOpenRouterModel,
   validateDisplayNameInput,
+  validateOpenRouterModelsInput,
 } from "@/lib/models";
 
 interface UseProviderSetupFormOptions {
@@ -37,8 +41,8 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
   const [apiKeyTouched, setApiKeyTouched] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState("");
-  const [customModel, setCustomModel] = useState("");
-  const [customModelError, setCustomModelError] = useState<string | null>(null);
+  const [openRouterModels, setOpenRouterModels] = useState<ModelListRow[]>([]);
+  const [openRouterModelsError, setOpenRouterModelsError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [customModels, setCustomModels] = useState<ModelListRow[]>([{ id: "", name: "" }]);
@@ -60,13 +64,17 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
       return modelsFromCustomRows(customModels);
     }
 
+    if (selectedProvider === "openrouter") {
+      return modelsFromOpenRouterRows(openRouterModels);
+    }
+
     const catalogModels = filterModelsByProvider(catalog, selectedProvider);
     const catalogIds = new Set(catalogModels.map((model) => model.id));
     const extras = extraModels.filter(
       (model) => model.provider === selectedProvider && !catalogIds.has(model.id),
     );
     return [...catalogModels, ...extras];
-  }, [catalog, selectedProvider, customModels, extraModels]);
+  }, [catalog, selectedProvider, customModels, openRouterModels, extraModels]);
 
   useEffect(() => {
     if (filteredModels.length === 0) {
@@ -104,28 +112,45 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
     [apiKeyTouched, apiKeyError, formError, selectedProvider],
   );
 
-  const handleProviderSelect = useCallback((provider: SelectedProvider) => {
-    setSelectedProvider(provider);
+  const handleProviderSelect = useCallback(
+    (provider: SelectedProvider) => {
+      setSelectedProvider(provider);
 
-    if (provider !== "openrouter") {
-      setCustomModel("");
-      setCustomModelError(null);
-    }
+      if (provider === "openrouter" && openRouterModels.length === 0) {
+        setOpenRouterModels(catalogToOpenRouterModelRows(catalog));
+      }
 
-    if (provider !== "openai_compatible") {
-      setBaseUrl("");
-      setDisplayNameError(null);
-      setBaseUrlError(null);
-      setModelsError(null);
-    }
-  }, []);
+      if (provider !== "openrouter") {
+        setOpenRouterModels([]);
+        setOpenRouterModelsError(null);
+      }
+
+      if (provider !== "openai_compatible") {
+        setBaseUrl("");
+        setDisplayNameError(null);
+        setBaseUrlError(null);
+        setModelsError(null);
+      }
+    },
+    [catalog, openRouterModels.length],
+  );
+
+  const selectOpenRouterModel = useCallback(
+    (modelId: string, modelName: string) => {
+      setOpenRouterModels((current) =>
+        appendOpenRouterModelRow(current, modelId, modelName, catalog),
+      );
+      setSelectedModel(modelId);
+      setOpenRouterModelsError(null);
+    },
+    [catalog],
+  );
 
   const handleBrowseSelect = useCallback(
     (provider: SelectedProvider, modelId: string, row: ModelsDevRow) => {
       handleProviderSelect(provider);
       if (provider === "openrouter") {
-        setCustomModel(modelId);
-        setCustomModelError(null);
+        selectOpenRouterModel(modelId, row.modelName);
       } else if (provider === "openai_compatible") {
         setDisplayName(row.providerName);
         setBaseUrl(row.apiUrl.replace(/\/$/, ""));
@@ -157,15 +182,22 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
         setBaseUrl(row.apiUrl.replace(/\/$/, ""));
       }
     },
-    [handleProviderSelect],
+    [handleProviderSelect, selectOpenRouterModel],
   );
 
-  const handleCustomModelChange = useCallback((value: string) => {
-    setCustomModel(value);
-    setCustomModelError(validateCustomOpenRouterModel(value));
-  }, []);
+  const handleOpenRouterBrowseSelect = useCallback(
+    (row: OpenRouterModelRow) => {
+      selectOpenRouterModel(row.id, row.name);
+    },
+    [selectOpenRouterModel],
+  );
 
   const { onSuccess } = options;
+
+  const handleOpenRouterModelsChange = useCallback((rows: ModelListRow[]) => {
+    setOpenRouterModels(rows);
+    setOpenRouterModelsError(null);
+  }, []);
 
   const handleSubmit = useCallback(
     async (event: React.FormEvent) => {
@@ -173,9 +205,9 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
 
       const trimmedKey = apiKey.trim();
       const nextApiKeyError = validateApiKeyForProvider(trimmedKey, selectedProvider);
-      const nextCustomModelError =
+      const nextOpenRouterModelsError =
         selectedProvider === "openrouter"
-          ? validateCustomOpenRouterModel(customModel)
+          ? validateOpenRouterModelsInput(openRouterModels)
           : null;
       const nextDisplayNameError =
         selectedProvider === "openai_compatible"
@@ -190,7 +222,7 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
 
       setApiKeyTouched(true);
       setApiKeyError(nextApiKeyError);
-      setCustomModelError(nextCustomModelError);
+      setOpenRouterModelsError(nextOpenRouterModelsError);
       setDisplayNameError(nextDisplayNameError);
       setBaseUrlError(nextBaseUrlError);
       setModelsError(nextModelsError);
@@ -200,8 +232,7 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
         return;
       }
 
-      if (nextCustomModelError) {
-        document.getElementById("custom-model")?.focus();
+      if (nextOpenRouterModelsError) {
         return;
       }
 
@@ -219,11 +250,10 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
         return;
       }
 
-      const modelToSave = resolveModelForProvider(
-        selectedProvider,
-        selectedModel,
-        customModel,
-      );
+      const modelToSave =
+        selectedProvider === "openrouter"
+          ? resolveOpenRouterSetupModel(openRouterModels, selectedModel)
+          : selectedModel;
 
       setBusy(true);
       setFormError(null);
@@ -239,13 +269,15 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
             customModels:
               selectedProvider === "openai_compatible"
                 ? toCustomModelEntries(customModels)
-                : undefined,
+                : selectedProvider === "openrouter"
+                  ? toCustomModelEntries(openRouterModels)
+                  : undefined,
           }),
         );
         setApiKey("");
         setApiKeyTouched(false);
         setShowApiKey(false);
-        setCustomModel("");
+        setOpenRouterModels([]);
         onSuccess?.(result);
       } catch (err) {
         setFormError(formatError(err));
@@ -257,7 +289,7 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
     [
       apiKey,
       baseUrl,
-      customModel,
+      openRouterModels,
       customModels,
       displayName,
       selectedModel,
@@ -274,8 +306,8 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
     showApiKey,
     apiKeyError,
     selectedModel,
-    customModel,
-    customModelError,
+    openRouterModels,
+    openRouterModelsError,
     displayName,
     baseUrl,
     customModels,
@@ -290,11 +322,12 @@ export function useProviderSetupForm(options: UseProviderSetupFormOptions = {}) 
     setDisplayName,
     setBaseUrl,
     setCustomModels,
+    handleOpenRouterModelsChange,
     handleApiKeyBlur,
     handleApiKeyChange,
     handleProviderSelect,
     handleBrowseSelect,
-    handleCustomModelChange,
+    handleOpenRouterBrowseSelect,
     handleSubmit,
     formatSuccessMessage: (result: ConfigureProviderResponse) =>
       `${formatProviderLabel(result.provider, result.displayName)} connected with ${getModelDisplayName(catalog, result.currentModel)}.`,

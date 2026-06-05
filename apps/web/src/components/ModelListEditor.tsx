@@ -10,6 +10,7 @@ interface ModelListEditorProps {
   disabled?: boolean;
   showPricing?: boolean;
   onBrowse?: () => void;
+  browseLabel?: string;
   onChange: (models: ModelListRow[]) => void;
 }
 
@@ -22,6 +23,7 @@ export function ModelListEditor({
   disabled,
   showPricing = true,
   onBrowse,
+  browseLabel = "Browse models.dev",
   onChange,
 }: ModelListEditorProps) {
   const updateRow = (index: number, patch: Partial<ModelListRow>) => {
@@ -160,7 +162,7 @@ export function ModelListEditor({
             disabled={disabled}
             onClick={onBrowse}
           >
-            Browse models.dev
+            {browseLabel}
           </Button>
         ) : null}
       </div>

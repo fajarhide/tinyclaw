@@ -11,6 +11,44 @@ import { AVAILABLE_MODELS, getDefaultModel } from "./models";
 const DEFAULT_CONTEXT_WINDOW = 128_000;
 const DEFAULT_MAX_OUTPUT = 8_192;
 
+export function openRouterCustomModelsToCatalog(
+  entries: CustomModelEntry[],
+): ProviderModelOption[] {
+  return entries.map((entry) => ({
+    id: entry.id,
+    name: entry.name?.trim() || entry.id,
+    provider: "openrouter" as const,
+    contextWindow: DEFAULT_CONTEXT_WINDOW,
+    maxOutputTokens: DEFAULT_MAX_OUTPUT,
+    ...(entry.default ? { default: true } : {}),
+  }));
+}
+
+export function mergeOpenRouterCatalog(
+  staticModels: ProviderModelOption[],
+  customEntries: CustomModelEntry[],
+): ProviderModelOption[] {
+  const byId = new Map(staticModels.map((model) => [model.id, { ...model }]));
+
+  for (const entry of customEntries) {
+    const existing = byId.get(entry.id);
+    byId.set(entry.id, {
+      ...(existing ?? {
+        id: entry.id,
+        provider: "openrouter" as const,
+        contextWindow: DEFAULT_CONTEXT_WINDOW,
+        maxOutputTokens: DEFAULT_MAX_OUTPUT,
+      }),
+      id: entry.id,
+      name: entry.name?.trim() || existing?.name || entry.id,
+      provider: "openrouter",
+      ...(entry.default ? { default: true } : existing?.default ? { default: true } : {}),
+    });
+  }
+
+  return [...byId.values()].sort((left, right) => left.name.localeCompare(right.name));
+}
+
 export function customModelsToCatalog(
   entries: CustomModelEntry[],
 ): ProviderModelOption[] {
@@ -33,6 +71,7 @@ export function customModelsToCatalog(
 export function ensureCurrentModelInCatalog(
   catalog: ProviderModelOption[],
   currentModel: string | null | undefined,
+  provider: ProviderName = "openai_compatible",
 ): ProviderModelOption[] {
   const trimmed = currentModel?.trim();
 
@@ -45,7 +84,7 @@ export function ensureCurrentModelInCatalog(
     {
       id: trimmed,
       name: trimmed,
-      provider: "openai_compatible",
+      provider,
       contextWindow: DEFAULT_CONTEXT_WINDOW,
       maxOutputTokens: DEFAULT_MAX_OUTPUT,
     },
@@ -62,8 +101,21 @@ export function getModelsForConfiguredProvider(
     const catalog = ensureCurrentModelInCatalog(
       customModelsToCatalog(entries),
       currentModel ?? userConfig?.model,
+      "openai_compatible",
     );
     return catalog;
+  }
+
+  if (provider === "openrouter") {
+    const entries = userConfig?.customModels ?? [];
+    const catalog = entries.length
+      ? openRouterCustomModelsToCatalog(entries)
+      : AVAILABLE_MODELS.filter((model) => model.provider === "openrouter");
+    return ensureCurrentModelInCatalog(
+      catalog,
+      currentModel ?? userConfig?.model,
+      "openrouter",
+    );
   }
 
   if (!provider) {
@@ -71,6 +123,24 @@ export function getModelsForConfiguredProvider(
   }
 
   return AVAILABLE_MODELS.filter((model) => model.provider === provider);
+}
+
+export function resolveOpenRouterDefaultModel(
+  customModels: CustomModelEntry[] | undefined,
+  model?: string,
+): string {
+  const trimmed = model?.trim();
+
+  if (trimmed && findCustomModel(customModels, trimmed)) {
+    return trimmed;
+  }
+
+  const catalog = openRouterCustomModelsToCatalog(customModels ?? []);
+  return (
+    catalog.find((entry) => entry.default)?.id ??
+    catalog[0]?.id ??
+    "anthropic/claude-sonnet-4-6"
+  );
 }
 
 export async function fetchRemoteOpenAIModels(

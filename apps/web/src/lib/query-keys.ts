@@ -33,4 +33,5 @@ export const queryKeys = {
   },
   userContext: ["userContext"] as const,
   modelsDev: ["modelsDev"] as const,
+  openRouterModels: ["openRouterModels"] as const,
 } as const;

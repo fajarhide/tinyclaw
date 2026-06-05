@@ -134,6 +134,86 @@ export function validateCustomModelsInput(
   return null;
 }
 
+export function validateOpenRouterModelsInput(
+  models: Array<{ id: string }>,
+): string | null {
+  const listError = validateCustomModelsInput(models);
+  if (listError) {
+    return listError;
+  }
+
+  for (const row of models) {
+    const slugError = validateCustomOpenRouterModel(row.id);
+    if (slugError) {
+      return slugError;
+    }
+  }
+
+  return null;
+}
+
+export function modelsFromOpenRouterRows(
+  rows: Array<{ id: string; name?: string; default?: boolean }>,
+): ProviderModelOption[] {
+  return rows
+    .filter((row) => row.id.trim())
+    .map((row) => ({
+      id: row.id.trim(),
+      name: row.name?.trim() || row.id.trim(),
+      provider: "openrouter" as const,
+      ...(row.default ? { default: true } : {}),
+    }));
+}
+
+export function catalogToOpenRouterModelRows(
+  catalog: ProviderModelOption[],
+): Array<{ id: string; name: string; default?: boolean }> {
+  return filterModelsByProvider(catalog, "openrouter").map((model) => ({
+    id: model.id,
+    name: model.name,
+    ...(model.default ? { default: true } : {}),
+  }));
+}
+
+export function appendOpenRouterModelRow(
+  rows: Array<{ id: string; name?: string; default?: boolean }>,
+  modelId: string,
+  modelName: string,
+  catalog: ProviderModelOption[],
+): Array<{ id: string; name: string; default?: boolean }> {
+  const base = rows.length > 0 ? rows : catalogToOpenRouterModelRows(catalog);
+
+  if (base.some((row) => row.id === modelId)) {
+    return base.map((row) => ({
+      id: row.id,
+      name: row.name ?? row.id,
+      default: row.id === modelId,
+    }));
+  }
+
+  return [
+    ...base.map((row) => ({
+      id: row.id,
+      name: row.name ?? row.id,
+    })),
+    { id: modelId, name: modelName, default: true },
+  ];
+}
+
+export function resolveOpenRouterSetupModel(
+  rows: Array<{ id: string; default?: boolean }>,
+  selectedModel: string,
+): string {
+  const trimmed = selectedModel.trim();
+  const valid = rows.filter((row) => row.id.trim());
+
+  if (trimmed && valid.some((row) => row.id === trimmed)) {
+    return trimmed;
+  }
+
+  return valid.find((row) => row.default)?.id ?? valid[0]?.id ?? "";
+}
+
 export function validateCustomOpenRouterModel(model: string): string | null {
   const trimmed = model.trim();
 
@@ -192,6 +272,13 @@ export function buildConfigureProviderRequest(options: {
       ...request,
       displayName: options.displayName?.trim(),
       baseUrl: options.baseUrl?.trim(),
+      customModels: options.customModels,
+    };
+  }
+
+  if (options.provider === "openrouter" && options.customModels?.length) {
+    return {
+      ...request,
       customModels: options.customModels,
     };
   }

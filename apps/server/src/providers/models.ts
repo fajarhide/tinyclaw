@@ -1,7 +1,14 @@
-import { findCustomModel, type CustomModelEntry } from "@tinyclaw/core";
+import {
+  findCustomModel,
+  validateCustomModels,
+  type CustomModelEntry,
+} from "@tinyclaw/core";
 import type { ProviderName } from "@tinyclaw/core";
 import type { ProviderModelOption as ContractProviderModelOption } from "@tinyclaw/core/contract";
-import { resolveCompatibleDefaultModel } from "./compatible-models";
+import {
+  resolveCompatibleDefaultModel,
+  resolveOpenRouterDefaultModel,
+} from "./compatible-models";
 
 export type ProviderModelOption = ContractProviderModelOption & {
   contextWindow: number;
@@ -134,6 +141,20 @@ export function isOpenRouterModelSlug(model: string): boolean {
   return OPENROUTER_MODEL_SLUG_PATTERN.test(model.trim());
 }
 
+export function validateOpenRouterCustomModels(entries: unknown): CustomModelEntry[] {
+  const models = validateCustomModels(entries);
+
+  for (const model of models) {
+    if (!isOpenRouterModelSlug(model.id)) {
+      throw new Error(
+        `Invalid OpenRouter model id "${model.id}". Use vendor/model format.`,
+      );
+    }
+  }
+
+  return models;
+}
+
 export function getAvailableModels(): ProviderModelOption[] {
   return AVAILABLE_MODELS;
 }
@@ -154,6 +175,10 @@ export function getDefaultModel(
 ): string {
   if (provider === "openai_compatible") {
     return resolveCompatibleDefaultModel(customModels);
+  }
+
+  if (provider === "openrouter" && customModels?.length) {
+    return resolveOpenRouterDefaultModel(customModels);
   }
 
   const models = getModelsForProvider(provider);

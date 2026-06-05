@@ -20,6 +20,7 @@ import {
 import { FormField } from "@/components/ui/form-field";
 import { Spinner } from "@/components/ui/spinner";
 import { CustomCompatibleProviderFields } from "@/components/CustomCompatibleProviderFields";
+import { OpenRouterProviderModelFields } from "@/components/OpenRouterProviderModelFields";
 import { useProviderSetupForm } from "@/hooks/use-provider-setup-form";
 import {
   apiKeyPlaceholder,
@@ -120,6 +121,16 @@ export function ProviderSetupForm({
             />
           ) : null}
 
+          {form.selectedProvider === "openrouter" ? (
+            <OpenRouterProviderModelFields
+              customModels={form.openRouterModels}
+              disabled={form.busy}
+              density={density}
+              modelsError={form.openRouterModelsError}
+              onCustomModelsChange={form.handleOpenRouterModelsChange}
+            />
+          ) : null}
+
           <FormField
             id="api-key"
             label={form.selectedProvider === "openai_compatible" ? "API key (optional)" : "API key"}
@@ -164,63 +175,26 @@ export function ProviderSetupForm({
             </InputGroup>
           </FormField>
 
-          <FormField id="model" label="Model" density={density}>
-            <Select
-              value={form.selectedModel}
-              disabled={form.busy || form.filteredModels.length === 0}
-              onValueChange={(value) => form.setSelectedModel(value != null ? String(value) : "")}
-            >
-              <SelectTrigger id="model" className="w-full">
-                <SelectValue placeholder="Select a model" />
-              </SelectTrigger>
-              <SelectContent>
-                {form.filteredModels.map((model) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    {model.name}
-                    {model.default ? " (default)" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
-
-          {form.selectedProvider === "openrouter" ? (
-            <FormField
-              id="custom-model"
-              density={density}
-              label={
-                <>
-                  Custom model ID{" "}
-                  <span className="font-normal text-muted-foreground">(optional)</span>
-                </>
-              }
-              footer={
-                form.customModelError ? (
-                  <p id="custom-model-error" className="text-sm text-destructive" role="alert">
-                    {form.customModelError}
-                  </p>
-                ) : (
-                  <p id="custom-model-hint" className="text-xs text-muted-foreground">
-                    Overrides the catalog selection when set. Use vendor/model format from OpenRouter.
-                  </p>
-                )
-              }
-            >
-              <InputGroup>
-                <InputGroupInput
-                  id="custom-model"
-                  type="text"
-                  autoComplete="off"
-                  placeholder="anthropic/claude-sonnet-4-6"
-                  value={form.customModel}
-                  disabled={form.busy}
-                  aria-invalid={form.customModelError != null}
-                  aria-describedby={
-                    form.customModelError ? "custom-model-error" : "custom-model-hint"
-                  }
-                  onChange={(event) => form.handleCustomModelChange(event.target.value)}
-                />
-              </InputGroup>
+          {form.selectedProvider !== "openrouter" &&
+          form.selectedProvider !== "openai_compatible" ? (
+            <FormField id="model" label="Model" density={density}>
+              <Select
+                value={form.selectedModel}
+                disabled={form.busy || form.filteredModels.length === 0}
+                onValueChange={(value) => form.setSelectedModel(value != null ? String(value) : "")}
+              >
+                <SelectTrigger id="model" className="w-full">
+                  <SelectValue placeholder="Select a model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {form.filteredModels.map((model) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      {model.name}
+                      {model.default ? " (default)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </FormField>
           ) : null}
 

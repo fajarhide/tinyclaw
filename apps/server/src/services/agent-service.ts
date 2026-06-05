@@ -91,6 +91,7 @@ import {
   isCompatibleModelId,
   isCostEstimated,
   isOpenRouterModelSlug,
+  validateOpenRouterCustomModels,
   resolveModel,
 } from "../providers";
 import { createSuperBotTools } from "../tools/super-bot-tools";
@@ -609,7 +610,9 @@ export class AgentService {
     const baseUrl =
       provider === "openai_compatible" ? (this.userConfig?.baseUrl ?? null) : null;
     const customModels =
-      provider === "openai_compatible" ? (this.userConfig?.customModels ?? []) : undefined;
+      provider === "openai_compatible" || provider === "openrouter"
+        ? (this.userConfig?.customModels ?? [])
+        : undefined;
 
     let models = getModelsForConfiguredProvider(
       provider,
@@ -735,21 +738,27 @@ export class AgentService {
     const trimmedKey = request.apiKey.trim();
     const apiKey =
       trimmedKey ||
-      (provider === "openai_compatible" ? (this.userConfig?.apiKey ?? "") : "");
+      (provider === "openai_compatible" || provider === "openrouter"
+        ? (this.userConfig?.apiKey ?? "")
+        : "");
 
     if (!apiKey && provider !== "openai_compatible") {
       throw new Error("API key is required.");
     }
 
-    const compatibleFields: Pick<
+    const providerFields: Pick<
       UserProviderConfig,
       "displayName" | "baseUrl" | "customModels"
     > =
       provider === "openai_compatible"
         ? this.buildCompatibleProviderFields(request)
-        : this.buildNativeBaseUrlFields(request);
+        : provider === "openrouter"
+          ? this.buildOpenRouterProviderFields(request)
+          : this.buildNativeBaseUrlFields(request);
 
-    const customModels = compatibleFields.customModels;
+    const customModels =
+      providerFields.customModels ??
+      (provider === "openrouter" ? this.userConfig?.customModels : undefined);
     const selectedModel = request.model?.trim()
       ? resolveModel(provider, request.model.trim(), customModels)
       : getDefaultModel(provider, customModels);
@@ -759,7 +768,7 @@ export class AgentService {
       provider: option?.provider ?? provider,
       apiKey,
       model: selectedModel,
-      ...compatibleFields,
+      ...providerFields,
       ...(this.userConfig?.timezone ? { timezone: this.userConfig.timezone } : {}),
       thinkingEnabled: thinking.enabled,
       thinkingEffort: thinking.effort,
@@ -812,6 +821,16 @@ export class AgentService {
     }
 
     return { displayName, baseUrl, customModels };
+  }
+
+  private buildOpenRouterProviderFields(
+    request: ConfigureProviderRequest,
+  ): Pick<UserProviderConfig, "customModels"> {
+    if (!request.customModels?.length) {
+      return {};
+    }
+
+    return { customModels: validateOpenRouterCustomModels(request.customModels) };
   }
 
   private buildNativeBaseUrlFields(
