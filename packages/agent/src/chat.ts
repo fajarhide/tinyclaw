@@ -268,6 +268,8 @@ async function sendMessage(
     ? `${systemPrompt}\n\n${promptContext.trim()}`
     : systemPrompt;
 
+  console.log("[tinyclaw] agent system prompt:\n", effectiveSystemPrompt);
+
   try {
     const reply = await runConversation(
       dependencies.provider,

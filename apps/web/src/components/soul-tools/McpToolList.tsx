@@ -61,15 +61,12 @@ export function McpToolLabels({
       </p>
       <div className="flex flex-wrap gap-1.5">
         {visibleTools.map((tool) => (
-          <McpToolLabel key={tool.name} tool={tool} connected={connected} />
+          <McpToolLabel key={tool.name} tool={tool} />
         ))}
         {hiddenCount > 0 ? (
           <button
             type="button"
-            className={cn(
-              "rounded-full border border-dashed border-border px-2.5 py-0.5 font-mono text-[11px] transition-colors hover:bg-muted/50",
-              connected ? "text-emerald-800 dark:text-emerald-200" : "text-muted-foreground",
-            )}
+            className="rounded-full border border-dashed border-border px-2.5 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors hover:bg-muted/50"
             onClick={onShowAll}
           >
             +{hiddenCount} more
@@ -80,22 +77,11 @@ export function McpToolLabels({
   );
 }
 
-function McpToolLabel({
-  tool,
-  connected,
-}: {
-  tool: CachedMcpToolSummary;
-  connected: boolean;
-}) {
+function McpToolLabel({ tool }: { tool: CachedMcpToolSummary }) {
   return (
     <span
       title={tool.description || tool.name}
-      className={cn(
-        "inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 font-mono text-[11px]",
-        connected
-          ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
-          : "border-border bg-muted/40 text-muted-foreground",
-      )}
+      className="inline-flex max-w-full items-center truncate rounded-full border border-border bg-muted/40 px-2.5 py-0.5 font-mono text-[11px] text-muted-foreground"
     >
       {tool.name}
     </span>

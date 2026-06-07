@@ -95,17 +95,15 @@ export function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <Card className="w-full">
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
-          <div className="space-y-0.5">
-            <p className="text-sm font-medium text-foreground">Appearance</p>
-            <p className="text-xs text-muted-foreground">Color theme</p>
-          </div>
-          <ThemeToggle />
-        </CardContent>
-      </Card>
-
-      <Card className="w-full">
         <CardContent className="divide-y divide-border p-0">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium text-foreground">Appearance</p>
+              <p className="text-xs text-muted-foreground">Color theme</p>
+            </div>
+            <ThemeToggle />
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
             <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-medium text-foreground">Timezone</p>

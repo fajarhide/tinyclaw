@@ -2,6 +2,7 @@ import type { CachedMcpToolSummary, CreateMcpServerRequest, McpServerSummary } f
 import {
   BlocksIcon,
   EllipsisVerticalIcon,
+  EyeIcon,
   PlugIcon,
   PlusIcon,
   RefreshCwIcon,
@@ -27,7 +28,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
 import { useMcpServerDetailQuery, useMcpServersQuery } from "@/hooks/use-app-queries";
 import {
   useConnectMcpServerMutation,
@@ -40,6 +40,15 @@ import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 const sectionClass = "rounded-md border border-border bg-card";
+
+type McpHeaderRow = {
+  key: string;
+  value: string;
+};
+
+function emptyHeaderRow(): McpHeaderRow {
+  return { key: "", value: "" };
+}
 
 export function McpTab() {
   const queryClient = useQueryClient();
@@ -163,10 +172,7 @@ export function McpTab() {
               <li key={server.id} className="p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium text-foreground">{server.name}</p>
-                      <StatusBadge status={server.status} />
-                    </div>
+                    <p className="text-sm font-medium text-foreground">{server.name}</p>
                     {server.lastError ? (
                       <p className="mt-1 text-xs text-destructive">{server.lastError}</p>
                     ) : null}
@@ -254,7 +260,7 @@ function McpServerActions({
         aria-label={`View tools for ${server.name}`}
         onClick={onViewTools}
       >
-        <BlocksIcon className="size-4" aria-hidden />
+        <EyeIcon className="size-4" aria-hidden />
       </Button>
 
       <DropdownMenu>
@@ -371,7 +377,7 @@ function CreateMcpServerDialog({
 }) {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
-  const [headers, setHeaders] = useState("");
+  const [headers, setHeaders] = useState<McpHeaderRow[]>([emptyHeaderRow()]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{
@@ -386,7 +392,7 @@ function CreateMcpServerDialog({
   function reset() {
     setName("");
     setUrl("");
-    setHeaders("");
+    setHeaders([emptyHeaderRow()]);
     setSubmitError(null);
     setTestResult(null);
     setTesting(false);
@@ -398,7 +404,7 @@ function CreateMcpServerDialog({
       transport: "http",
       config: {
         url: url.trim(),
-        headers: parseHeaders(headers),
+        headers: headersToRecord(headers),
       },
       connect,
     };
@@ -512,18 +518,14 @@ function CreateMcpServerDialog({
               />
             </McpFormField>
 
-            <McpFormField label="Headers" htmlFor="mcp-headers" hint="Optional">
-              <Textarea
-                id="mcp-headers"
-                value={headers}
+            <McpFormField label="Headers" hint="Optional">
+              <McpHeadersEditor
+                headers={headers}
                 disabled={busy || testing}
-                rows={3}
-                className="min-h-20 resize-y font-mono text-sm"
-                onChange={(event) => {
-                  setHeaders(event.target.value);
+                onChange={(nextHeaders) => {
+                  setHeaders(nextHeaders);
                   setTestResult(null);
                 }}
-                placeholder="Authorization: Bearer token"
               />
             </McpFormField>
 
@@ -573,7 +575,7 @@ function CreateMcpServerDialog({
             ) : null}
           </div>
 
-          <DialogFooter className="gap-3 border-t-0 bg-transparent p-0 pt-2 sm:justify-end">
+          <DialogFooter className="gap-3 border-t-0 bg-transparent p-3 sm:justify-end">
             <Button
               type="button"
               variant="outline"
@@ -592,6 +594,79 @@ function CreateMcpServerDialog({
   );
 }
 
+function McpHeadersEditor({
+  headers,
+  disabled,
+  onChange,
+}: {
+  headers: McpHeaderRow[];
+  disabled?: boolean;
+  onChange: (headers: McpHeaderRow[]) => void;
+}) {
+  function updateRow(index: number, field: keyof McpHeaderRow, value: string) {
+    onChange(
+      headers.map((row, rowIndex) =>
+        rowIndex === index ? { ...row, [field]: value } : row,
+      ),
+    );
+  }
+
+  function removeRow(index: number) {
+    onChange(headers.filter((_, rowIndex) => rowIndex !== index));
+  }
+
+  return (
+    <div className="space-y-2">
+      <ul className="space-y-2">
+        {headers.map((row, index) => (
+          <li key={index} className="flex items-start gap-2">
+            <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
+              <Input
+                value={row.key}
+                disabled={disabled}
+                className="font-mono text-sm"
+                aria-label={`Header name ${index + 1}`}
+                placeholder="Authorization"
+                onChange={(event) => updateRow(index, "key", event.target.value)}
+              />
+              <Input
+                value={row.value}
+                disabled={disabled}
+                className="font-mono text-sm"
+                aria-label={`Header value ${index + 1}`}
+                placeholder="Bearer token"
+                onChange={(event) => updateRow(index, "value", event.target.value)}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={disabled || headers.length <= 1}
+              className="mt-0.5 shrink-0"
+              aria-label={`Remove header ${index + 1}`}
+              onClick={() => removeRow(index)}
+            >
+              <Trash2Icon className="size-4" aria-hidden />
+            </Button>
+          </li>
+        ))}
+      </ul>
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={disabled}
+        onClick={() => onChange([...headers, emptyHeaderRow()])}
+      >
+        <PlusIcon className="size-4" aria-hidden />
+        Add header
+      </Button>
+    </div>
+  );
+}
+
 function McpFormField({
   label,
   htmlFor,
@@ -599,16 +674,18 @@ function McpFormField({
   children,
 }: {
   label: string;
-  htmlFor: string;
+  htmlFor?: string;
   hint?: string;
   children: ReactNode;
 }) {
+  const LabelTag = htmlFor ? "label" : "span";
+
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between gap-3">
-        <label className="text-xs text-muted-foreground" htmlFor={htmlFor}>
+        <LabelTag className="text-xs text-muted-foreground" {...(htmlFor ? { htmlFor } : {})}>
           {label}
-        </label>
+        </LabelTag>
         {hint ? <span className="text-xs text-muted-foreground/80">{hint}</span> : null}
       </div>
       {children}
@@ -643,33 +720,15 @@ function PageState({ message }: { message: string }) {
   );
 }
 
-function parseHeaders(value: string): Record<string, string> | undefined {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return undefined;
-  }
-
+function headersToRecord(rows: McpHeaderRow[]): Record<string, string> | undefined {
   const headers: Record<string, string> = {};
 
-  for (const line of trimmed.split(/\r?\n/)) {
-    const entry = line.trim();
+  for (const row of rows) {
+    const key = row.key.trim();
+    const value = row.value.trim();
 
-    if (!entry) {
-      continue;
-    }
-
-    const colonIndex = entry.indexOf(":");
-
-    if (colonIndex === -1) {
-      continue;
-    }
-
-    const key = entry.slice(0, colonIndex).trim();
-    const headerValue = entry.slice(colonIndex + 1).trim();
-
-    if (key && headerValue) {
-      headers[key] = headerValue;
+    if (key && value) {
+      headers[key] = value;
     }
   }
 
