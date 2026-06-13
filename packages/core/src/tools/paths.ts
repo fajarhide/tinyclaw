@@ -73,12 +73,7 @@ export async function guardFilePath(
   try {
     realPath = await realpath(absolute);
   } catch {
-    try {
-      const realDir = await realpath(path.dirname(absolute));
-      realPath = path.resolve(realDir, path.basename(absolute));
-    } catch {
-      realPath = absolute;
-    }
+    realPath = await resolvePathThroughExistingParent(absolute);
   }
 
   if (!isWithinDirs(realPath, allowedDirs)) {
@@ -86,6 +81,25 @@ export async function guardFilePath(
   }
 
   return { resolved: realPath, allowed: true };
+}
+
+async function resolvePathThroughExistingParent(filePath: string): Promise<string> {
+  const resolvedFilePath = path.resolve(filePath);
+  let dir = path.dirname(resolvedFilePath);
+  const root = path.parse(dir).root;
+
+  while (true) {
+    try {
+      const resolvedDir = await realpath(dir);
+      const relativeDir = path.relative(dir, path.dirname(resolvedFilePath));
+      return path.resolve(resolvedDir, relativeDir, path.basename(resolvedFilePath));
+    } catch {
+      if (dir === root) {
+        return resolvedFilePath;
+      }
+      dir = path.dirname(dir);
+    }
+  }
 }
 
 async function resolveAllowedDirs(dirs: string[]): Promise<string[]> {

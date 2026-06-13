@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
@@ -49,7 +49,7 @@ describe("file builtin tools", () => {
       { workspaceRoot: tempDir },
     );
 
-    expect(result.path).toBe(targetPath);
+    expect(result.path).toBe(await realpath(targetPath));
     expect(result.bytesWritten).toBe(11);
     expect(await readFile(targetPath, "utf8")).toBe("hello world");
   });
@@ -62,7 +62,7 @@ describe("file builtin tools", () => {
       { workspaceRoot: tempDir },
     );
 
-    expect(result.path).toBe(path.join(tempDir, "notes.txt"));
+    expect(result.path).toBe(path.join(await realpath(tempDir), "notes.txt"));
     expect(await readFile(result.path, "utf8")).toBe("relative");
   });
 
@@ -78,7 +78,7 @@ describe("file builtin tools", () => {
       { workspaceRoot: tempDir },
     );
 
-    expect(result.path).toBe(targetPath);
+    expect(result.path).toBe(await realpath(targetPath));
     expect(await readFile(targetPath, "utf8")).toContain("export async function run");
   });
 
@@ -87,6 +87,7 @@ describe("file builtin tools", () => {
     const targetPath = path.join(tempDir, "remove-me.txt");
     await mkdir(path.dirname(targetPath), { recursive: true });
     await writeFile(targetPath, "temp", "utf8");
+    const resolvedTargetPath = await realpath(targetPath);
 
     const result = await runDeleteFile(
       { path: targetPath },
@@ -94,7 +95,7 @@ describe("file builtin tools", () => {
       { workspaceRoot: tempDir },
     );
 
-    expect(result).toEqual({ path: targetPath, deleted: true });
+    expect(result).toEqual({ path: resolvedTargetPath, deleted: true });
     await expect(readFile(targetPath, "utf8")).rejects.toThrow();
   });
 
@@ -154,7 +155,7 @@ describe("file builtin tools", () => {
       { workspaceRoot: tempDir },
     );
 
-    expect(result.path).toStartWith(tempDir);
+    expect(result.path).toStartWith(await realpath(tempDir));
   });
 
   test("rejects null byte in path", async () => {
@@ -204,7 +205,7 @@ describe("file builtin tools", () => {
       { workspaceRoot: tempDir },
     );
 
-    expect(result.path).toBe(nestedPath);
+    expect(result.path).toBe(await realpath(nestedPath));
     expect(await readFile(nestedPath, "utf8")).toBe("deep");
   });
 
