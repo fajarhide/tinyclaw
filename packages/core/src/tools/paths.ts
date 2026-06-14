@@ -1,5 +1,5 @@
 import { realpath } from "node:fs/promises";
-import os from "node:os";
+import { homedir } from "node:os";
 import path from "node:path";
 import { getUserConfigDir } from "../user-config";
 
@@ -121,7 +121,7 @@ function expandHome(filePath: string): string {
 }
 
 function getUserHome(): string {
-  return process.env.HOME ?? os.homedir();
+  return process.env.HOME ?? homedir();
 }
 
 function isWithinDirs(target: string, dirs: string[]): boolean {

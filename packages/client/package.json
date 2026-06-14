@@ -9,6 +9,6 @@
     "@tinyclaw/core": "workspace:*"
   },
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir dist"
+    "build": "bun build ./src/index.ts --outdir dist --target bun"
   }
 }

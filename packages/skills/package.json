@@ -6,7 +6,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir dist",
+    "build": "bun build ./src/index.ts --outdir dist --target bun",
     "test": "bun test"
   },
   "dependencies": {
