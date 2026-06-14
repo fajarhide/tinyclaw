@@ -6,6 +6,7 @@ import type {
 import { useMemo, useState } from "react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { OpenRouterProviderModelFields } from "@/components/OpenRouterProviderModelFields";
+import { OpenCodeGoProviderModelFields } from "@/components/OpenCodeGoProviderModelFields";
 import { CustomProviderFields } from "@/components/CustomProviderFields";
 import { normalizeModelListRows, type ModelListRow } from "@/components/ModelListEditor";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ import {
   validateBaseUrlInput,
   validateCustomModelsInput,
   validateDisplayNameInput,
+  validateOpenCodeGoModelsInput,
   validateOpenRouterModelsInput,
 } from "@/lib/models";
 import {
@@ -67,6 +69,12 @@ export function ProviderInstanceCard({
   const providerType = instance.type as SelectedProvider;
   const isCompatible = providerType === "openai_compatible";
   const isOpenRouter = providerType === "openrouter";
+  const isOpenCodeGo = providerType === "opencode_go";
+
+  const catalogModelsForType = useMemo(
+    () => catalog.filter((model) => model.provider === providerType),
+    [catalog, providerType],
+  );
 
   const instanceModels = useMemo(
     () => catalog.filter((model) => model.providerId === instance.id),
@@ -95,6 +103,13 @@ export function ProviderInstanceCard({
           instance.customModels,
           null,
           instanceModels[0]?.name,
+        ),
+      );
+    } else if (isOpenCodeGo) {
+      setManageModels(
+        seedManageModelRows(
+          instance.customModels,
+          instanceModels.length ? instanceModels : catalogModelsForType,
         ),
       );
     }
@@ -187,6 +202,20 @@ export function ProviderInstanceCard({
     );
   };
 
+  const saveOpenCodeGo = async () => {
+    const modelsError = validateOpenCodeGoModelsInput(manageModels);
+
+    if (modelsError) {
+      setDialogError(modelsError);
+      return;
+    }
+
+    await runUpdate(
+      { customModels: normalizeModelListRows(manageModels) },
+      () => setManageOpen(false),
+    );
+  };
+
   return (
     <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0">
       <div className="min-w-0 space-y-0.5">
@@ -203,7 +232,7 @@ export function ProviderInstanceCard({
             Edit
           </Button>
         ) : null}
-        {isCompatible || isOpenRouter ? (
+        {isCompatible || isOpenRouter || isOpenCodeGo ? (
           <Button type="button" size="sm" variant="outline" onClick={openManage}>
             Manage
           </Button>
@@ -352,6 +381,37 @@ export function ProviderInstanceCard({
                 Cancel
               </Button>
               <Button type="button" disabled={busy} onClick={() => void saveOpenRouter()}>
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+
+      {isOpenCodeGo ? (
+        <Dialog open={manageOpen} onOpenChange={setManageOpen}>
+          <DialogContent className="w-[min(96vw,56rem)] sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Manage models</DialogTitle>
+              <DialogDescription>Edit the shortlist available in chat for this provider.</DialogDescription>
+            </DialogHeader>
+            <OpenCodeGoProviderModelFields
+              customModels={manageModels}
+              catalogModels={catalogModelsForType}
+              disabled={busy}
+              modelsError={dialogError}
+              onCustomModelsChange={(rows) => {
+                setManageModels(rows);
+                if (dialogError) {
+                  setDialogError(null);
+                }
+              }}
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={busy} onClick={() => setManageOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" disabled={busy} onClick={() => void saveOpenCodeGo()}>
                 Save
               </Button>
             </DialogFooter>

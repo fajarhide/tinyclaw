@@ -951,6 +951,7 @@ export class AgentService {
       defaultModel: currentModel,
       providers,
       models,
+      catalog: AVAILABLE_MODELS,
       provider: active?.type ?? null,
       displayName: active?.type === "openai_compatible" ? active.label : null,
       baseUrl: active?.type === "openai_compatible" ? (active.baseUrl ?? null) : null,

@@ -56,6 +56,7 @@ const PROVIDER_TYPE_LABELS: Record<UserProviderName, string> = {
   openrouter: "OpenRouter",
   gemini: "Gemini",
   openai_compatible: "Custom",
+  opencode_go: "OpenCode Go",
 };
 
 export function createProviderInstanceId(): string {

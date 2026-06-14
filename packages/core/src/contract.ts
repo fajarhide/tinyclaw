@@ -39,7 +39,7 @@ export interface AutomationRunRecord {
   error: string | null;
 }
 
-export type AgentChannel = "web" | "cli" | "telegram" | "automation" | "task";
+export type AgentChannel = "web" | "cli" | "telegram" | "whatsapp" | "automation" | "task";
 
 export const TINYCLAW_API_VERSION = 1;
 
@@ -484,6 +484,8 @@ export interface ModelsResponse {
   defaultModel: string | null;
   providers: ProviderInstanceSummary[];
   models: ProviderModelOption[];
+  /** Full static model catalog for provider setup and management UIs. */
+  catalog?: ProviderModelOption[];
   provider: ProviderName | null;
   displayName: string | null;
   baseUrl?: string | null;
@@ -798,7 +800,8 @@ export type ProviderName =
   | "anthropic"
   | "openrouter"
   | "gemini"
-  | "openai_compatible";
+  | "openai_compatible"
+  | "opencode_go";
 
 export type GenerateTextFormat = "json" | "text";
 

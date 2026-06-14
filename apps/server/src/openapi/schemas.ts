@@ -420,6 +420,10 @@ export const openApiSchemas = {
         type: "array",
         items: { $ref: "#/components/schemas/ProviderModelOption" },
       },
+      catalog: {
+        type: "array",
+        items: { $ref: "#/components/schemas/ProviderModelOption" },
+      },
     },
   },
   SetModelRequest: {
