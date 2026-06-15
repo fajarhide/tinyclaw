@@ -1,10 +1,11 @@
-import type { HealthResponse, LlmUsageStatus, SystemStatusResponse } from "@tinyclaw/core";
+import type { HealthResponse, LlmUsageStatus, SystemStatusResponse, WorkerProcessInfo } from "@tinyclaw/core";
 import { getTelegramWorkerStatus, getWhatsAppWorkerStatus, TINYCLAW_API_VERSION } from "@tinyclaw/core";
 import type { AgentService } from "./agent-service";
 import type { AutomationRunner } from "./automation-runner";
 import type { AutomationScheduler } from "./automation-scheduler";
 import type { McpService } from "./mcp-service";
 import type { TaskRunner } from "./task-runner";
+import type { WorkerManagerService } from "./worker-manager-service";
 
 export class SystemStatusService {
   constructor(
@@ -12,6 +13,7 @@ export class SystemStatusService {
     private readonly scheduler: AutomationScheduler,
     private readonly automationRunner: AutomationRunner,
     private readonly taskRunner: TaskRunner,
+    private readonly workerManager: WorkerManagerService,
     private readonly mcpService: McpService | null = null,
   ) {}
 
@@ -20,6 +22,13 @@ export class SystemStatusService {
     const providerConfigured = this.agent.providerConfigured;
     const models = await this.agent.getModels();
     const usageFields = this.agent.getUsageStatusFields();
+
+    const statuses = await this.workerManager.getAllWorkerStatuses();
+
+    const [telegramStatus, whatsappStatus] = await Promise.all([
+      this.resolveWorkerStatus("telegram", statuses.telegram),
+      this.resolveWorkerStatus("whatsapp", statuses.whatsapp),
+    ]);
 
     return {
       server: this.getServerStatus(),
@@ -35,8 +44,8 @@ export class SystemStatusService {
         activeRuns: this.taskRunner.getActiveRunCount(),
         providerConfigured,
       },
-      telegramWorker: await getTelegramWorkerStatus(),
-      whatsappWorker: await getWhatsAppWorkerStatus(),
+      telegramWorker: telegramStatus,
+      whatsappWorker: whatsappStatus,
       llmUsage: this.getLlmUsage(
         models.provider,
         models.currentModel,
@@ -48,6 +57,39 @@ export class SystemStatusService {
         : { serverCount: 0, connectedCount: 0, assignedProfileCount: 0 },
       checkedAt: new Date().toISOString(),
     };
+  }
+
+  private async resolveWorkerStatus(
+    name: "telegram" | "whatsapp",
+    pm2Status: WorkerProcessInfo | null,
+  ) {
+    if (pm2Status?.managed) {
+      const running = pm2Status.status === "online";
+
+      if (name === "telegram") {
+        const heartbeat = await getTelegramWorkerStatus();
+        return {
+          ...heartbeat,
+          running,
+          process: pm2Status,
+        };
+      }
+
+      const heartbeat = await getWhatsAppWorkerStatus();
+      return {
+        ...heartbeat,
+        running,
+        process: pm2Status,
+      };
+    }
+
+    if (name === "telegram") {
+      const heartbeat = await getTelegramWorkerStatus();
+      return heartbeat;
+    }
+
+    const heartbeat = await getWhatsAppWorkerStatus();
+    return heartbeat;
   }
 
   private getLlmUsage(
