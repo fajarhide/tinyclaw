@@ -39,13 +39,13 @@ export const updateProfileMemoryTool: ToolDefinition<
 > = {
   name: "update_profile_memory",
   description:
-    "Append a structured fact to the active profile's MEMORY.md for continuity across conversations. Creates MEMORY.md if it doesn't exist.",
+    "Record a fact, preference, decision, or observation in the active profile's MEMORY.md for cross-session continuity. Creates MEMORY.md if it doesn't exist. Use for things you know about the user — not step-by-step procedures (use create_skill for those).",
   parameters: {
     type: "object",
     properties: {
       content: {
         type: "string",
-        description: "The fact or observation to remember.",
+        description: "Fact, preference, or observation to remember across sessions.",
       },
     },
     required: ["content"],
