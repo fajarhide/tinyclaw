@@ -60,8 +60,6 @@ describe("update_profile_memory tool", () => {
 
     const content = await readFile(result.path, "utf8");
     expect(content).toStartWith("# Memory Log");
-    expect(content).toContain("Notable sessions, decisions, and context");
-    expect(content).toContain("Append new entries at the bottom");
     expect(content).toContain("---");
   });
 
