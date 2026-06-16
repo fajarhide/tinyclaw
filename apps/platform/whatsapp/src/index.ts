@@ -1,5 +1,6 @@
 import { createClient } from "@tinyclaw/client";
 import { ensureServerRunning, stopSpawnedServer } from "@tinyclaw/core/ensure-server";
+import { loadLocalAuthToken } from "@tinyclaw/core/local-auth";
 import {
   clearWhatsAppWorkerHeartbeat,
   writeWhatsAppWorkerHeartbeat,
@@ -32,7 +33,10 @@ try {
   const { serverUrl, spawnedChild: child } = await ensureServerRunning();
   spawnedChild = child;
 
-  const client = createClient({ baseUrl: serverUrl });
+  const client = createClient({
+    baseUrl: serverUrl,
+    authToken: await loadLocalAuthToken("whatsapp@tinyclaw.internal"),
+  });
   const health = await client.health();
 
   if (!health.providerConfigured) {
