@@ -7,6 +7,58 @@ import {
   type UserProviderName,
 } from "@tinyclaw/core";
 
+function readPassword(prompt: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const stdin = process.stdin;
+    const stdout = process.stdout;
+
+    stdout.write(prompt);
+
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.setEncoding("utf8");
+
+    let password = "";
+
+    const onData = (chunk: string) => {
+      for (const char of chunk) {
+        if (char === "\n" || char === "\r" || char === "\u0004") {
+          // Enter or EOF
+          stdin.setRawMode(false);
+          stdin.pause();
+          stdin.removeListener("data", onData);
+          stdout.write("\n");
+          resolve(password);
+          return;
+        }
+
+        if (char === "\u0003") {
+          // Ctrl+C
+          stdin.setRawMode(false);
+          stdin.pause();
+          stdin.removeListener("data", onData);
+          stdout.write("\n");
+          process.exit(130);
+        }
+
+        if (char === "\u007f" || char === "\b") {
+          // Backspace
+          if (password.length > 0) {
+            password = password.slice(0, -1);
+            stdout.write("\b \b");
+          }
+        } else if (char >= " " && char <= "~") {
+          // Printable ASCII
+          password += char;
+          stdout.write("*");
+        }
+      }
+    };
+
+    stdin.on("data", onData);
+  });
+}
+
 export async function ensureUserConfiguredViaCli(
   client: TinyClawClient,
 ): Promise<boolean> {
@@ -24,26 +76,26 @@ export async function ensureUserConfiguredViaCli(
 
   try {
     const email = await rl.question("Email: ");
-    const password = await rl.question("Password: ", { mask: true });
-    const confirmPassword = await rl.question("Confirm password: ", { mask: true });
+    const password = await readPassword("Password: ");
+    const confirmPassword = await readPassword("Confirm password: ");
 
     if (password !== confirmPassword) {
-      console.log("\nPasswords do not match.");
+      console.log("Passwords do not match.");
       return false;
     }
 
     if (password.length < 8) {
-      console.log("\nPassword must be at least 8 characters.");
+      console.log("Password must be at least 8 characters.");
       return false;
     }
 
     const result = await client.setupUser(email, password);
-    console.log("\nAdmin user created successfully.");
+    console.log("Admin user created successfully.");
 
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.log(`\nFailed to create admin user: ${message}`);
+    console.log(`Failed to create admin user: ${message}`);
     return false;
   } finally {
     rl.close();
