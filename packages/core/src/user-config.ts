@@ -42,6 +42,7 @@ export interface UserConfig {
   timezone?: string;
   thinkingEnabled?: boolean;
   thinkingEffort?: ThinkingEffort;
+  jwtSecret?: string;
 }
 
 export const DEFAULT_TIMEZONE = "UTC";
@@ -177,6 +178,7 @@ export async function loadUserConfig(): Promise<UserConfig | null> {
     ...(timezone ? { timezone } : {}),
     thinkingEnabled: thinking.enabled,
     thinkingEffort: thinking.effort,
+    ...(parsed.global.jwt_secret?.trim() ? { jwtSecret: parsed.global.jwt_secret.trim() } : {}),
   };
 }
 
@@ -283,6 +285,7 @@ export async function saveUserConfig(config: UserConfig): Promise<void> {
     timezone: config.timezone,
     thinking: thinking.enabled ? "on" : "off",
     thinking_effort: thinking.effort,
+    jwt_secret: config.jwtSecret,
   };
 
   const sections: Record<string, Record<string, string>> = {};
@@ -445,6 +448,11 @@ function buildConfigIniLines(
     mergedGlobal.thinking_effort?.trim() as ThinkingEffort | undefined,
   );
   lines.push(`thinking_effort=${effort}`);
+
+  if (mergedGlobal.jwt_secret?.trim()) {
+    lines.push(`jwt_secret=${mergedGlobal.jwt_secret.trim()}`);
+  }
+
   lines.push("");
 
   for (const [sectionName, values] of Object.entries(sections)) {

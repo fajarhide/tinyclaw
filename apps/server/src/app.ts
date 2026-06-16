@@ -99,6 +99,8 @@ import type { TaskService } from "./services/task-service";
 import { getTimezoneCatalog } from "./services/timezone-catalog-service";
 import { SystemStatusService } from "./services/system-status-service";
 import type { WorkerManagerService } from "./services/worker-manager-service";
+import type { AuthService } from "./services/auth-service";
+import type { DatabaseAdapter } from "@tinyclaw/db";
 import { tryServeStaticWeb } from "./static-web";
 
 const DOCS_HTML = `<!doctype html>
@@ -128,6 +130,8 @@ export interface ServerOptions {
   systemStatus: SystemStatusService;
   workerManager: WorkerManagerService;
   mcpService: McpService;
+  authService?: AuthService | null;
+  databaseAdapter?: DatabaseAdapter | null;
   webDistDir?: string | null;
 }
 
@@ -139,6 +143,8 @@ export function createApp(options: ServerOptions) {
     systemStatus,
     workerManager,
     mcpService,
+    authService,
+    databaseAdapter,
     webDistDir = null,
   } = options;
 
@@ -163,42 +169,141 @@ export function createApp(options: ServerOptions) {
         }
 
         if (request.method === "GET" && url.pathname === "/health") {
+          const userCount = await databaseAdapter?.countUsers() ?? 0;
           return json<HealthResponse>({
             ok: true,
             apiVersion: TINYCLAW_API_VERSION,
             providerConfigured: agent.providerConfigured,
+            userConfigured: userCount > 0,
           });
         }
 
-if (request.method === "GET" && url.pathname === "/v1/system/status") {
-  return json<SystemStatusResponse>(await systemStatus.getStatus());
-}
+        // Auth endpoints
+        if (request.method === "POST" && url.pathname === "/v1/auth/setup") {
+          if (!authService || !databaseAdapter) {
+            return errorResponse("Authentication not configured", 500);
+          }
 
-const workerActionMatch = url.pathname.match(/^\/v1\/workers\/([^/]+)\/(start|stop|restart)$/);
+          const userCount = await databaseAdapter.countUsers();
+          if (userCount > 0) {
+            return errorResponse("Admin user already exists", 409);
+          }
 
-if (workerActionMatch && request.method === "POST") {
-  const name = decodeURIComponent(workerActionMatch[1]!);
-  const action = workerActionMatch[2];
+          const body = await readJson<{ email: string; password: string }>(request);
+          const hash = await authService.hashPassword(body.password);
+          const now = new Date().toISOString();
 
-  if (!workerManager.isValidWorker(name)) {
-    return errorResponse(`Unknown worker: ${name}`, 400);
-  }
+          await databaseAdapter.createUser({
+            id: "user_admin",
+            email: body.email,
+            passwordHash: hash,
+            createdAt: now,
+            updatedAt: now,
+          });
 
-  try {
-    if (action === "start") {
-      await workerManager.startWorker(name);
-    } else if (action === "stop") {
-      await workerManager.stopWorker(name);
-    } else {
-      await workerManager.restartWorker(name);
-    }
+          const token = await authService.createToken(body.email);
+          return json({ token }, 201);
+        }
 
-    return json({ ok: true });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return errorResponse(message, 500);
-  }
-}
+        if (request.method === "POST" && url.pathname === "/v1/auth/login") {
+          const body = await readJson<{ email: string; password: string }>(request);
+
+          if (!authService || !databaseAdapter) {
+            return errorResponse("Authentication not configured", 500);
+          }
+
+          const user = await databaseAdapter.getUserByEmail(body.email);
+          if (!user) {
+            return errorResponse("Invalid credentials", 401);
+          }
+
+          const valid = await authService.verifyPassword(body.password, user.passwordHash);
+          if (!valid) {
+            return errorResponse("Invalid credentials", 401);
+          }
+
+          const token = await authService.createToken(user.email);
+          return json({ token });
+        }
+
+        if (request.method === "GET" && url.pathname === "/v1/auth/me") {
+          if (!authService) {
+            return errorResponse("Authentication not configured", 500);
+          }
+
+          const authHeader = request.headers.get("Authorization");
+          if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return errorResponse("Authentication required", 401);
+          }
+
+          const token = authHeader.slice(7);
+          try {
+            const payload = await authService.verifyToken(token);
+            return json({ email: payload.email });
+          } catch {
+            return errorResponse("Invalid token", 401);
+          }
+        }
+
+        // Auth middleware for all other routes
+        if (authService) {
+          const isPublicRoute =
+            url.pathname === "/health" ||
+            url.pathname === "/docs" ||
+            url.pathname === "/docs/" ||
+            url.pathname === "/openapi.json" ||
+            url.pathname === "/v1/auth/setup" ||
+            url.pathname === "/v1/auth/login" ||
+            url.pathname === "/v1/auth/me" ||
+            url.pathname === "/v1/tasks/__capability_probe__/messages" ||
+            url.pathname === "/v1/tools" ||
+            (request.method === "GET" &&
+              /^\/v1\/profiles\/[^/]+\/avatar$/.test(url.pathname));
+
+          if (!isPublicRoute) {
+            const authHeader = request.headers.get("Authorization");
+            if (!authHeader || !authHeader.startsWith("Bearer ")) {
+              return errorResponse("Authentication required", 401);
+            }
+
+            const token = authHeader.slice(7);
+            try {
+              await authService.verifyToken(token);
+            } catch {
+              return errorResponse("Invalid token", 401);
+            }
+          }
+        }
+
+        if (request.method === "GET" && url.pathname === "/v1/system/status") {
+          return json<SystemStatusResponse>(await systemStatus.getStatus());
+        }
+
+        const workerActionMatch = url.pathname.match(/^\/v1\/workers\/([^/]+)\/(start|stop|restart)$/);
+
+        if (workerActionMatch && request.method === "POST") {
+          const name = decodeURIComponent(workerActionMatch[1]!);
+          const action = workerActionMatch[2];
+
+          if (!workerManager.isValidWorker(name)) {
+            return errorResponse(`Unknown worker: ${name}`, 400);
+          }
+
+          try {
+            if (action === "start") {
+              await workerManager.startWorker(name);
+            } else if (action === "stop") {
+              await workerManager.stopWorker(name);
+            } else {
+              await workerManager.restartWorker(name);
+            }
+
+            return json({ ok: true });
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            return errorResponse(message, 500);
+          }
+        }
 
         if (request.method === "GET" && url.pathname === "/v1/models") {
           const source = url.searchParams.get("source");

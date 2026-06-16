@@ -1,4 +1,5 @@
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, type QueryCacheNotifyEvent } from "@tanstack/react-query";
+import { TinyClawApiError } from "@tinyclaw/core/api-error";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -8,3 +9,11 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+export function onGlobalQueryError(event: QueryCacheNotifyEvent) {
+  const error = event.query?.state?.error;
+  if (error instanceof TinyClawApiError && error.status === 401) {
+    localStorage.removeItem("tinyclaw_auth_token");
+    window.location.href = "/login";
+  }
+}

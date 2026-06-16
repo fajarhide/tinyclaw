@@ -1,7 +1,7 @@
 import { createClient } from "@tinyclaw/client";
 import { runChat } from "./chat";
 import { parseCliProfileArgs } from "./profile";
-import { ensureProviderConfiguredViaCli } from "./setup";
+import { ensureUserConfiguredViaCli, ensureProviderConfiguredViaCli } from "./setup";
 import { ensureServerRunning, stopSpawnedServer } from "@tinyclaw/core/ensure-server";
 
 let spawnedChild: Bun.Subprocess | null = null;
@@ -18,6 +18,14 @@ try {
 
   const client = createClient({ baseUrl: serverUrl });
   let health = await client.health();
+
+  if (!health.userConfigured) {
+    const created = await ensureUserConfiguredViaCli(client);
+
+    if (created) {
+      health = await client.health();
+    }
+  }
 
   if (!health.providerConfigured) {
     const configured = await ensureProviderConfiguredViaCli(client);

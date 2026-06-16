@@ -15,6 +15,7 @@ import { resolveWebDistDir } from "./static-web";
 import { McpClientManager } from "./services/mcp-client-manager";
 import { McpService } from "./services/mcp-service";
 import { SkillsService } from "./services/skills-service";
+import { AuthService, resolveJwtSecret } from "./services/auth-service";
 import { createAutomationTools } from "./tools/automation-tools";
 import { TINYCLAW_API_VERSION } from "@tinyclaw/core";
 import {
@@ -51,6 +52,10 @@ const config = loadConfig();
 const database = await createDatabase(config.databaseUrl, { baseDir: getUserConfigDir() });
 
 await seedDatabase(database.adapter);
+
+// Setup auth service
+const jwtSecret = await resolveJwtSecret();
+const authService = new AuthService({ jwtSecret });
 
 const llmUsageTracker = await LlmUsageTracker.create(database.adapter);
 const agent = new AgentService(userConfig, provider, database.adapter, llmUsageTracker);
@@ -119,6 +124,8 @@ const app = createApp({
   systemStatus,
   workerManager,
   mcpService,
+  authService,
+  databaseAdapter: database.adapter,
   webDistDir,
 });
 
