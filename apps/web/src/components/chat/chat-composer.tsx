@@ -102,7 +102,7 @@ export function ChatComposer(props: ChatComposerProps) {
     canStop,
     disabled = false,
     error,
-    placeholder = "Message…",
+    placeholder = "Do anything...",
     onSubmit,
     onStop,
     className,
