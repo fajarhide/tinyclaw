@@ -84,6 +84,7 @@ import type {
   TaskMessagesResponse,
   StoredTask,
   TaskRunRecord,
+  WorkerLogsResponse,
 } from "@tinyclaw/core/contract";
 import { readApiErrorMessage, TinyClawApiError } from "@tinyclaw/core/api-error";
 import { resolveServerUrl } from "@tinyclaw/core/runtime";
@@ -139,6 +140,17 @@ export class TinyClawClient {
 
   async restartWorker(name: string): Promise<{ ok: boolean }> {
     return this.request<{ ok: boolean }>(`/v1/workers/${encodeURIComponent(name)}/restart`, {
+      method: "POST",
+    });
+  }
+
+  async getWorkerLogs(name: string, lines?: number): Promise<WorkerLogsResponse> {
+    const query = lines !== undefined ? `?lines=${lines}` : "";
+    return this.request<WorkerLogsResponse>(`/v1/workers/${encodeURIComponent(name)}/logs${query}`);
+  }
+
+  async clearWorkerLogs(name: string): Promise<{ ok: boolean }> {
+    return this.request<{ ok: boolean }>(`/v1/workers/${encodeURIComponent(name)}/clear-logs`, {
       method: "POST",
     });
   }

@@ -89,6 +89,7 @@ import {
   type SyncSkillsResponse,
   type TestMcpServerResponse,
   type UpdateMcpServerRequest,
+  type WorkerLogsResponse,
 } from "@tinyclaw/core";
 import type { AgentChatSession } from "@tinyclaw/agent";
 import { serializeOpenApiSpec } from "./openapi/build-spec";
@@ -288,6 +289,8 @@ export function createApp(options: ServerOptions) {
         }
 
         const workerActionMatch = url.pathname.match(/^\/v1\/workers\/([^/]+)\/(start|stop|restart)$/);
+        const workerLogsMatch = url.pathname.match(/^\/v1\/workers\/([^/]+)\/logs$/);
+        const workerClearLogsMatch = url.pathname.match(/^\/v1\/workers\/([^/]+)\/clear-logs$/);
 
         if (workerActionMatch && request.method === "POST") {
           const name = decodeURIComponent(workerActionMatch[1]!);
@@ -306,6 +309,44 @@ export function createApp(options: ServerOptions) {
               await workerManager.restartWorker(name);
             }
 
+            return json({ ok: true });
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            return errorResponse(message, 500);
+          }
+        }
+
+        if (workerLogsMatch && request.method === "GET") {
+          const name = decodeURIComponent(workerLogsMatch[1]!);
+
+          if (!workerManager.isValidWorker(name)) {
+            return errorResponse(`Unknown worker: ${name}`, 400);
+          }
+
+          const linesParam = url.searchParams.get("lines");
+          const lines = Math.min(
+            Math.max(1, linesParam ? parseInt(linesParam, 10) : 200),
+            2000,
+          );
+
+          try {
+            const logs = await workerManager.getWorkerLogs(name, lines);
+            return json<WorkerLogsResponse>(logs);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            return errorResponse(message, 500);
+          }
+        }
+
+        if (workerClearLogsMatch && request.method === "POST") {
+          const name = decodeURIComponent(workerClearLogsMatch[1]!);
+
+          if (!workerManager.isValidWorker(name)) {
+            return errorResponse(`Unknown worker: ${name}`, 400);
+          }
+
+          try {
+            await workerManager.clearWorkerLogs(name);
             return json({ ok: true });
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);

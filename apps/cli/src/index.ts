@@ -1,4 +1,5 @@
 import { createClient } from "@tinyclaw/client";
+import { loadLocalAuthToken } from "@tinyclaw/core/local-auth";
 import { runChat } from "./chat";
 import { parseCliProfileArgs } from "./profile";
 import { ensureUserConfiguredViaCli, ensureProviderConfiguredViaCli } from "./setup";
@@ -16,7 +17,10 @@ try {
   const { serverUrl, spawnedChild: child } = await ensureServerRunning();
   spawnedChild = child;
 
-  const client = createClient({ baseUrl: serverUrl });
+  const client = createClient({
+    baseUrl: serverUrl,
+    authToken: await loadLocalAuthToken("cli@tinyclaw.internal"),
+  });
   let health = await client.health();
 
   if (!health.userConfigured) {
