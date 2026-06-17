@@ -98,6 +98,23 @@ describe("WorkerManagerService", () => {
       await rm(tmpProjectRoot, { recursive: true, force: true });
     });
 
+    test("starts telegram worker from dist when dist build exists", async () => {
+      const tmpProjectRoot = await mkdtemp(join(tmpdir(), "tinyclaw-worker-dist-"));
+      const distFilePath = join(tmpProjectRoot, "apps/platform/telegram/dist/index.js");
+      await mkdir(join(tmpProjectRoot, "apps/platform/telegram/dist"), { recursive: true });
+      await writeFile(distFilePath, "console.log('ok')");
+
+      const mockPm2 = createMockPm2();
+      const service = new WorkerManagerService(tmpProjectRoot, mockPm2);
+
+      await service.startWorker("telegram");
+
+      const opts = (mockPm2.start as ReturnType<typeof mock>).mock.calls[0][0];
+      expect(opts.args).toContain("apps/platform/telegram/dist/index.js");
+
+      await rm(tmpProjectRoot, { recursive: true, force: true });
+    });
+
     test("throws for unknown worker", async () => {
       const service = new WorkerManagerService(projectRoot, createMockPm2());
       expect(service.startWorker("foobar")).rejects.toThrow("Unknown worker");
