@@ -191,6 +191,11 @@ export function createApp(options: ServerOptions) {
           }
 
           const body = await readJson<{ email: string; password: string }>(request);
+
+          if (!body.email?.trim() || !body.password?.trim()) {
+            return errorResponse("Email and password are required.", 400);
+          }
+
           const hash = await authService.hashPassword(body.password);
           const now = new Date().toISOString();
 
@@ -441,6 +446,9 @@ export function createApp(options: ServerOptions) {
           try {
             return json<TelegramSettingsResponse>(await agent.setTelegramSettings(body));
           } catch (error) {
+            if (error instanceof TinyClawApiError) {
+              return errorResponse(error.message, error.status);
+            }
             const message = error instanceof Error ? error.message : String(error);
             return errorResponse(message, 400);
           }
@@ -465,6 +473,9 @@ export function createApp(options: ServerOptions) {
           try {
             return json<WhatsAppSettingsResponse>(await agent.setWhatsAppSettings(body));
           } catch (error) {
+            if (error instanceof TinyClawApiError) {
+              return errorResponse(error.message, error.status);
+            }
             const message = error instanceof Error ? error.message : String(error);
             return errorResponse(message, 400);
           }
@@ -1161,6 +1172,10 @@ export function createApp(options: ServerOptions) {
           return errorResponse(err.message, err.status);
         }
 
+        if (err instanceof SyntaxError) {
+          return errorResponse("Invalid JSON in request body.", 400);
+        }
+
         return errorResponse(formatServerError(err), 500);
       }
     },
@@ -1176,7 +1191,14 @@ function parseChannel(value: string | undefined): AgentChannel {
 }
 
 async function readJson<T>(request: Request): Promise<T> {
-  return (await request.json()) as T;
+  try {
+    return (await request.json()) as T;
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      throw new TinyClawApiError("Invalid JSON in request body.", 400);
+    }
+    throw err;
+  }
 }
 
 function json<T>(body: T, status = 200): Response {
