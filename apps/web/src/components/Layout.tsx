@@ -129,7 +129,9 @@ export function Layout() {
                   variant="ghost"
                   size="icon-sm"
                   className="shrink-0 text-muted-foreground/70 hover:text-foreground"
-                  onClick={logout}
+                  onClick={() => {
+                    void logout();
+                  }}
                 >
                   <LogOutIcon className="sidebar-nav-icon" strokeWidth={1.75} />
                 </Button>

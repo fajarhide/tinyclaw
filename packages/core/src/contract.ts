@@ -129,6 +129,15 @@ export interface SystemStatusResponse {
   checkedAt: string;
 }
 
+export interface AuthCredentialsRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthUserResponse {
+  email: string;
+}
+
 export interface CreateSessionRequest {
   channel: AgentChannel;
   profileId?: string;

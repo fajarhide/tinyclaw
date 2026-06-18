@@ -6,6 +6,7 @@ import { migrateDatabase } from "../migrate";
 import { LLM_USAGE_STATS_ID } from "../constants";
 import type {
   DatabaseAdapter,
+  StoredBrowserSessionRecord,
   LlmUsageStatsDelta,
   StoredAutomationRecord,
   StoredAutomationRunRecord,
@@ -162,6 +163,17 @@ interface UserRow {
   password_hash: string;
   created_at: string;
   updated_at: string;
+}
+
+interface BrowserSessionRow {
+  id: string;
+  user_id: string;
+  session_token_hash: string;
+  csrf_token_hash: string;
+  created_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  last_used_at: string | null;
 }
 
 export async function createSqliteDatabase(databaseUrl: string): Promise<SqliteDatabase> {
@@ -466,15 +478,50 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
   `);
 
   const getUserByEmailStmt = db.prepare("SELECT * FROM users WHERE email = ?");
+  const getUserByIdStmt = db.prepare("SELECT * FROM users WHERE id = ?");
   const createUserStmt = db.prepare(`
     INSERT INTO users (id, email, password_hash, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?)
   `);
   const countUsersStmt = db.prepare("SELECT COUNT(*) as count FROM users");
 
+  const createBrowserSessionStmt = db.prepare(`
+    INSERT INTO browser_sessions (
+      id,
+      user_id,
+      session_token_hash,
+      csrf_token_hash,
+      created_at,
+      expires_at,
+      revoked_at,
+      last_used_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const getBrowserSessionByTokenHashStmt = db.prepare(`
+    SELECT * FROM browser_sessions
+    WHERE session_token_hash = ?
+    LIMIT 1
+  `);
+  const revokeBrowserSessionByTokenHashStmt = db.prepare(`
+    UPDATE browser_sessions
+    SET revoked_at = ?
+    WHERE session_token_hash = ? AND revoked_at IS NULL
+  `);
+  const updateBrowserSessionLastUsedAtStmt = db.prepare(`
+    UPDATE browser_sessions
+    SET last_used_at = ?
+    WHERE id = ?
+  `);
+
   return {
     async getUserByEmail(email) {
       const row = getUserByEmailStmt.get(email) as UserRow | null;
+      return row ? toUserRecord(row) : null;
+    },
+
+    async getUserById(id) {
+      const row = getUserByIdStmt.get(id) as UserRow | null;
       return row ? toUserRecord(row) : null;
     },
 
@@ -491,6 +538,33 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
     async countUsers() {
       const row = countUsersStmt.get() as { count: number };
       return row.count;
+    },
+
+    async createBrowserSession(record) {
+      createBrowserSessionStmt.run(
+        record.id,
+        record.userId,
+        record.sessionTokenHash,
+        record.csrfTokenHash,
+        record.createdAt,
+        record.expiresAt,
+        record.revokedAt,
+        record.lastUsedAt,
+      );
+    },
+
+    async getBrowserSessionBySessionTokenHash(sessionTokenHash) {
+      const row = getBrowserSessionByTokenHashStmt.get(sessionTokenHash) as BrowserSessionRow | null;
+      return row ? toBrowserSessionRecord(row) : null;
+    },
+
+    async revokeBrowserSessionBySessionTokenHash(sessionTokenHash, revokedAt) {
+      const result = revokeBrowserSessionByTokenHashStmt.run(revokedAt, sessionTokenHash);
+      return result.changes > 0;
+    },
+
+    async updateBrowserSessionLastUsedAt(id, lastUsedAt) {
+      updateBrowserSessionLastUsedAtStmt.run(lastUsedAt, id);
     },
 
     async listAutomations() {
@@ -1104,6 +1178,19 @@ function toUserRecord(row: UserRow): StoredUserRecord {
     passwordHash: row.password_hash,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function toBrowserSessionRecord(row: BrowserSessionRow): StoredBrowserSessionRecord {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    sessionTokenHash: row.session_token_hash,
+    csrfTokenHash: row.csrf_token_hash,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    revokedAt: row.revoked_at,
+    lastUsedAt: row.last_used_at,
   };
 }
 

@@ -72,6 +72,20 @@ describe("AuthService", () => {
     });
   });
 
+  describe("browser session helpers", () => {
+    test("creates opaque browser session tokens and hashes them", () => {
+      const session = authService.createBrowserSessionTokens();
+
+      expect(session.sessionToken).not.toContain(".");
+      expect(session.csrfToken).not.toContain(".");
+      expect(session.sessionToken.length).toBeGreaterThan(50);
+      expect(session.csrfToken.length).toBeGreaterThan(50);
+      expect(new Date(session.expiresAt).toString()).not.toBe("Invalid Date");
+      expect(authService.hashToken(session.sessionToken)).toHaveLength(43);
+      expect(authService.hashToken(session.sessionToken)).not.toBe(session.sessionToken);
+    });
+  });
+
   describe("createToken and verifyToken", () => {
     test("creates a valid JWT token", async () => {
       const token = await authService.createToken("admin@example.com");

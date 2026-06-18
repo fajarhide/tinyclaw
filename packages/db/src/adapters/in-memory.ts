@@ -2,6 +2,7 @@ import { getUserMessageText, type MessageContentPart } from "@tinyclaw/core";
 import { LLM_USAGE_STATS_ID } from "../constants";
 import type {
   DatabaseAdapter,
+  StoredBrowserSessionRecord,
   LlmUsageStatsDelta,
   StoredAutomationRecord,
   StoredAutomationRunRecord,
@@ -15,6 +16,7 @@ import type {
   StoredTaskRecord,
   StoredTaskRunRecord,
   StoredToolRecord,
+  StoredUserRecord,
 } from "../types";
 
 export function createInMemoryDatabaseAdapter(): DatabaseAdapter {
@@ -35,9 +37,57 @@ export function createInMemoryDatabaseAdapter(): DatabaseAdapter {
   const profileSkills = new Map<string, Set<string>>();
   const sessions = new Map<string, StoredSessionRecord>();
   const sessionMessages = new Map<string, StoredSessionMessageRecord[]>();
+  const usersById = new Map<string, StoredUserRecord>();
+  const usersByEmail = new Map<string, StoredUserRecord>();
+  const browserSessionsByHash = new Map<string, StoredBrowserSessionRecord>();
   let llmUsageStats: StoredLlmUsageStatsRecord | null = null;
 
   return {
+    async getUserByEmail(email) {
+      return usersByEmail.get(email) ?? null;
+    },
+
+    async getUserById(id) {
+      return usersById.get(id) ?? null;
+    },
+
+    async createUser(record) {
+      usersById.set(record.id, record);
+      usersByEmail.set(record.email, record);
+    },
+
+    async countUsers() {
+      return usersById.size;
+    },
+
+    async createBrowserSession(record) {
+      browserSessionsByHash.set(record.sessionTokenHash, record);
+    },
+
+    async getBrowserSessionBySessionTokenHash(sessionTokenHash) {
+      return browserSessionsByHash.get(sessionTokenHash) ?? null;
+    },
+
+    async revokeBrowserSessionBySessionTokenHash(sessionTokenHash, revokedAt) {
+      const session = browserSessionsByHash.get(sessionTokenHash);
+
+      if (!session || session.revokedAt) {
+        return false;
+      }
+
+      browserSessionsByHash.set(sessionTokenHash, { ...session, revokedAt });
+      return true;
+    },
+
+    async updateBrowserSessionLastUsedAt(id, lastUsedAt) {
+      for (const [hash, session] of browserSessionsByHash.entries()) {
+        if (session.id === id) {
+          browserSessionsByHash.set(hash, { ...session, lastUsedAt });
+          return;
+        }
+      }
+    },
+
     async listAutomations() {
       return Array.from(automations.values());
     },

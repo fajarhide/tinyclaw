@@ -54,6 +54,7 @@ export function buildOpenApiSpec() {
     ],
     tags: [
       { name: "Health" },
+      { name: "Auth" },
       { name: "Workers" },
       { name: "Chat" },
       { name: "Models" },
@@ -80,6 +81,65 @@ export function buildOpenApiSpec() {
           operationId: "getSystemStatus",
           responses: {
             "200": jsonResponse("SystemStatusResponse", "Server and automation worker status"),
+          },
+        },
+      },
+      "/v1/auth/setup": {
+        post: {
+          tags: ["Auth"],
+          summary: "Create the first admin account and browser session",
+          operationId: "setupAuth",
+          requestBody: jsonBody("AuthCredentialsRequest"),
+          responses: {
+            "201": jsonResponse("AuthUserResponse", "Created admin user"),
+            "400": errorResponse,
+            "409": errorResponse,
+            "500": errorResponse,
+          },
+        },
+      },
+      "/v1/auth/login": {
+        post: {
+          tags: ["Auth"],
+          summary: "Log in with email and password",
+          operationId: "loginAuth",
+          requestBody: jsonBody("AuthCredentialsRequest"),
+          responses: {
+            "200": jsonResponse("AuthUserResponse", "Logged in user"),
+            "401": errorResponse,
+            "500": errorResponse,
+          },
+        },
+      },
+      "/v1/auth/me": {
+        get: {
+          tags: ["Auth"],
+          summary: "Get the current authenticated user",
+          operationId: "getAuthMe",
+          responses: {
+            "200": jsonResponse("AuthUserResponse", "Authenticated user"),
+            "401": errorResponse,
+            "500": errorResponse,
+          },
+        },
+      },
+      "/v1/auth/logout": {
+        post: {
+          tags: ["Auth"],
+          summary: "Log out and revoke the browser session",
+          operationId: "logoutAuth",
+          responses: {
+            "200": {
+              description: "Logged out",
+              content: {
+                "application/json": {
+                  schema: { type: "object", required: ["ok"], properties: { ok: { type: "boolean" } } },
+                },
+              },
+            },
+            "401": errorResponse,
+            "403": errorResponse,
+            "500": errorResponse,
           },
         },
       },

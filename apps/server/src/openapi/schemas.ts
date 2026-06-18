@@ -21,6 +21,21 @@ export const openApiSchemas = {
       providerConfigured: { type: "boolean" },
     },
   },
+  AuthCredentialsRequest: {
+    type: "object",
+    required: ["email", "password"],
+    properties: {
+      email: { type: "string" },
+      password: { type: "string" },
+    },
+  },
+  AuthUserResponse: {
+    type: "object",
+    required: ["email"],
+    properties: {
+      email: { type: "string" },
+    },
+  },
   CreateSessionRequest: {
     type: "object",
     required: ["channel"],

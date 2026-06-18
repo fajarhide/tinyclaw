@@ -1,14 +1,14 @@
 import bcrypt from "bcryptjs";
+import { createHash } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 import {
-  getUserConfigDir,
-  getUserConfigPath,
   loadUserConfig,
   saveUserConfig,
 } from "@tinyclaw/core";
 
 const SALT_ROUNDS = 10;
 const TOKEN_EXPIRY_DAYS = 7;
+const SESSION_EXPIRY_DAYS = 7;
 
 export interface AuthServiceConfig {
   jwtSecret: string;
@@ -51,6 +51,22 @@ export class AuthService {
     return bcrypt.compare(password, hash);
   }
 
+  createBrowserSessionTokens(): {
+    sessionToken: string;
+    csrfToken: string;
+    expiresAt: string;
+  } {
+    return {
+      sessionToken: generateOpaqueToken(),
+      csrfToken: generateOpaqueToken(),
+      expiresAt: new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+    };
+  }
+
+  hashToken(token: string): string {
+    return createHash("sha256").update(token).digest("base64url");
+  }
+
   async createToken(email: string): Promise<string> {
     return new SignJWT({ email })
       .setProtectedHeader({ alg: "HS256" })
@@ -68,4 +84,8 @@ export class AuthService {
     }
     return { email: payload.email };
   }
+}
+
+function generateOpaqueToken(): string {
+  return `${crypto.randomUUID().replace(/-/g, "")}${crypto.randomUUID().replace(/-/g, "")}`;
 }

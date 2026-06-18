@@ -80,6 +80,7 @@ import type {
   RunTaskResponse,
   ListTaskRunsResponse,
   TaskMessagesResponse,
+  AuthUserResponse,
   StoredTask,
   TaskRunRecord,
   WorkerLogsResponse,
@@ -103,12 +104,14 @@ import type {
 export class TinyClawClient {
   readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
+  private readonly credentials: RequestCredentials;
   private authToken: string | null;
 
   constructor(options: TinyClawClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? resolveServerUrl()).replace(/\/$/, "");
     const fetchFn = options.fetch ?? fetch;
     this.fetchImpl = ((input, init) => fetchFn(input, init)) as typeof fetch;
+    this.credentials = options.credentials ?? "include";
     this.authToken = options.authToken ?? null;
   }
 
@@ -854,22 +857,28 @@ export class TinyClawClient {
     return this.request<ListTimezonesResponse>("/v1/timezones");
   }
 
-  async setupUser(email: string, password: string): Promise<{ token: string }> {
-    return this.request<{ token: string }>("/v1/auth/setup", {
+  async setupUser(email: string, password: string): Promise<AuthUserResponse> {
+    return this.request<AuthUserResponse>("/v1/auth/setup", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
   }
 
-  async login(email: string, password: string): Promise<{ token: string }> {
-    return this.request<{ token: string }>("/v1/auth/login", {
+  async login(email: string, password: string): Promise<AuthUserResponse> {
+    return this.request<AuthUserResponse>("/v1/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
   }
 
-  async getMe(): Promise<{ email: string }> {
-    return this.request<{ email: string }>("/v1/auth/me");
+  async getMe(): Promise<AuthUserResponse> {
+    return this.request<AuthUserResponse>("/v1/auth/me");
+  }
+
+  async logout(): Promise<void> {
+    await this.request("/v1/auth/logout", {
+      method: "POST",
+    });
   }
 
   private async request<T>(
@@ -885,9 +894,18 @@ export class TinyClawClient {
       headers["Authorization"] = `Bearer ${this.authToken}`;
     }
 
+    const method = (init?.method ?? "GET").toUpperCase();
+    if (isMutatingMethod(method)) {
+      const csrfToken = readCookie("tinyclaw_csrf");
+      if (csrfToken) {
+        headers["X-CSRF-Token"] = csrfToken;
+      }
+    }
+
     const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
       ...init,
       headers,
+      credentials: this.credentials,
     });
 
     if (!response.ok) {
@@ -904,4 +922,24 @@ export class TinyClawClient {
 async function createApiError(response: Response, path: string): Promise<TinyClawApiError> {
   const message = await readApiErrorMessage(response);
   return new TinyClawApiError(message, response.status, path);
+}
+
+function isMutatingMethod(method: string): boolean {
+  return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+}
+
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const prefix = `${name}=`;
+  for (const part of document.cookie.split(";")) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith(prefix)) {
+      return trimmed.slice(prefix.length) || null;
+    }
+  }
+
+  return null;
 }
