@@ -10,6 +10,7 @@ export interface TinyClawClientOptions {
   baseUrl?: string;
   fetch?: typeof fetch;
   authToken?: string;
+  credentials?: RequestCredentials;
 }
 
 export type StreamHandler = (delta: string) => void;

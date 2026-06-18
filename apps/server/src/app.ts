@@ -100,7 +100,11 @@ import { getTimezoneCatalog } from "./services/timezone-catalog-service";
 import { SystemStatusService } from "./services/system-status-service";
 import type { WorkerManagerService } from "./services/worker-manager-service";
 import type { AuthService } from "./services/auth-service";
-import type { DatabaseAdapter } from "@tinyclaw/db";
+import type {
+  DatabaseAdapter,
+  StoredBrowserSessionRecord,
+  StoredUserRecord,
+} from "@tinyclaw/db";
 import { tryServeStaticWeb } from "./static-web";
 
 const DOCS_HTML = `<!doctype html>
@@ -122,6 +126,22 @@ const DOCS_HTML = `<!doctype html>
   </body>
 </html>
 `;
+
+const SESSION_COOKIE_NAME = "tinyclaw_session";
+const CSRF_COOKIE_NAME = "tinyclaw_csrf";
+const CSRF_HEADER_NAME = "x-csrf-token";
+const SESSION_COOKIE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+const PUBLIC_ROUTES = new Set([
+  "/health",
+  "/docs",
+  "/docs/",
+  "/openapi.json",
+  "/v1/auth/setup",
+  "/v1/auth/login",
+  "/v1/auth/me",
+  "/v1/tasks/__capability_probe__/messages",
+  "/v1/tools",
+]);
 
 export interface ServerOptions {
   agent: AgentService;
@@ -197,17 +217,18 @@ export function createApp(options: ServerOptions) {
 
           const hash = await authService.hashPassword(body.password);
           const now = new Date().toISOString();
-
-          await databaseAdapter.createUser({
+          const user = {
             id: "user_admin",
             email: body.email,
             passwordHash: hash,
             createdAt: now,
             updatedAt: now,
-          });
+          };
 
-          const token = await authService.createToken(body.email);
-          return json({ token }, 201);
+          await databaseAdapter.createUser(user);
+
+          const response = await createBrowserSessionResponse(authService, databaseAdapter, user);
+          return json(response.body, 201, response.headers);
         }
 
         if (request.method === "POST" && url.pathname === "/v1/auth/login") {
@@ -227,27 +248,46 @@ export function createApp(options: ServerOptions) {
             return errorResponse("Invalid credentials", 401);
           }
 
-          const token = await authService.createToken(user.email);
-          return json({ token });
+          const response = await createBrowserSessionResponse(authService, databaseAdapter, user);
+          return json(response.body, 200, response.headers);
         }
 
         if (request.method === "GET" && url.pathname === "/v1/auth/me") {
-          if (!authService) {
+          if (!authService || !databaseAdapter) {
             return errorResponse("Authentication not configured", 500);
           }
 
-          const authHeader = request.headers.get("Authorization");
-          if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          const auth = await authenticateRequest(request, authService, databaseAdapter);
+          if (!auth) {
             return errorResponse("Authentication required", 401);
           }
 
-          const token = authHeader.slice(7);
-          try {
-            const payload = await authService.verifyToken(token);
-            return json({ email: payload.email });
-          } catch {
-            return errorResponse("Invalid token", 401);
+          return json({ email: auth.user.email });
+        }
+
+        if (request.method === "POST" && url.pathname === "/v1/auth/logout") {
+          if (!authService || !databaseAdapter) {
+            return errorResponse("Authentication not configured", 500);
           }
+
+          const auth = await authenticateRequest(request, authService, databaseAdapter);
+          if (!auth) {
+            return errorResponse("Authentication required", 401);
+          }
+
+          assertBrowserCsrf(request, auth, authService);
+
+          if (auth.mode === "browser-session" && auth.session) {
+            const revokedAt = new Date().toISOString();
+            await databaseAdapter.revokeBrowserSessionBySessionTokenHash(
+              auth.session.sessionTokenHash,
+              revokedAt,
+            );
+          }
+
+          const headers = new Headers();
+          clearBrowserSessionCookies(headers);
+          return json({ ok: true }, 200, headers);
         }
 
         if (webDistDir) {
@@ -261,30 +301,20 @@ export function createApp(options: ServerOptions) {
         // Auth middleware for all other routes
         if (authService) {
           const isPublicRoute =
-            url.pathname === "/health" ||
-            url.pathname === "/docs" ||
-            url.pathname === "/docs/" ||
-            url.pathname === "/openapi.json" ||
-            url.pathname === "/v1/auth/setup" ||
-            url.pathname === "/v1/auth/login" ||
-            url.pathname === "/v1/auth/me" ||
-            url.pathname === "/v1/tasks/__capability_probe__/messages" ||
-            url.pathname === "/v1/tools" ||
-            (request.method === "GET" &&
-              /^\/v1\/profiles\/[^/]+\/avatar$/.test(url.pathname));
+            PUBLIC_ROUTES.has(url.pathname) ||
+            (request.method === "GET" && /^\/v1\/profiles\/[^/]+\/avatar$/.test(url.pathname));
 
           if (!isPublicRoute) {
-            const authHeader = request.headers.get("Authorization");
-            if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            if (!databaseAdapter) {
+              return errorResponse("Authentication not configured", 500);
+            }
+
+            const auth = await authenticateRequest(request, authService, databaseAdapter);
+            if (!auth) {
               return errorResponse("Authentication required", 401);
             }
 
-            const token = authHeader.slice(7);
-            try {
-              await authService.verifyToken(token);
-            } catch {
-              return errorResponse("Invalid token", 401);
-            }
+            assertBrowserCsrf(request, auth, authService);
           }
         }
 
@@ -1204,6 +1234,227 @@ function parseChannel(value: string | undefined): AgentChannel {
   throw new TinyClawApiError("Invalid channel. Expected cli, web, or telegram.", 400);
 }
 
+function parseCookies(header: string | null): Record<string, string> {
+  if (!header) {
+    return {};
+  }
+
+  const cookies: Record<string, string> = {};
+
+  for (const part of header.split(";")) {
+    const [name, ...rest] = part.trim().split("=");
+    if (!name || rest.length === 0) {
+      continue;
+    }
+
+    cookies[name] = rest.join("=");
+  }
+
+  return cookies;
+}
+
+function buildCookie(
+  name: string,
+  value: string,
+  options: {
+    httpOnly?: boolean;
+    maxAge?: number;
+    path?: string;
+    sameSite?: "Lax" | "Strict" | "None";
+    secure?: boolean;
+  } = {},
+): string {
+  const parts = [`${name}=${value}`];
+
+  parts.push(`Path=${options.path ?? "/"}`);
+
+  if (options.maxAge !== undefined) {
+    parts.push(`Max-Age=${Math.floor(options.maxAge)}`);
+  }
+
+  if (options.httpOnly) {
+    parts.push("HttpOnly");
+  }
+
+  if (options.sameSite) {
+    parts.push(`SameSite=${options.sameSite}`);
+  }
+
+  if (options.secure) {
+    parts.push("Secure");
+  }
+
+  return parts.join("; ");
+}
+
+function appendSetCookie(headers: Headers, cookie: string): void {
+  headers.append("Set-Cookie", cookie);
+}
+
+function getRequestTokenFromCookies(request: Request, name: string): string | null {
+  const cookies = parseCookies(request.headers.get("Cookie"));
+  return cookies[name]?.trim() || null;
+}
+
+function isMutatingMethod(method: string): boolean {
+  return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+}
+
+function isSecureCookieRequest(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+interface RequestAuthContext {
+  mode: "bearer" | "browser-session";
+  user: Pick<StoredUserRecord, "email">;
+  session?: StoredBrowserSessionRecord;
+}
+
+async function authenticateRequest(
+  request: Request,
+  authService: AuthService,
+  databaseAdapter: DatabaseAdapter,
+): Promise<RequestAuthContext | null> {
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    try {
+      const payload = await authService.verifyToken(token);
+      return { mode: "bearer", user: { email: payload.email } };
+    } catch {
+      return null;
+    }
+  }
+
+  const sessionToken = getRequestTokenFromCookies(request, SESSION_COOKIE_NAME);
+  if (!sessionToken) {
+    return null;
+  }
+
+  const sessionTokenHash = authService.hashToken(sessionToken);
+  const session = await databaseAdapter.getBrowserSessionBySessionTokenHash(sessionTokenHash);
+  if (!session || session.revokedAt) {
+    return null;
+  }
+
+  if (new Date(session.expiresAt).getTime() <= Date.now()) {
+    return null;
+  }
+
+  const user = await databaseAdapter.getUserById(session.userId);
+  if (!user) {
+    return null;
+  }
+
+  await databaseAdapter.updateBrowserSessionLastUsedAt(session.id, new Date().toISOString());
+
+  return { mode: "browser-session", user, session };
+}
+
+function assertBrowserCsrf(
+  request: Request,
+  auth: RequestAuthContext,
+  authService: AuthService,
+): void {
+  if (auth.mode !== "browser-session" || !isMutatingMethod(request.method)) {
+    return;
+  }
+
+  const csrfToken = getRequestTokenFromCookies(request, CSRF_COOKIE_NAME);
+  const csrfHeader = request.headers.get(CSRF_HEADER_NAME);
+
+  if (!csrfToken || !csrfHeader || csrfToken !== csrfHeader.trim()) {
+    throw new TinyClawApiError("CSRF validation failed.", 403);
+  }
+
+  if (auth.session?.csrfTokenHash !== authService.hashToken(csrfToken)) {
+    throw new TinyClawApiError("CSRF validation failed.", 403);
+  }
+}
+
+function applyBrowserSessionCookies(
+  headers: Headers,
+  sessionToken: string,
+  csrfToken: string,
+): void {
+  const cookieBase = {
+    path: "/",
+    sameSite: "Lax" as const,
+    secure: isSecureCookieRequest(),
+  };
+
+  appendSetCookie(
+    headers,
+    buildCookie(SESSION_COOKIE_NAME, sessionToken, {
+      ...cookieBase,
+      httpOnly: true,
+      maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
+    }),
+  );
+
+  appendSetCookie(
+    headers,
+    buildCookie(CSRF_COOKIE_NAME, csrfToken, {
+      ...cookieBase,
+      maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
+    }),
+  );
+}
+
+async function createBrowserSessionResponse(
+  authService: AuthService,
+  databaseAdapter: DatabaseAdapter,
+  user: StoredUserRecord,
+): Promise<{ body: { email: string }; headers: Headers }> {
+  const now = new Date().toISOString();
+  const session = authService.createBrowserSessionTokens();
+  const record: StoredBrowserSessionRecord = {
+    id: crypto.randomUUID(),
+    userId: user.id,
+    sessionTokenHash: authService.hashToken(session.sessionToken),
+    csrfTokenHash: authService.hashToken(session.csrfToken),
+    createdAt: now,
+    expiresAt: session.expiresAt,
+    revokedAt: null,
+    lastUsedAt: now,
+  };
+
+  await databaseAdapter.createBrowserSession(record);
+
+  const headers = new Headers();
+  applyBrowserSessionCookies(headers, session.sessionToken, session.csrfToken);
+
+  return {
+    body: { email: user.email },
+    headers,
+  };
+}
+
+function clearBrowserSessionCookies(headers: Headers): void {
+  const cookieBase = {
+    path: "/",
+    sameSite: "Lax" as const,
+    secure: isSecureCookieRequest(),
+  };
+
+  appendSetCookie(
+    headers,
+    buildCookie(SESSION_COOKIE_NAME, "", {
+      ...cookieBase,
+      httpOnly: true,
+      maxAge: 0,
+    }),
+  );
+
+  appendSetCookie(
+    headers,
+    buildCookie(CSRF_COOKIE_NAME, "", {
+      ...cookieBase,
+      maxAge: 0,
+    }),
+  );
+}
+
 async function readJson<T>(request: Request): Promise<T> {
   try {
     return (await request.json()) as T;
@@ -1215,8 +1466,10 @@ async function readJson<T>(request: Request): Promise<T> {
   }
 }
 
-function json<T>(body: T, status = 200): Response {
-  return Response.json(body, { status });
+function json<T>(body: T, status = 200, headers?: Headers): Response {
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("Content-Type", "application/json; charset=utf-8");
+  return Response.json(body, { status, headers: responseHeaders });
 }
 
 function errorResponse(message: string, status: number): Response {

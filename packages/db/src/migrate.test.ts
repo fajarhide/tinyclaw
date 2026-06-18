@@ -174,3 +174,36 @@ describe("legacy profile id migration", () => {
     }
   });
 });
+
+describe("browser session schema", () => {
+  test("creates browser session storage with the expected columns", () => {
+    const db = new Database(":memory:");
+
+    try {
+      migrateDatabase(db);
+
+      const columns = db.prepare("PRAGMA table_info(browser_sessions)").all() as Array<{
+        name: string;
+      }>;
+      const indexes = db.prepare("PRAGMA index_list(browser_sessions)").all() as Array<{
+        name: string;
+      }>;
+
+      expect(columns.map((column) => column.name)).toEqual([
+        "id",
+        "user_id",
+        "session_token_hash",
+        "csrf_token_hash",
+        "created_at",
+        "expires_at",
+        "revoked_at",
+        "last_used_at",
+      ]);
+      expect(indexes.some((index) => index.name === "browser_sessions_token_hash_unique")).toBe(
+        true,
+      );
+    } finally {
+      db.close();
+    }
+  });
+});

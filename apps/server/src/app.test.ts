@@ -1,6 +1,7 @@
 import { describe, expect, test, beforeAll, afterAll } from "bun:test";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { createInMemoryDatabaseAdapter } from "@tinyclaw/db";
 import { createApp } from "./app";
 import { AuthService } from "./services/auth-service";
 
@@ -32,6 +33,50 @@ function createMockApp(webDistDir: string | null) {
     } as any,
     webDistDir,
   });
+}
+
+function createBrowserAuthApp() {
+  const authService = new AuthService(TEST_CONFIG);
+  const databaseAdapter = createInMemoryDatabaseAdapter();
+  const app = createApp({
+    agent: { providerConfigured: true } as any,
+    automationService: {} as any,
+    taskService: {} as any,
+    systemStatus: {
+      getStatus: async () => ({ ok: true }),
+    } as any,
+    workerManager: {
+      isValidWorker: () => true,
+      startWorker: async () => {},
+    } as any,
+    mcpService: {} as any,
+    authService,
+    databaseAdapter,
+    webDistDir: null,
+  });
+
+  return { app, databaseAdapter };
+}
+
+function extractSetCookies(response: Response): string[] {
+  const headers = response.headers as Headers & { getSetCookie?: () => string[] };
+  return headers.getSetCookie?.() ?? (response.headers.get("set-cookie") ? [response.headers.get("set-cookie")!] : []);
+}
+
+function cookieValue(setCookies: string[], name: string): string {
+  const cookie = setCookies.find((entry) => entry.startsWith(`${name}=`));
+  if (!cookie) {
+    throw new Error(`Missing cookie: ${name}`);
+  }
+
+  return cookie.split(";")[0]!.split("=", 2)[1]!;
+}
+
+function cookieHeaderFromSetCookies(setCookies: string[]): string {
+  return [
+    `tinyclaw_session=${cookieValue(setCookies, "tinyclaw_session")}`,
+    `tinyclaw_csrf=${cookieValue(setCookies, "tinyclaw_csrf")}`,
+  ].join("; ");
 }
 
 describe("static web serving before auth", () => {
@@ -103,6 +148,109 @@ describe("static web serving before auth", () => {
     const response = await app.fetch(request);
 
     expect(response.status).toBe(401);
+  });
+});
+
+describe("browser session auth", () => {
+  test("setup creates a session cookie and /v1/auth/me reads it back", async () => {
+    const { app } = createBrowserAuthApp();
+
+    const setupResponse = await app.fetch(
+      new Request("http://localhost:4310/v1/auth/setup", {
+        method: "POST",
+        body: JSON.stringify({ email: "admin@example.com", password: "password123" }),
+      }),
+    );
+
+    expect(setupResponse.status).toBe(201);
+    const setCookies = extractSetCookies(setupResponse);
+    expect(setCookies.some((cookie) => cookie.startsWith("tinyclaw_session="))).toBe(true);
+    expect(setCookies.some((cookie) => cookie.startsWith("tinyclaw_csrf="))).toBe(true);
+
+    const cookieHeader = cookieHeaderFromSetCookies(setCookies);
+    const meResponse = await app.fetch(
+      new Request("http://localhost:4310/v1/auth/me", {
+        headers: { Cookie: cookieHeader },
+      }),
+    );
+
+    expect(meResponse.status).toBe(200);
+    await expect(meResponse.json()).resolves.toEqual({ email: "admin@example.com" });
+  });
+
+  test("login sets a fresh session and logout revokes it", async () => {
+    const { app } = createBrowserAuthApp();
+
+    await app.fetch(
+      new Request("http://localhost:4310/v1/auth/setup", {
+        method: "POST",
+        body: JSON.stringify({ email: "admin@example.com", password: "password123" }),
+      }),
+    );
+
+    const loginResponse = await app.fetch(
+      new Request("http://localhost:4310/v1/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: "admin@example.com", password: "password123" }),
+      }),
+    );
+
+    expect(loginResponse.status).toBe(200);
+    const setCookies = extractSetCookies(loginResponse);
+    const cookieHeader = cookieHeaderFromSetCookies(setCookies);
+    const csrfToken = cookieValue(setCookies, "tinyclaw_csrf");
+
+    const logoutResponse = await app.fetch(
+      new Request("http://localhost:4310/v1/auth/logout", {
+        method: "POST",
+        headers: {
+          Cookie: cookieHeader,
+          "X-CSRF-Token": csrfToken,
+        },
+      }),
+    );
+
+    expect(logoutResponse.status).toBe(200);
+    const afterLogout = await app.fetch(
+      new Request("http://localhost:4310/v1/auth/me", {
+        headers: { Cookie: cookieHeader },
+      }),
+    );
+
+    expect(afterLogout.status).toBe(401);
+  });
+
+  test("browser sessions require CSRF on mutating routes", async () => {
+    const { app } = createBrowserAuthApp();
+
+    const setupResponse = await app.fetch(
+      new Request("http://localhost:4310/v1/auth/setup", {
+        method: "POST",
+        body: JSON.stringify({ email: "admin@example.com", password: "password123" }),
+      }),
+    );
+    const setCookies = extractSetCookies(setupResponse);
+    const cookieHeader = cookieHeaderFromSetCookies(setCookies);
+    const csrfToken = cookieValue(setCookies, "tinyclaw_csrf");
+
+    const denied = await app.fetch(
+      new Request("http://localhost:4310/v1/workers/whatsapp/start", {
+        method: "POST",
+        headers: { Cookie: cookieHeader },
+      }),
+    );
+    expect(denied.status).toBe(403);
+
+    const allowed = await app.fetch(
+      new Request("http://localhost:4310/v1/workers/whatsapp/start", {
+        method: "POST",
+        headers: {
+          Cookie: cookieHeader,
+          "X-CSRF-Token": csrfToken,
+        },
+      }),
+    );
+    expect(allowed.status).toBe(200);
   });
 });
 

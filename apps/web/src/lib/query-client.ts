@@ -13,7 +13,6 @@ export const queryClient = new QueryClient({
 export function onGlobalQueryError(event: QueryCacheNotifyEvent) {
   const error = event.query?.state?.error;
   if (error instanceof TinyClawApiError && error.status === 401) {
-    localStorage.removeItem("tinyclaw_auth_token");
     window.location.href = "/login";
   }
 }

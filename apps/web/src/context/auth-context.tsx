@@ -15,10 +15,8 @@ interface AuthContextValue {
   isLoading: boolean;
   setup: (email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
-
-const AUTH_STORAGE_KEY = "tinyclaw_auth_token";
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -31,48 +29,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (token) {
-      client.setAuthToken(token);
-      client
-        .getMe()
-        .then((me) => {
-          setUser(me);
-          refreshAuthenticatedQueries();
-        })
-        .catch(() => {
-          localStorage.removeItem(AUTH_STORAGE_KEY);
-          client.setAuthToken(null);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    } else {
-      setIsLoading(false);
-    }
+    client
+      .getMe()
+      .then((me) => {
+        setUser(me);
+        refreshAuthenticatedQueries();
+      })
+      .catch(() => {
+        setUser(null);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   const setup = useCallback(async (email: string, password: string) => {
-    const response = await client.setupUser(email, password);
-    localStorage.setItem(AUTH_STORAGE_KEY, response.token);
-    client.setAuthToken(response.token);
-    const me = await client.getMe();
+    const me = await client.setupUser(email, password);
     setUser(me);
     refreshAuthenticatedQueries();
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const response = await client.login(email, password);
-    localStorage.setItem(AUTH_STORAGE_KEY, response.token);
-    client.setAuthToken(response.token);
-    const me = await client.getMe();
+    const me = await client.login(email, password);
     setUser(me);
     refreshAuthenticatedQueries();
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    client.setAuthToken(null);
+  const logout = useCallback(async () => {
+    await client.logout();
     setUser(null);
   }, []);
 

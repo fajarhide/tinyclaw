@@ -18,6 +18,7 @@ export function migrateDatabase(db: Database): void {
   migrateMcpTables(db);
   migrateSkillsTables(db);
   migrateUsersTable(db);
+  migrateBrowserSessionsTable(db);
   migrateLegacyProfileIds(db);
 }
 
@@ -189,6 +190,24 @@ function migrateUsersTable(db: Database): void {
       updated_at TEXT NOT NULL
     );
     CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (email);
+  `);
+}
+
+function migrateBrowserSessionsTable(db: Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS browser_sessions (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      session_token_hash TEXT NOT NULL,
+      csrf_token_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      revoked_at TEXT,
+      last_used_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS browser_sessions_token_hash_unique
+      ON browser_sessions (session_token_hash);
   `);
 }
 

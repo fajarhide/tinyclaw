@@ -157,10 +157,29 @@ export interface StoredUserRecord {
   updatedAt: string;
 }
 
+export interface StoredBrowserSessionRecord {
+  id: string;
+  userId: string;
+  sessionTokenHash: string;
+  csrfTokenHash: string;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  lastUsedAt: string | null;
+}
+
 export interface DatabaseAdapter {
   getUserByEmail(email: string): Promise<StoredUserRecord | null>;
+  getUserById(id: string): Promise<StoredUserRecord | null>;
   createUser(record: StoredUserRecord): Promise<void>;
   countUsers(): Promise<number>;
+
+  createBrowserSession(record: StoredBrowserSessionRecord): Promise<void>;
+  getBrowserSessionBySessionTokenHash(
+    sessionTokenHash: string,
+  ): Promise<StoredBrowserSessionRecord | null>;
+  revokeBrowserSessionBySessionTokenHash(sessionTokenHash: string, revokedAt: string): Promise<boolean>;
+  updateBrowserSessionLastUsedAt(id: string, lastUsedAt: string): Promise<void>;
 
   listAutomations(): Promise<StoredAutomationRecord[]>;
   getAutomation(id: string): Promise<StoredAutomationRecord | null>;
