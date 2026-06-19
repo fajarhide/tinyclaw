@@ -2,7 +2,12 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { join } from "node:path";
 import { nanoid } from "nanoid";
 import { readTextOrNull, writePrivateTextFile } from "./fs";
-import { getUserConfigDir, loadUserConfig, saveUserConfig } from "./user-config";
+import {
+  getUserConfigDir,
+  loadUserConfig,
+  saveUserConfig,
+  type UserConfig,
+} from "./user-config";
 
 const LOCAL_CLIENT_EMAIL = "local-client@tinyclaw.internal";
 const LOCAL_AUTH_TOKEN_PREFIX = "tc_local_";
@@ -27,6 +32,24 @@ function hashLocalAuthToken(token: string): string {
 
 function getLocalAuthTokenPath(): string {
   return join(getUserConfigDir(), LOCAL_AUTH_TOKEN_FILENAME);
+}
+
+function toPersistedUserConfig(
+  config: Awaited<ReturnType<typeof loadUserConfig>>,
+): UserConfig {
+  return {
+    defaultProviderId: config?.defaultProviderId ?? null,
+    providers: config?.providers ?? [],
+    ...(config?.timezone ? { timezone: config.timezone } : {}),
+    ...(config?.thinkingEnabled !== undefined
+      ? { thinkingEnabled: config.thinkingEnabled }
+      : {}),
+    ...(config?.thinkingEffort ? { thinkingEffort: config.thinkingEffort } : {}),
+    ...(config?.localAuthTokenHash
+      ? { localAuthTokenHash: config.localAuthTokenHash }
+      : {}),
+    ...(config?.localAuthToken ? { localAuthToken: config.localAuthToken } : {}),
+  };
 }
 
 async function loadStoredLocalAuthToken(): Promise<string | null> {
@@ -66,18 +89,14 @@ export async function resolveLocalAuthToken(): Promise<string> {
   if (legacyToken) {
     await persistLocalAuthToken(legacyToken);
     await saveUserConfig({
-      ...config,
-      defaultProviderId: config?.defaultProviderId ?? null,
+      ...toPersistedUserConfig(config),
       localAuthTokenHash: hashLocalAuthToken(legacyToken),
     });
     return legacyToken;
   }
 
   const generated = generateLocalAuthToken();
-  const newConfig = config ?? {
-    defaultProviderId: null,
-    providers: [],
-  };
+  const newConfig = toPersistedUserConfig(config);
   await persistLocalAuthToken(generated);
   await saveUserConfig({ ...newConfig, localAuthTokenHash: hashLocalAuthToken(generated) });
   return generated;
@@ -99,10 +118,7 @@ export async function rotateLocalAuthToken(): Promise<string> {
 
   await persistLocalAuthToken(token);
   await saveUserConfig({
-    ...(config ?? {
-      defaultProviderId: null,
-      providers: [],
-    }),
+    ...toPersistedUserConfig(config),
     localAuthTokenHash: hashLocalAuthToken(token),
   });
 
