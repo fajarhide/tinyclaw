@@ -132,7 +132,6 @@ export function TaskRunHistoryPanel({ task, profile, onClose }: TaskRunHistoryPa
         "border-t border-border/50",
         "lg:h-full lg:min-h-0 lg:w-[24rem] lg:border-t-0 lg:border-l lg:border-border/30",
         "xl:w-[26rem]",
-        "lg:shadow-xs",
       )}
       aria-label={`Run chat for ${task.title}`}
     >

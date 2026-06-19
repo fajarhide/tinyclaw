@@ -281,7 +281,7 @@ export function TasksPage() {
 
         <div className="mt-6 space-y-4">
           {errorMessage ? (
-            <Card className="border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20">
+            <Card className="border-red-200 bg-red-50 shadow-none dark:border-red-900/40 dark:bg-red-950/20">
               <CardContent className="flex flex-wrap items-start gap-3 p-4">
                 <AlertTriangleIcon
                   className="mt-0.5 size-5 shrink-0 text-red-700 dark:text-red-300"
@@ -312,7 +312,7 @@ export function TasksPage() {
           {isLoading && tasks.length === 0 ? (
             <TaskBoardSkeleton />
           ) : tasks.length === 0 ? (
-            <Card className="border-dashed">
+            <Card className="border-dashed shadow-none">
               <CardContent className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
                 <div className="flex size-12 items-center justify-center rounded-full border border-border bg-muted/40">
                   <KanbanIcon className="size-6 text-muted-foreground" aria-hidden />
@@ -396,7 +396,7 @@ function SwarmMetricTile({
   return (
     <Card
       className={cn(
-        "min-w-0 overflow-hidden",
+        "min-w-0 overflow-hidden shadow-none",
         highlight && "border-amber-300/50 bg-amber-50/40 dark:border-amber-800/40 dark:bg-amber-950/20",
         warn && value > 0 && "border-red-300/50 bg-red-50/40 dark:border-red-900/40 dark:bg-red-950/20",
       )}

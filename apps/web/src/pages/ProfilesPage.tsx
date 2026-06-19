@@ -1132,7 +1132,7 @@ export function ProfilesPage() {
                       <div className="flex min-w-0 flex-1 flex-col gap-2">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <label htmlFor="profile-name" className="sr-only">
+                            <label htmlFor="profile-name" className="mb-1 block text-xs font-medium text-muted-foreground">
                               Name
                             </label>
                             <Input

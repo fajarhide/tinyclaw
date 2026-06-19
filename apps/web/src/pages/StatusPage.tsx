@@ -261,7 +261,7 @@ function LlmUsageSection({ usage }: { usage: LlmUsageStatus }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <UsageMetricTile
               icon={ZapIcon}
               label="Requests"
@@ -394,7 +394,9 @@ function UsageMetricTile({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-xl font-semibold tabular-nums tracking-tight text-foreground">{value}</p>
+          <p className="break-words text-lg font-semibold leading-tight tabular-nums tracking-tight text-foreground sm:text-xl">
+            {value}
+          </p>
           <p className="text-xs text-muted-foreground">{hint}</p>
         </div>
         <Icon className="size-4 shrink-0 text-muted-foreground/70" aria-hidden />
@@ -412,7 +414,7 @@ function SummaryStrip({
 }) {
   return (
     <div
-      className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4 sm:gap-4"
+      className="flex flex-wrap items-start gap-3 border-b border-border px-5 py-4 sm:gap-4"
     >
       <div className={cn(iconTileClass, "bg-background/70")}>
         <ToneIcon tone={summary.tone} className="size-5" />
@@ -718,8 +720,8 @@ function deriveSummary(status: SystemStatusResponse): {
   if (status.whatsappWorker.configured && !status.whatsappWorker.running) {
     return {
       tone: "warn",
-      title: "WhatsApp bridge offline",
-      description: "Start the WhatsApp worker (bun run dev:whatsapp) to receive messages.",
+      title: "WhatsApp offline",
+      description: "Start the WhatsApp worker to receive messages.",
     };
   }
 

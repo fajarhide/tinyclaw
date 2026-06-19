@@ -47,8 +47,7 @@ export function TaskCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "rounded-md border border-border bg-card p-3 shadow-xs",
-        "transition-shadow duration-150 motion-reduce:transition-none",
+        "rounded-md border border-border bg-card p-3",
         dragDisabled ? "cursor-default" : "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-60 ring-2 ring-primary/30",
         isFocused && "ring-2 ring-primary/50",
