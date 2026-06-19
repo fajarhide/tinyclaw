@@ -16,9 +16,9 @@ flowchart TB
   end
 
   subgraph server ["apps/server — agent runtime"]
-    app["app.ts — HTTP / SSE"]
+    app["http/app.ts — Hono HTTP / SSE"]
+    auth["auth-middleware.ts"]
     agentSvc["AgentService"]
-    profileSvc["ProfileService"]
     resolver["tool-resolver"]
     handlers["Tool handlers<br/>builtin · bash · javascript · mcp"]
     providers["providers/<br/>OpenAI · Anthropic"]
@@ -40,14 +40,13 @@ flowchart TB
   cli --> httpSdk
   telegram --> httpSdk
   httpSdk -->|"HTTP / SSE"| app
+  app --> auth
   app --> agentSvc
-  app --> profileSvc
   agentSvc --> agent
   agentSvc --> resolver
   resolver --> handlers
   agentSvc --> providers
   agentSvc --> memory
-  profileSvc --> dbPkg
   agent --> core
   handlers --> core
   dbPkg --> core
@@ -80,9 +79,10 @@ tinyclaw/
 
 | Question | Look in |
 |----------|---------|
-| HTTP routing | `app.ts` in `apps/server` |
+| HTTP routing | `apps/server/src/http/app.ts` and `apps/server/src/http/routes/*` |
+| HTTP auth / CSRF | `apps/server/src/http/auth-middleware.ts`, `shared.ts`, `public-routes.ts` |
 | Session lifecycle, model switching | `AgentService` |
-| Profile and tool CRUD | `ProfileService` |
+| Profile CRUD, soul files, avatar, knowledge base | `apps/server/src/http/routes/profiles.ts`, `AgentService` |
 | Resolving DB-backed tools a session may call | `tool-resolver.ts` |
 | MCP server registry, connections, profile assignment | `mcp-service.ts`, `mcp-client-manager.ts` |
 | Runtime MCP tool expansion for assigned servers | `mcp-tool-bridge.ts` in `AgentService.resolveProfileTools` |
@@ -92,7 +92,7 @@ tinyclaw/
 | SQLite schema (`packages/db/sql/schema.sql`) | `@tinyclaw/db` |
 | CLI server discovery / spawn | `ensure-server.ts` in `apps/cli` |
 | Shared request/response types | `@tinyclaw/core` (`contract.ts`) |
-| OpenAPI generation | `openapi/build-spec.ts` in `apps/server` |
+| OpenAPI generation | `apps/server/src/http/openapi.ts` plus route-owned registration in `apps/server/src/http/routes/*` |
 
 Use symbol search for exact paths — names are stable; line numbers are not.
 
@@ -103,6 +103,8 @@ Use symbol search for exact paths — names are stable; line numbers are not.
 **Hub and spoke.** New channels are thin apps on `@tinyclaw/client`. There is no second agent implementation per channel.
 
 **Packages do not depend on apps.** `packages/*` must not import from `apps/*`. Shared code flows packages → apps, never the reverse.
+
+**Hono owns the HTTP surface.** The server entrypoint builds a single `OpenAPIHono` app in `apps/server/src/http/app.ts`. Runtime, tests, auth, and OpenAPI all go through that same app.
 
 **Providers are server-only.** OpenAI and Anthropic adapters live under `apps/server/src/providers/`, not in `@tinyclaw/core` or `@tinyclaw/agent`.
 
@@ -120,11 +122,21 @@ See the [system overview](#system-overview) diagram for the full topology. At a 
 
 **Client ↔ server.** `@tinyclaw/client` knows session IDs and API shapes from `@tinyclaw/core`. It has no visibility into providers, profiles beyond the API, or the tool loop.
 
+**HTTP ↔ auth.** Hono middleware enforces bearer auth and browser cookie-session auth. Mutating browser requests must also pass CSRF checks, except for explicitly public routes such as login/setup.
+
 **Server ↔ agent package.** `AgentService` owns the session map and delegates to `AgentHarness`. The harness depends on `Provider` from `@tinyclaw/core`, not on HTTP or SQLite.
 
 **Server ↔ database.** Profiles, tools, profile–tool links, session rows, and automations schema persist in SQLite. Live chat state does not cross this boundary.
 
 **Agent ↔ tools.** The harness asks the model; the server resolves and runs handlers. Builtin tools come from `@tinyclaw/core`; server-specific handlers (bash, Super Bot meta-tools) are registered in `apps/server`.
+
+## Request lifecycle
+
+1. `apps/server/src/http/app.ts` checks static web assets first.
+2. Hono auth middleware validates bearer auth or browser session auth, then enforces CSRF for mutating browser requests.
+3. A route handler in `apps/server/src/http/routes/*` parses the request and calls the right service.
+4. Service code calls `AgentService`, persistence, workers, MCP, automations, or tasks as needed.
+5. `/openapi.json` is generated from the same Hono route registration, so docs and runtime stay aligned.
 
 ## Cross-cutting concerns
 
@@ -134,6 +146,6 @@ See the [system overview](#system-overview) diagram for the full topology. At a 
 
 **API versioning** — `TINYCLAW_API_VERSION` is returned by `/health`. The server uses it for singleton detection (don't start a duplicate). Clients should reject incompatible versions.
 
-**OpenAPI** — The HTTP surface is generated from TypeScript (`openapi/build-spec.ts`). Regenerate with `bun run openapi:generate`. The live server builds the spec at startup; treat code as source of truth, not a stale file on disk.
+**OpenAPI** — The HTTP surface is generated from Hono route registration in `apps/server/src/http/routes/*` via `apps/server/src/http/openapi.ts`. Regenerate with `bun run openapi:generate`. Treat route code as source of truth, not `openapi.json`.
 
 **Offline-friendly startup** — The server starts without an API key. Chat and automation drafting degrade to heuristic fallbacks when no provider is configured.

@@ -2,7 +2,7 @@ import { describe, expect, test, beforeAll, afterAll } from "bun:test";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { createInMemoryDatabaseAdapter } from "@tinyclaw/db";
-import { createApp } from "./app";
+import { createHonoApp } from "./http/app";
 import { AuthService } from "./services/auth-service";
 
 async function createValidToken(authService: AuthService): Promise<string> {
@@ -17,7 +17,7 @@ const TEST_CONFIG = {
 
 function createMockApp(webDistDir: string | null) {
   const authService = new AuthService(TEST_CONFIG);
-  return createApp({
+  return createHonoApp({
     agent: {} as any,
     automationService: {} as any,
     taskService: {} as any,
@@ -38,7 +38,7 @@ function createMockApp(webDistDir: string | null) {
 function createBrowserAuthApp() {
   const authService = new AuthService(TEST_CONFIG);
   const databaseAdapter = createInMemoryDatabaseAdapter();
-  const app = createApp({
+  const app = createHonoApp({
     agent: { providerConfigured: true } as any,
     automationService: {} as any,
     taskService: {} as any,
@@ -258,7 +258,7 @@ describe("GET /v1/workers/{name}/logs", () => {
   async function createMockAppWithWorkerManager(workerManager: any) {
     const authService = new AuthService(TEST_CONFIG);
     const token = await createValidToken(authService);
-    const app = createApp({
+    const app = createHonoApp({
       agent: {} as any,
       automationService: {} as any,
       taskService: {} as any,
@@ -351,7 +351,7 @@ describe("POST /v1/workers/{name}/clear-logs", () => {
   async function createMockAppWithWorkerManager(workerManager: any) {
     const authService = new AuthService(TEST_CONFIG);
     const token = await createValidToken(authService);
-    const app = createApp({
+    const app = createHonoApp({
       agent: {} as any,
       automationService: {} as any,
       taskService: {} as any,

@@ -1,0 +1,358 @@
+import { createRoute, z } from "@hono/zod-openapi";
+import {
+  resetWhatsAppSessionForReconnect,
+  type ConfigureProviderRequest,
+  type ConfigureProviderResponse,
+  type CreateProviderRequest,
+  type CreateProviderResponse,
+  type DeleteProviderResponse,
+  type DiscoverModelsRequest,
+  type ListProvidersResponse,
+  type ListTimezonesResponse,
+  type ModelsResponse,
+  type TelegramSettingsResponse,
+  type ThinkingSettingsResponse,
+  type TimezoneSettingsResponse,
+  type UpdateProviderRequest,
+  type UpdateProviderResponse,
+  type UpdateTelegramSettingsRequest,
+  type UpdateThinkingRequest,
+  type UpdateTimezoneRequest,
+  type UpdateWhatsAppSettingsRequest,
+  type WhatsAppSettingsResponse,
+} from "@tinyclaw/core";
+import { TinyClawApiError } from "@tinyclaw/core";
+import { getTimezoneCatalog } from "../../services/timezone-catalog-service";
+import type { HonoApp } from "../types";
+import type { ServerOptions } from "../context";
+import { errorResponse, json, readJson } from "../shared";
+
+export function registerModelRoutes(app: HonoApp, options: ServerOptions): void {
+  const { agent, workerManager } = options;
+  const errorSchema = z.object({ error: z.string() }).openapi("ApiErrorResponse");
+  const providerIdParam = z.object({
+    providerId: z.string().openapi({ param: { name: "providerId", in: "path" } }),
+  });
+  const modelsResponseSchema = z.object({ models: z.array(z.object({}).passthrough()) }).passthrough().openapi("ModelsResponse");
+  const providersResponseSchema = z.object({ providers: z.array(z.object({}).passthrough()) }).passthrough().openapi("ListProvidersResponse");
+  const createProviderResponseSchema = z.object({}).passthrough().openapi("CreateProviderResponse");
+  const updateProviderResponseSchema = z.object({}).passthrough().openapi("UpdateProviderResponse");
+  const deleteProviderResponseSchema = z.object({}).passthrough().openapi("DeleteProviderResponse");
+  const configureProviderResponseSchema = z.object({}).passthrough().openapi("ConfigureProviderResponse");
+  const timezonesResponseSchema = z.object({ timezones: z.array(z.object({}).passthrough()) }).passthrough().openapi("ListTimezonesResponse");
+  const timezoneSettingsSchema = z.object({ timezone: z.string() }).openapi("TimezoneSettingsResponse");
+  const thinkingSettingsSchema = z.object({}).passthrough().openapi("ThinkingSettingsResponse");
+  const telegramSettingsSchema = z.object({}).passthrough().openapi("TelegramSettingsResponse");
+  const whatsappSettingsSchema = z.object({}).passthrough().openapi("WhatsAppSettingsResponse");
+  const discoverModelsRequestSchema = z.object({ baseUrl: z.string(), apiKey: z.string().optional() }).openapi("DiscoverModelsRequest");
+  const createProviderRequestSchema = z.object({}).passthrough().openapi("CreateProviderRequest");
+  const updateProviderRequestSchema = z.object({}).passthrough().openapi("UpdateProviderRequest");
+  const configureProviderRequestSchema = z.object({}).passthrough().openapi("ConfigureProviderRequest");
+  const updateTimezoneRequestSchema = z.object({ timezone: z.string() }).openapi("UpdateTimezoneRequest");
+  const updateThinkingRequestSchema = z.object({}).passthrough().openapi("UpdateThinkingRequest");
+  const updateTelegramRequestSchema = z.object({}).passthrough().openapi("UpdateTelegramSettingsRequest");
+  const updateWhatsappRequestSchema = z.object({}).passthrough().openapi("UpdateWhatsAppSettingsRequest");
+  const modelQuerySchema = z.object({ source: z.enum(["catalog", "remote"]).optional() });
+
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "get",
+    path: "/v1/models",
+    tags: ["Models"],
+    summary: "List available models",
+    operationId: "listModels",
+    request: { query: modelQuerySchema },
+    responses: { 200: { description: "Model catalog", content: { "application/json": { schema: modelsResponseSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "post",
+    path: "/v1/models/discover",
+    tags: ["Models"],
+    summary: "Discover models from a provider base URL",
+    operationId: "discoverModels",
+    request: { body: { required: true, content: { "application/json": { schema: discoverModelsRequestSchema } } } },
+    responses: { 200: { description: "Model catalog", content: { "application/json": { schema: modelsResponseSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "get",
+    path: "/v1/providers",
+    tags: ["Models"],
+    summary: "List configured provider instances",
+    operationId: "listProviders",
+    responses: { 200: { description: "Provider instances", content: { "application/json": { schema: providersResponseSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "post",
+    path: "/v1/providers",
+    tags: ["Models"],
+    summary: "Add a provider instance",
+    operationId: "createProvider",
+    request: { body: { required: true, content: { "application/json": { schema: createProviderRequestSchema } } } },
+    responses: { 200: { description: "Provider created", content: { "application/json": { schema: createProviderResponseSchema } } }, 500: { description: "Error", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "patch",
+    path: "/v1/providers/{providerId}",
+    tags: ["Models"],
+    summary: "Update a provider instance",
+    operationId: "updateProvider",
+    request: { params: providerIdParam, body: { required: true, content: { "application/json": { schema: updateProviderRequestSchema } } } },
+    responses: { 200: { description: "Provider updated", content: { "application/json": { schema: updateProviderResponseSchema } } }, 500: { description: "Error", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "delete",
+    path: "/v1/providers/{providerId}",
+    tags: ["Models"],
+    summary: "Remove a provider instance",
+    operationId: "deleteProvider",
+    request: { params: providerIdParam },
+    responses: { 200: { description: "Provider removed", content: { "application/json": { schema: deleteProviderResponseSchema } } }, 500: { description: "Error", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "put",
+    path: "/v1/settings/provider",
+    tags: ["Models"],
+    summary: "Configure the LLM provider and API key",
+    operationId: "configureProvider",
+    request: { body: { required: true, content: { "application/json": { schema: configureProviderRequestSchema } } } },
+    responses: { 200: { description: "Provider configured", content: { "application/json": { schema: configureProviderResponseSchema } } }, 500: { description: "Error", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "get",
+    path: "/v1/timezones",
+    tags: ["Models"],
+    summary: "List available timezones",
+    operationId: "listTimezones",
+    responses: { 200: { description: "Timezone catalog", content: { "application/json": { schema: timezonesResponseSchema } } }, 500: { description: "Error", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "get",
+    path: "/v1/settings/timezone",
+    tags: ["Models"],
+    summary: "Get the user timezone",
+    operationId: "getTimezone",
+    responses: { 200: { description: "Timezone settings", content: { "application/json": { schema: timezoneSettingsSchema } } }, 500: { description: "Error", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "put",
+    path: "/v1/settings/timezone",
+    tags: ["Models"],
+    summary: "Update the user timezone",
+    operationId: "setTimezone",
+    request: { body: { required: true, content: { "application/json": { schema: updateTimezoneRequestSchema } } } },
+    responses: { 200: { description: "Timezone settings", content: { "application/json": { schema: timezoneSettingsSchema } } }, 500: { description: "Error", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "get",
+    path: "/v1/settings/thinking",
+    tags: ["Models"],
+    summary: "Get thinking settings",
+    operationId: "getThinkingSettings",
+    responses: { 200: { description: "Thinking settings", content: { "application/json": { schema: thinkingSettingsSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "put",
+    path: "/v1/settings/thinking",
+    tags: ["Models"],
+    summary: "Update thinking settings",
+    operationId: "setThinkingSettings",
+    request: { body: { required: true, content: { "application/json": { schema: updateThinkingRequestSchema } } } },
+    responses: { 200: { description: "Thinking settings", content: { "application/json": { schema: thinkingSettingsSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "get",
+    path: "/v1/settings/telegram",
+    tags: ["Models"],
+    summary: "Get Telegram settings",
+    operationId: "getTelegramSettings",
+    responses: { 200: { description: "Telegram settings", content: { "application/json": { schema: telegramSettingsSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "put",
+    path: "/v1/settings/telegram",
+    tags: ["Models"],
+    summary: "Update Telegram settings",
+    operationId: "setTelegramSettings",
+    request: { body: { required: true, content: { "application/json": { schema: updateTelegramRequestSchema } } } },
+    responses: { 200: { description: "Telegram settings", content: { "application/json": { schema: telegramSettingsSchema } } }, 400: { description: "Error", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "post",
+    path: "/v1/settings/telegram/handshake",
+    tags: ["Models"],
+    summary: "Regenerate Telegram handshake",
+    operationId: "regenerateTelegramHandshake",
+    responses: { 200: { description: "Telegram settings", content: { "application/json": { schema: telegramSettingsSchema } } }, 400: { description: "Error", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "get",
+    path: "/v1/settings/whatsapp",
+    tags: ["Models"],
+    summary: "Get WhatsApp settings",
+    operationId: "getWhatsAppSettings",
+    responses: { 200: { description: "WhatsApp settings", content: { "application/json": { schema: whatsappSettingsSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "put",
+    path: "/v1/settings/whatsapp",
+    tags: ["Models"],
+    summary: "Update WhatsApp settings",
+    operationId: "setWhatsAppSettings",
+    request: { body: { required: true, content: { "application/json": { schema: updateWhatsappRequestSchema } } } },
+    responses: { 200: { description: "WhatsApp settings", content: { "application/json": { schema: whatsappSettingsSchema } } }, 400: { description: "Error", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "post",
+    path: "/v1/settings/whatsapp/pairing-code",
+    tags: ["Models"],
+    summary: "Regenerate WhatsApp pairing code",
+    operationId: "regenerateWhatsAppPairingCode",
+    responses: { 200: { description: "WhatsApp settings", content: { "application/json": { schema: whatsappSettingsSchema } } }, 400: { description: "Error", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "post",
+    path: "/v1/settings/whatsapp/reconnect",
+    tags: ["Models"],
+    summary: "Reconnect WhatsApp session",
+    operationId: "reconnectWhatsApp",
+    responses: { 200: { description: "WhatsApp settings", content: { "application/json": { schema: whatsappSettingsSchema } } }, 400: { description: "Error", content: { "application/json": { schema: errorSchema } } } },
+  }));
+
+  app.get("/v1/models", async (c) => {
+    const source = c.req.query("source");
+    const modelsSource = source === "remote" ? ("remote" as const) : ("catalog" as const);
+    return json<ModelsResponse>(await agent.getModels({ source: modelsSource }));
+  });
+
+  app.post("/v1/models/discover", async (c) => {
+    const body = await readJson<DiscoverModelsRequest>(c.req.raw);
+    const result = await agent.discoverModels(body.baseUrl, body.apiKey ?? "");
+    return json<ModelsResponse>(result);
+  });
+
+  app.get("/v1/providers", async () => {
+    return json<ListProvidersResponse>(await agent.listProviders());
+  });
+
+  app.post("/v1/providers", async (c) => {
+    const body = await readJson<CreateProviderRequest>(c.req.raw);
+    return json<CreateProviderResponse>(await agent.createProvider(body));
+  });
+
+  app.patch("/v1/providers/:providerId", async (c) => {
+    const body = await readJson<UpdateProviderRequest>(c.req.raw);
+    return json<UpdateProviderResponse>(
+      await agent.updateProvider(decodeURIComponent(c.req.param("providerId")), body),
+    );
+  });
+
+  app.delete("/v1/providers/:providerId", async (c) => {
+    return json<DeleteProviderResponse>(
+      await agent.deleteProvider(decodeURIComponent(c.req.param("providerId"))),
+    );
+  });
+
+  app.put("/v1/settings/provider", async (c) => {
+    const body = await readJson<ConfigureProviderRequest>(c.req.raw);
+    const result = await agent.configureProvider(body);
+    return json<ConfigureProviderResponse>(result);
+  });
+
+  app.get("/v1/timezones", async () => {
+    return json<ListTimezonesResponse>(await getTimezoneCatalog());
+  });
+
+  app.get("/v1/settings/timezone", async () => {
+    return json<TimezoneSettingsResponse>({ timezone: await agent.getUserTimezone() });
+  });
+
+  app.put("/v1/settings/timezone", async (c) => {
+    const body = await readJson<UpdateTimezoneRequest>(c.req.raw);
+    const timezone = await agent.setUserTimezone(body.timezone);
+    return json<TimezoneSettingsResponse>({ timezone });
+  });
+
+  app.get("/v1/settings/thinking", async () => {
+    return json<ThinkingSettingsResponse>(await agent.getThinkingSettings());
+  });
+
+  app.put("/v1/settings/thinking", async (c) => {
+    const body = await readJson<UpdateThinkingRequest>(c.req.raw);
+    return json<ThinkingSettingsResponse>(await agent.setThinkingSettings(body));
+  });
+
+  app.get("/v1/settings/telegram", async () => {
+    return json<TelegramSettingsResponse>(await agent.getTelegramSettings());
+  });
+
+  app.put("/v1/settings/telegram", async (c) => {
+    const body = await readJson<UpdateTelegramSettingsRequest>(c.req.raw);
+
+    try {
+      return json<TelegramSettingsResponse>(await agent.setTelegramSettings(body));
+    } catch (error) {
+      if (error instanceof TinyClawApiError) {
+        return errorResponse(error.message, error.status);
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      return errorResponse(message, 400);
+    }
+  });
+
+  app.post("/v1/settings/telegram/handshake", async () => {
+    try {
+      return json<TelegramSettingsResponse>(await agent.regenerateTelegramHandshake());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return errorResponse(message, 400);
+    }
+  });
+
+  app.get("/v1/settings/whatsapp", async () => {
+    return json<WhatsAppSettingsResponse>(await agent.getWhatsAppSettings());
+  });
+
+  app.put("/v1/settings/whatsapp", async (c) => {
+    const body = await readJson<UpdateWhatsAppSettingsRequest>(c.req.raw);
+
+    try {
+      return json<WhatsAppSettingsResponse>(await agent.setWhatsAppSettings(body));
+    } catch (error) {
+      if (error instanceof TinyClawApiError) {
+        return errorResponse(error.message, error.status);
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      return errorResponse(message, 400);
+    }
+  });
+
+  app.post("/v1/settings/whatsapp/pairing-code", async () => {
+    try {
+      return json<WhatsAppSettingsResponse>(await agent.regenerateWhatsAppPairingCode());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return errorResponse(message, 400);
+    }
+  });
+
+  app.post("/v1/settings/whatsapp/reconnect", async () => {
+    try {
+      await workerManager.stopWorker("whatsapp").catch(() => {});
+      const settings = await resetWhatsAppSessionForReconnect();
+
+      try {
+        await workerManager.startWorker("whatsapp");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return errorResponse(
+          `Session reset, but the WhatsApp worker could not start: ${message}. Start it manually from Settings.`,
+          400,
+        );
+      }
+
+      return json<WhatsAppSettingsResponse>(settings);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return errorResponse(message, 400);
+    }
+  });
+}

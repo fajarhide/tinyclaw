@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createApp } from "./app";
+import { createHonoApp } from "./http/app";
 import { AgentService } from "./services/agent-service";
 import { AutomationRunner } from "./services/automation-runner";
 import { AutomationScheduler } from "./services/automation-scheduler";
@@ -117,7 +117,7 @@ const systemStatus = new SystemStatusService(
 );
 
 const webDistDir = resolveWebDistDir(projectRoot);
-const app = createApp({
+const app = createHonoApp({
   agent,
   automationService,
   taskService,
