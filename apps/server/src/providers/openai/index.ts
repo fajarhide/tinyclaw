@@ -170,21 +170,25 @@ type OpenAIMessage =
 export async function toOpenAIMessages(
   system: string,
   messages: ChatMessage[],
+  provider: ProviderName = "openai",
 ): Promise<OpenAIMessage[]> {
   const result: OpenAIMessage[] = [{ role: "system", content: system }];
 
   for (const message of messages) {
-    result.push(await toOpenAIMessage(message));
+    result.push(await toOpenAIMessage(message, provider));
   }
 
   return result;
 }
 
-async function toOpenAIMessage(message: ChatMessage): Promise<OpenAIMessage> {
+async function toOpenAIMessage(
+  message: ChatMessage,
+  provider: ProviderName,
+): Promise<OpenAIMessage> {
   if (message.role === "user") {
     return {
       role: "user",
-      content: (await toOpenAIChatUserContent(message.content)) as
+      content: (await toOpenAIChatUserContent(message.content, provider)) as
         | string
         | Array<Record<string, unknown>>,
     };
@@ -275,11 +279,16 @@ async function buildChatCompletionRequestBody(options: {
   messages: ChatMessage[];
   tools?: LlmToolDefinition[];
   stream?: boolean;
+  provider?: ProviderName;
 }) {
   return {
     model: options.model,
     ...(options.stream ? { stream: true } : {}),
-    messages: await toOpenAIMessages(options.system, options.messages),
+    messages: await toOpenAIMessages(
+      options.system,
+      options.messages,
+      options.provider ?? "openai",
+    ),
     ...(options.tools?.length
       ? { tools: toOpenAITools(options.tools), tool_choice: "auto" }
       : {}),
@@ -298,7 +307,9 @@ async function requestChatCompletion(
   const response = await fetch(chatCompletionsUrl(client), {
     method: "POST",
     headers: buildRequestHeaders(client),
-    body: JSON.stringify(await buildChatCompletionRequestBody(options)),
+    body: JSON.stringify(
+      await buildChatCompletionRequestBody({ ...options, provider: client.providerName }),
+    ),
   });
 
   if (!response.ok) {
@@ -352,6 +363,7 @@ async function streamChatCompletion(
         messages: options.messages,
         tools: options.tools,
         stream: true,
+        provider: client.providerName,
       }),
     ),
   });

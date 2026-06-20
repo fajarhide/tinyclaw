@@ -135,7 +135,7 @@ async function toSdkMessages(
   system: string,
   messages: ChatMessage[],
 ): Promise<ChatMessages[]> {
-  const openAIMessages = await toOpenAIMessages(system, messages);
+  const openAIMessages = await toOpenAIMessages(system, messages, "openrouter");
   return openAIMessages.map(openAIMessageToSdkMessage);
 }
 

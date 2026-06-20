@@ -107,6 +107,45 @@ describe("provider user content mapping", () => {
     expect(user.content[1]?.image_url).toStartWith("data:image/png;base64,");
   });
 
+  test("toOpenAIMessages maps document parts", async () => {
+    const result = await toOpenAIMessages("system", [documentUserMessage]);
+    const user = result.find((message) => message.role === "user");
+    const parts = user?.content as Array<Record<string, unknown>>;
+
+    expect(parts[1]).toEqual({
+      type: "input_file",
+      filename: "report.pdf",
+      file_data: "data:application/pdf;base64,JVBERi0=",
+    });
+  });
+
+  test("toOpenAIMessages inlines text/plain documents for opencode_go", async () => {
+    const text = "alpha beta gamma";
+    const data = Buffer.from(text, "utf8").toString("base64");
+    const message: ChatMessage = {
+      role: "user",
+      content: [
+        { type: "text", text: "Summarize" },
+        {
+          type: "document",
+          filename: "Pasted text (3 words).txt",
+          mediaType: "text/plain",
+          data,
+        },
+      ],
+    };
+
+    const result = await toOpenAIMessages("system", [message], "opencode_go");
+    const user = result.find((entry) => entry.role === "user");
+    const parts = user?.content as Array<Record<string, unknown>>;
+
+    expect(parts[0]).toEqual({ type: "text", text: "Summarize" });
+    expect(parts[1]).toEqual({
+      type: "text",
+      text: "[File: Pasted text (3 words).txt]\nalpha beta gamma",
+    });
+  });
+
   test("toResponsesInput maps document parts", async () => {
     const result = await toResponsesInput([documentUserMessage]);
     const user = result[0] as {

@@ -7,6 +7,15 @@ export type DocumentTextParser = (
 
 const textParsers = new Map<string, DocumentTextParser>();
 
+function decodeDocumentText(data: string): string {
+  return Buffer.from(data, "base64").toString("utf8");
+}
+
+const BUILTIN_DOCUMENT_TEXT_PARSERS: Record<string, DocumentTextParser> = {
+  "text/plain": (document) => decodeDocumentText(document.data),
+  "text/csv": (document) => decodeDocumentText(document.data),
+};
+
 const NATIVE_DOCUMENT_MEDIA_TYPES: Record<ProviderName, ReadonlySet<string>> = {
   anthropic: new Set([
     "application/pdf",
@@ -68,7 +77,8 @@ export async function resolveDocumentPartForProvider(
     return part;
   }
 
-  const parser = getDocumentTextParser(part.mediaType);
+  const parser =
+    getDocumentTextParser(part.mediaType) ?? BUILTIN_DOCUMENT_TEXT_PARSERS[part.mediaType];
 
   if (parser) {
     const text = await parser({

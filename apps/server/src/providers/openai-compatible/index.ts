@@ -112,7 +112,7 @@ function formatSdkError(label: string, error: unknown): Error {
 }
 
 async function buildMessages(system: string, messages: ChatMessage[]) {
-  return toOpenAIMessages(system, messages) as OpenAI.Chat.ChatCompletionMessageParam[];
+  return toOpenAIMessages(system, messages, "openai_compatible") as OpenAI.Chat.ChatCompletionMessageParam[];
 }
 
 function readReasoningText(value: unknown): string | undefined {

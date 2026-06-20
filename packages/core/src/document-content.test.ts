@@ -107,4 +107,24 @@ describe("resolveDocumentPartForProvider", () => {
       ),
     ).rejects.toThrow('Provider "openai" does not support application/octet-stream');
   });
+
+  test("decodes text/plain for providers without native document support", async () => {
+    const text = "alpha beta gamma";
+    const data = Buffer.from(text, "utf8").toString("base64");
+
+    const result = await resolveDocumentPartForProvider(
+      {
+        type: "document",
+        filename: "Pasted text (3 words).txt",
+        mediaType: "text/plain",
+        data,
+      },
+      "opencode_go",
+    );
+
+    expect(result).toEqual({
+      type: "text",
+      text: "[File: Pasted text (3 words).txt]\nalpha beta gamma",
+    });
+  });
 });
