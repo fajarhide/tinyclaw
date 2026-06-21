@@ -331,6 +331,50 @@ describe("browser session auth", () => {
     const listed = (await listResponse.json()) as { orgs: Array<{ id: string; name: string }> };
     expect(listed.orgs.some((org) => org.id === created.organization.id)).toBe(true);
   });
+
+  test("non-platform users cannot create organizations", async () => {
+    const { app, databaseAdapter } = createBrowserAuthApp();
+    const authService = new AuthService();
+    const session = await createBrowserSession(app, databaseAdapter);
+    const now = new Date().toISOString();
+
+    await databaseAdapter.createUser({
+      id: "user_member",
+      email: "member@example.com",
+      passwordHash: await authService.hashPassword("password123"),
+      createdAt: now,
+      updatedAt: now,
+    });
+    await databaseAdapter.upsertOrgMember({
+      orgId: session.orgId,
+      userId: "user_member",
+      role: "admin",
+      createdAt: now,
+    });
+
+    const loginResponse = await app.fetch(
+      new Request("http://localhost:4310/v1/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: "member@example.com", password: "password123" }),
+      }),
+    );
+    expect(loginResponse.status).toBe(200);
+
+    const setCookies = extractSetCookies(loginResponse);
+    const createResponse = await app.fetch(
+      new Request("http://localhost:4310/v1/auth/orgs", {
+        method: "POST",
+        headers: {
+          Cookie: cookieHeaderFromSetCookies(setCookies),
+          "X-CSRF-Token": cookieValue(setCookies, "tinyclaw_csrf"),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: "Blocked Org", slug: "blocked-org" }),
+      }),
+    );
+
+    expect(createResponse.status).toBe(403);
+  });
 });
 
 describe("GET /v1/workers/{name}/logs", () => {

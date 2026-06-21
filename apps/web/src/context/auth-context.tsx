@@ -100,14 +100,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshAuthenticatedQueries();
   }, []);
 
-  const createOrg = useCallback(async (input: { name: string; slug: string }) => {
-    const created = await client.createUserOrganization(input);
-    const { orgs: nextOrgs } = await client.listUserOrgs();
-    setOrgs(nextOrgs);
-    const nextUser = await client.setActiveOrg(created.organization.id);
-    setUser(nextUser);
-    refreshAuthenticatedQueries();
-  }, []);
+  const createOrg = useCallback(
+    async (input: { name: string; slug: string }) => {
+      if (!user?.isPlatformAdmin) {
+        throw new Error("Only platform admins can create organizations.");
+      }
+
+      const created = await client.createUserOrganization(input);
+      const { orgs: nextOrgs } = await client.listUserOrgs();
+      setOrgs(nextOrgs);
+      const nextUser = await client.setActiveOrg(created.organization.id);
+      setUser(nextUser);
+      refreshAuthenticatedQueries();
+    },
+    [user?.isPlatformAdmin],
+  );
 
   const value: AuthContextValue = {
     user,
