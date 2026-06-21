@@ -100,6 +100,8 @@ import type {
   OrgInviteCreatedResponse,
   ListOrgMembersResponse,
   UpdateOrgMemberRoleRequest,
+  UpdateOrganizationRequest,
+  OrganizationResponse,
   OrgMemberResponse,
   StoredTask,
   TaskRunRecord,
@@ -963,6 +965,30 @@ export class TinyClawClient {
     });
   }
 
+  async updateOrganization(
+    orgId: string,
+    request: UpdateOrganizationRequest,
+  ): Promise<OrganizationResponse> {
+    return this.request<OrganizationResponse>(`/v1/orgs/${encodeURIComponent(orgId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(request),
+      headers: { "X-Org-Id": orgId },
+    });
+  }
+
+  async updatePlatformOrganization(
+    orgId: string,
+    request: UpdateOrganizationRequest,
+  ): Promise<OrganizationResponse> {
+    return this.request<OrganizationResponse>(
+      `/v1/platform/orgs/${encodeURIComponent(orgId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(request),
+      },
+    );
+  }
+
   async setActiveOrg(orgId: string): Promise<AuthUserResponse> {
     const response = await this.request<AuthUserResponse>("/v1/auth/active-org", {
       method: "POST",
@@ -1099,7 +1125,7 @@ export class TinyClawClient {
       merged["Authorization"] = `Bearer ${this.authToken}`;
     }
 
-    if (this.orgId) {
+    if (this.orgId && !merged["X-Org-Id"]) {
       merged["X-Org-Id"] = this.orgId;
     }
 

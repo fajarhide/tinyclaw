@@ -22,6 +22,7 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   switchOrg: (orgId: string) => Promise<void>;
   createOrg: (input: { name: string; slug: string }) => Promise<void>;
+  updateOrg: (orgId: string, input: { name: string }) => Promise<void>;
   refreshSession: () => Promise<void>;
 }
 
@@ -116,6 +117,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user?.isPlatformAdmin],
   );
 
+  const updateOrg = useCallback(
+    async (orgId: string, input: { name: string }) => {
+      const org = orgs.find((entry) => entry.id === orgId);
+      if (!org) {
+        throw new Error("Organization not found.");
+      }
+
+      if (!user?.isPlatformAdmin && org.role !== "admin") {
+        throw new Error("Only org admins can edit organizations.");
+      }
+
+      if (user?.isPlatformAdmin) {
+        await client.updatePlatformOrganization(orgId, input);
+      } else {
+        await client.updateOrganization(orgId, input);
+      }
+
+      const { orgs: nextOrgs } = await client.listUserOrgs();
+      setOrgs(nextOrgs);
+      refreshAuthenticatedQueries();
+    },
+    [orgs, user?.isPlatformAdmin],
+  );
+
   const value: AuthContextValue = {
     user,
     orgs,
@@ -127,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     switchOrg,
     createOrg,
+    updateOrg,
     refreshSession,
   };
 

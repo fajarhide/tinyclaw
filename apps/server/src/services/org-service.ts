@@ -39,6 +39,31 @@ export class OrgService {
     return organizations.map(toOrganizationSummary);
   }
 
+  async updateOrganization(
+    orgId: string,
+    request: { name: string },
+  ): Promise<OrganizationSummary> {
+    const org = await this.databaseAdapter.getOrganizationById(orgId);
+    if (!org) {
+      throw new TinyClawApiError("Not found", 404);
+    }
+
+    const name = request.name.trim();
+    if (!name) {
+      throw new TinyClawApiError("Organization name is required.", 400);
+    }
+
+    const now = new Date().toISOString();
+    const updated: StoredOrganizationRecord = {
+      ...org,
+      name,
+      updatedAt: now,
+    };
+
+    await this.databaseAdapter.upsertOrganization(updated);
+    return toOrganizationSummary(updated);
+  }
+
   async createOrganization(
     request: CreateOrganizationRequest,
     creatorUserId?: string,

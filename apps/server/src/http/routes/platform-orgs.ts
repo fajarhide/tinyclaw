@@ -5,6 +5,8 @@ import type {
   ListOrganizationsResponse,
   InviteOrgMemberRequest,
   OrgInviteCreatedResponse,
+  OrganizationResponse,
+  UpdateOrganizationRequest,
 } from "@tinyclaw/core/contract";
 import type { HonoApp } from "../types";
 import type { ServerOptions } from "../context";
@@ -97,6 +99,56 @@ export function registerPlatformOrgRoutes(app: HonoApp, options: ServerOptions):
     const body = await readJson<CreateOrganizationRequest>(c.req.raw);
     const result = await orgService.createOrganization(body, auth.user.id);
     return json<CreateOrganizationResponse>(result, 201);
+  });
+
+  app.openAPIRegistry.registerPath(
+    createRoute({
+      method: "patch",
+      path: "/v1/platform/orgs/{orgId}",
+      tags: ["Platform"],
+      summary: "Update an organization",
+      operationId: "updatePlatformOrganization",
+      request: {
+        params: z.object({
+          orgId: z.string().openapi({ param: { name: "orgId", in: "path" } }),
+        }),
+        body: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: z.object({ name: z.string() }).openapi("UpdateOrganizationRequest"),
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: "Organization updated",
+          content: {
+            "application/json": {
+              schema: z.object({}).passthrough().openapi("OrganizationResponse"),
+            },
+          },
+        },
+        400: { description: "Error", content: { "application/json": { schema: errorSchema } } },
+        403: { description: "Error", content: { "application/json": { schema: errorSchema } } },
+        404: { description: "Error", content: { "application/json": { schema: errorSchema } } },
+        500: { description: "Error", content: { "application/json": { schema: errorSchema } } },
+      },
+    }),
+  );
+
+  app.patch("/v1/platform/orgs/:orgId", async (c) => {
+    requirePlatformAdminFromContext(c);
+
+    if (!orgService) {
+      return errorResponse("Organization service not configured", 500);
+    }
+
+    const orgId = decodeURIComponent(c.req.param("orgId"));
+    const body = await readJson<UpdateOrganizationRequest>(c.req.raw);
+    const organization = await orgService.updateOrganization(orgId, body);
+    return json<OrganizationResponse>({ organization });
   });
 
   app.openAPIRegistry.registerPath(

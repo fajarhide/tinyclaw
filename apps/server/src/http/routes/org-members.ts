@@ -6,7 +6,9 @@ import type {
   ListOrgMembersResponse,
   OrgInviteCreatedResponse,
   OrgMemberResponse,
+  OrganizationResponse,
   UpdateOrgMemberRoleRequest,
+  UpdateOrganizationRequest,
 } from "@tinyclaw/core/contract";
 import type { HonoApp } from "../types";
 import type { ServerOptions } from "../context";
@@ -266,5 +268,57 @@ export function registerOrgMemberRoutes(app: HonoApp, options: ServerOptions): v
 
     await orgService.removeMember(orgId, userId);
     return new Response(null, { status: 204 });
+  });
+
+  app.openAPIRegistry.registerPath(
+    createRoute({
+      method: "patch",
+      path: "/v1/orgs/{orgId}",
+      tags: ["Organizations"],
+      summary: "Update an organization",
+      operationId: "updateOrganization",
+      request: {
+        params: orgIdParam,
+        body: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: z.object({ name: z.string() }).openapi("UpdateOrganizationRequest"),
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: "Organization updated",
+          content: {
+            "application/json": {
+              schema: z.object({}).passthrough().openapi("OrganizationResponse"),
+            },
+          },
+        },
+        400: { description: "Error", content: { "application/json": { schema: errorSchema } } },
+        403: { description: "Error", content: { "application/json": { schema: errorSchema } } },
+        404: { description: "Error", content: { "application/json": { schema: errorSchema } } },
+        500: { description: "Error", content: { "application/json": { schema: errorSchema } } },
+      },
+    }),
+  );
+
+  app.patch("/v1/orgs/:orgId", async (c) => {
+    const auth = requireOrgAdminFromContext(c);
+    const orgId = decodeURIComponent(c.req.param("orgId"));
+
+    if (auth.activeOrgId !== orgId) {
+      return errorResponse("Not found", 404);
+    }
+
+    if (!orgService) {
+      return errorResponse("Organization service not configured", 500);
+    }
+
+    const body = await readJson<UpdateOrganizationRequest>(c.req.raw);
+    const organization = await orgService.updateOrganization(orgId, body);
+    return json<OrganizationResponse>({ organization });
   });
 }

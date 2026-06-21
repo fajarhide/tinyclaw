@@ -81,6 +81,22 @@ describe("OrgService", () => {
     expect(switched.slug).toBe("beta-switch");
   });
 
+  test("updates organization name", async () => {
+    const { orgService } = createOrgService();
+
+    const created = await orgService.createOrganization({
+      name: "Acme Corp",
+      slug: "acme-corp",
+    });
+
+    const updated = await orgService.updateOrganization(created.organization.id, {
+      name: "Acme Incorporated",
+    });
+
+    expect(updated.name).toBe("Acme Incorporated");
+    expect(updated.slug).toBe("acme-corp");
+  });
+
   test("creates and lists organizations", async () => {
     const { orgService } = createOrgService();
 

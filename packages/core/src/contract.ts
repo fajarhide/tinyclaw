@@ -175,6 +175,10 @@ export interface CreateOrganizationRequest {
   };
 }
 
+export interface UpdateOrganizationRequest {
+  name: string;
+}
+
 export interface ListOrganizationsResponse {
   organizations: OrganizationSummary[];
 }

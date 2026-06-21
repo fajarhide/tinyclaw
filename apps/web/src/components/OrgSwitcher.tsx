@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { Building2Icon, CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react";
+import {
+  Building2Icon,
+  ChevronsUpDownIcon,
+  PencilIcon,
+  PlusIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
+import type { UserOrgSummary } from "@tinyclaw/core/contract";
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -31,13 +37,19 @@ function slugifyOrganizationName(name: string): string {
   );
 }
 
+function canEditOrg(org: UserOrgSummary, isPlatformAdmin: boolean): boolean {
+  return isPlatformAdmin || org.role === "admin";
+}
+
 interface OrgSwitcherProps {
   collapsed?: boolean;
 }
 
 export function OrgSwitcher({ collapsed = false }: OrgSwitcherProps) {
-  const { user, orgs, activeOrg, switchOrg, createOrg } = useAuth();
+  const { user, orgs, activeOrg, switchOrg, createOrg, updateOrg } = useAuth();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingOrg, setEditingOrg] = useState<UserOrgSummary | null>(null);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
@@ -55,6 +67,13 @@ export function OrgSwitcher({ collapsed = false }: OrgSwitcherProps) {
   }
 
   const label = activeOrg?.name ?? "Organization";
+
+  function openEditDialog(org: UserOrgSummary) {
+    setEditingOrg(org);
+    setName(org.name);
+    setError(null);
+    setEditOpen(true);
+  }
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
@@ -83,6 +102,34 @@ export function OrgSwitcher({ collapsed = false }: OrgSwitcherProps) {
       setSlugEdited(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create organization");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleEdit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!editingOrg) {
+      return;
+    }
+
+    setError(null);
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError("Organization name is required.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await updateOrg(editingOrg.id, { name: trimmedName });
+      setEditOpen(false);
+      setEditingOrg(null);
+      setName("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update organization");
     } finally {
       setIsSubmitting(false);
     }
@@ -118,23 +165,44 @@ export function OrgSwitcher({ collapsed = false }: OrgSwitcherProps) {
           {orgs.map((org) => (
             <DropdownMenuItem
               key={org.id}
-              onSelect={() => {
+              className="pr-1"
+              onClick={() => {
                 if (org.id !== activeOrg?.id) {
                   void switchOrg(org.id);
                 }
               }}
             >
               <span className="min-w-0 flex-1 truncate">{org.name}</span>
-              {org.id === activeOrg?.id ? (
-                <CheckIcon className="size-4 text-primary" aria-hidden />
+              {canEditOrg(org, Boolean(user.isPlatformAdmin)) ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  className="pointer-events-none shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/dropdown-menu-item:pointer-events-auto group-hover/dropdown-menu-item:opacity-100 hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100"
+                  aria-label={`Edit ${org.name}`}
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openEditDialog(org);
+                  }}
+                >
+                  <PencilIcon className="size-3.5" aria-hidden />
+                </Button>
               ) : null}
             </DropdownMenuItem>
           ))}
 
           {user.isPlatformAdmin ? (
             <DropdownMenuItem
-              onSelect={() => {
+              onClick={() => {
                 setError(null);
+                setName("");
+                setSlug("");
+                setSlugEdited(false);
                 setCreateOpen(true);
               }}
             >
@@ -146,51 +214,86 @@ export function OrgSwitcher({ collapsed = false }: OrgSwitcherProps) {
       </DropdownMenu>
 
       {user.isPlatformAdmin ? (
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create organization</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label htmlFor="create-org-name" className="mb-1 block text-sm font-medium">
+                  Name
+                </label>
+                <Input
+                  id="create-org-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Acme Corp"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="create-org-slug" className="mb-1 block text-sm font-medium">
+                  Slug
+                </label>
+                <Input
+                  id="create-org-slug"
+                  value={slug}
+                  onChange={(event) => {
+                    setSlugEdited(true);
+                    setSlug(event.target.value);
+                  }}
+                  placeholder="acme-corp"
+                  required
+                />
+              </div>
+              {error ? <p className="text-sm text-destructive">{error}</p> : null}
+              <DialogFooter>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Creating..." : "Create"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+
+      <Dialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) {
+            setEditingOrg(null);
+            setError(null);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create organization</DialogTitle>
+            <DialogTitle>Edit organization</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4">
+          <form onSubmit={handleEdit} className="space-y-4">
             <div>
-              <label htmlFor="create-org-name" className="mb-1 block text-sm font-medium">
+              <label htmlFor="edit-org-name" className="mb-1 block text-sm font-medium">
                 Name
               </label>
               <Input
-                id="create-org-name"
+                id="edit-org-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Acme Corp"
                 required
               />
             </div>
-            <div>
-              <label htmlFor="create-org-slug" className="mb-1 block text-sm font-medium">
-                Slug
-              </label>
-              <Input
-                id="create-org-slug"
-                value={slug}
-                onChange={(event) => {
-                  setSlugEdited(true);
-                  setSlug(event.target.value);
-                }}
-                placeholder="acme-corp"
-                required
-              />
-            </div>
-            {error ? (
-              <p className="text-sm text-destructive">{error}</p>
-            ) : null}
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Creating..." : "Create"}
+                {isSubmitting ? "Saving..." : "Save"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-      ) : null}
     </>
   );
 }
