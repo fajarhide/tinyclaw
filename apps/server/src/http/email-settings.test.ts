@@ -7,27 +7,7 @@ import { AuthService } from "../services/auth-service";
 import { OrgService } from "../services/org-service";
 import { AgentService } from "../services/agent-service";
 import { createInMemoryDatabaseAdapter } from "@tinyclaw/db";
-import { buildSetupAuthBody, withOrgId } from "./test-org-helpers";
-
-function extractSetCookies(response: Response): string[] {
-  const headers = response.headers as Headers & { getSetCookie?: () => string[] };
-  return headers.getSetCookie?.() ?? (response.headers.get("set-cookie") ? [response.headers.get("set-cookie")!] : []);
-}
-
-function cookieHeaderFromSetCookies(setCookies: string[]): string {
-  const session = setCookies.find((entry) => entry.startsWith("tinyclaw_session="));
-  const csrf = setCookies.find((entry) => entry.startsWith("tinyclaw_csrf="));
-  return [session, csrf].filter(Boolean).map((entry) => entry!.split(";")[0]).join("; ");
-}
-
-function cookieValue(setCookies: string[], name: string): string {
-  const cookie = setCookies.find((entry) => entry.startsWith(`${name}=`));
-  if (!cookie) {
-    throw new Error(`Missing cookie: ${name}`);
-  }
-
-  return cookie.split(";")[0]!.split("=", 2)[1]!;
-}
+import { setupFreshInstallSession } from "./test-session-helpers";
 
 describe("email settings routes", () => {
   let configDir = "";
@@ -60,21 +40,11 @@ describe("email settings routes", () => {
       webDistDir: null,
     });
 
-    const setupResponse = await app.fetch(
-      new Request("http://localhost:4310/v1/auth/setup", {
-        method: "POST",
-        body: JSON.stringify(buildSetupAuthBody()),
-      }),
-    );
-    expect(setupResponse.status).toBe(201);
-    const setupBody = (await setupResponse.json()) as { activeOrgId: string };
-    const setCookies = extractSetCookies(setupResponse);
-    const cookieHeader = cookieHeaderFromSetCookies(setCookies);
-    const csrfToken = cookieValue(setCookies, "tinyclaw_csrf");
+    const session = await setupFreshInstallSession(app, databaseAdapter);
 
     const getEmpty = await app.fetch(
       new Request("http://localhost:4310/v1/settings/email", {
-        headers: withOrgId({ Cookie: cookieHeader }, setupBody.activeOrgId),
+        headers: session.headers(),
       }),
     );
     expect(getEmpty.status).toBe(200);
@@ -85,14 +55,10 @@ describe("email settings routes", () => {
     const putResponse = await app.fetch(
       new Request("http://localhost:4310/v1/settings/email", {
         method: "PUT",
-        headers: withOrgId(
-          {
-            Cookie: cookieHeader,
-            "X-CSRF-Token": csrfToken,
-            "Content-Type": "application/json",
-          },
-          setupBody.activeOrgId,
-        ),
+        headers: session.headers({
+          "X-CSRF-Token": session.csrfToken,
+          "Content-Type": "application/json",
+        }),
         body: JSON.stringify({
           imapHost: "imap.example.com",
           smtpHost: "smtp.example.com",
@@ -110,14 +76,10 @@ describe("email settings routes", () => {
     const putWithoutPassword = await app.fetch(
       new Request("http://localhost:4310/v1/settings/email", {
         method: "PUT",
-        headers: withOrgId(
-          {
-            Cookie: cookieHeader,
-            "X-CSRF-Token": csrfToken,
-            "Content-Type": "application/json",
-          },
-          setupBody.activeOrgId,
-        ),
+        headers: session.headers({
+          "X-CSRF-Token": session.csrfToken,
+          "Content-Type": "application/json",
+        }),
         body: JSON.stringify({
           smtpHost: "smtp2.example.com",
         }),
@@ -127,7 +89,7 @@ describe("email settings routes", () => {
 
     const getSaved = await app.fetch(
       new Request("http://localhost:4310/v1/settings/email", {
-        headers: withOrgId({ Cookie: cookieHeader }, setupBody.activeOrgId),
+        headers: session.headers(),
       }),
     );
     const savedBody = (await getSaved.json()) as { smtpHost: string | null; passwordMasked: string | null };
