@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import {
   createAgentHarness,
   draftTaskPromptFromFields,
@@ -79,9 +78,7 @@ import {
   getProfileSoulDir,
   getResolvedSoulStatus,
   buildUserContextStatus,
-  getUserConfigDir,
   normalizeUserContextContent,
-  readTextIfExists,
   USER_CONTEXT_TEMPLATE,
   initSoulDirectory,
   isProviderConfigured,
@@ -1380,7 +1377,7 @@ export class AgentService {
     userId: string,
     includeContent = false,
   ): Promise<UserContextStatusResponse> {
-    const raw = await this.resolveUserContextRaw(userId);
+    const raw = await this.db.getUserContext(userId);
     return buildUserContextStatus(raw, includeContent);
   }
 
@@ -1416,24 +1413,7 @@ export class AgentService {
       return undefined;
     }
 
-    return normalizeUserContextContent(await this.resolveUserContextRaw(userId));
-  }
-
-  private async resolveUserContextRaw(userId: string): Promise<string | null> {
-    const stored = await this.db.getUserContext(userId);
-    if (normalizeUserContextContent(stored) !== undefined) {
-      return stored;
-    }
-
-    const legacy = normalizeUserContextContent(
-      await readTextIfExists(join(getUserConfigDir(), "USER.md")),
-    );
-    if (!legacy) {
-      return stored;
-    }
-
-    await this.db.setUserContext(userId, legacy, new Date().toISOString());
-    return legacy;
+    return normalizeUserContextContent(await this.db.getUserContext(userId));
   }
 
   private createHarness(options: {
