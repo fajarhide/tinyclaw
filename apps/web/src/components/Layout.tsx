@@ -71,7 +71,7 @@ export function Layout() {
             <SidebarCollapseButton collapsed={collapsed} onToggle={toggle} />
           </div>
 
-          <div className={cn("shrink-0", collapsed ? "px-2 pb-2" : "px-3 pb-3")}>
+          <div className={cn("shrink-0 pt-4", collapsed ? "px-2 pb-2" : "px-3 pb-3")}>
             <OrgSwitcher collapsed={collapsed} />
           </div>
 

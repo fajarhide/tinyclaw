@@ -131,17 +131,15 @@ export function OrgSwitcher({ collapsed = false }: OrgSwitcherProps) {
             </DropdownMenuItem>
           ))}
 
-          {user.isPlatformAdmin ? (
-            <DropdownMenuItem
-              onSelect={() => {
-                setError(null);
-                setCreateOpen(true);
-              }}
-            >
-              <PlusIcon className="size-4" />
-              Create organization
-            </DropdownMenuItem>
-          ) : null}
+          <DropdownMenuItem
+            onSelect={() => {
+              setError(null);
+              setCreateOpen(true);
+            }}
+          >
+            <PlusIcon className="size-4" />
+            Create organization
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 

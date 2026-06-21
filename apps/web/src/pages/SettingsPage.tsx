@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ProviderSettingsCard } from "@/components/settings/ProviderSettingsCard";
+import { OrgMembersCard } from "@/components/settings/OrgMembersCard";
 import { VisionSettingsCard } from "@/components/settings/VisionSettingsCard";
 import { LocalAuthTokenCard } from "@/components/LocalAuthTokenCard";
 import { TelegramSettingsCard } from "@/components/TelegramSettingsCard";
@@ -47,6 +48,8 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
+      <OrgMembersCard />
+
       <Card className="w-full shadow-none">
         <CardContent className="divide-y divide-border p-0">
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">

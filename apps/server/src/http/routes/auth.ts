@@ -4,6 +4,8 @@ import {
   rotateLocalAuthToken,
   type AcceptOrgInviteResponse,
   type AuthUserResponse,
+  type CreateOrganizationRequest,
+  type CreateOrganizationResponse,
   type ListUserOrgsResponse,
   type RotateLocalAuthTokenResponse,
   type SetActiveOrgRequest,
@@ -420,6 +422,19 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
     const auth = getRequestAuth(c);
     const orgs = await orgService.listUserOrgs(auth.user.id);
     return json<ListUserOrgsResponse>(orgs);
+  });
+
+  app.post("/v1/auth/orgs", async (c) => {
+    if (!authService || !orgService) {
+      return errorResponse("Authentication not configured", 500);
+    }
+
+    const auth = getRequestAuth(c);
+    assertBrowserCsrf(c.req.raw, auth, authService);
+
+    const body = await readJson<CreateOrganizationRequest>(c.req.raw);
+    const result = await orgService.createOrganization(body, auth.user.id);
+    return json<CreateOrganizationResponse>(result, 201);
   });
 
   app.post("/v1/auth/active-org", async (c) => {

@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createOrg = useCallback(async (input: { name: string; slug: string }) => {
-    const created = await client.createPlatformOrganization(input);
+    const created = await client.createUserOrganization(input);
     const { orgs: nextOrgs } = await client.listUserOrgs();
     setOrgs(nextOrgs);
     const nextUser = await client.setActiveOrg(created.organization.id);

@@ -283,6 +283,44 @@ describe("browser session auth", () => {
     );
     expect(allowed.status).toBe(200);
   });
+
+  test("authenticated users can create organizations", async () => {
+    const { app } = createBrowserAuthApp();
+
+    const setupResponse = await app.fetch(
+      new Request("http://localhost:4310/v1/auth/setup", {
+        method: "POST",
+        body: JSON.stringify(buildSetupAuthBody()),
+      }),
+    );
+    const setCookies = extractSetCookies(setupResponse);
+    const cookieHeader = cookieHeaderFromSetCookies(setCookies);
+    const csrfToken = cookieValue(setCookies, "tinyclaw_csrf");
+
+    const createResponse = await app.fetch(
+      new Request("http://localhost:4310/v1/auth/orgs", {
+        method: "POST",
+        headers: {
+          Cookie: cookieHeader,
+          "X-CSRF-Token": csrfToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: "Second Org", slug: "second-org" }),
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { organization: { id: string; name: string } };
+    expect(created.organization.name).toBe("Second Org");
+
+    const listResponse = await app.fetch(
+      new Request("http://localhost:4310/v1/auth/orgs", {
+        headers: { Cookie: cookieHeader },
+      }),
+    );
+    const listed = (await listResponse.json()) as { orgs: Array<{ id: string; name: string }> };
+    expect(listed.orgs.some((org) => org.id === created.organization.id)).toBe(true);
+  });
 });
 
 describe("GET /v1/workers/{name}/logs", () => {
