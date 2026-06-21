@@ -364,7 +364,14 @@ describe("createHonoApp", () => {
     );
 
     expect(meResponse.status).toBe(200);
-    await expect(meResponse.json()).resolves.toEqual({ email: "admin@example.com" });
+    const meBody = (await meResponse.json()) as {
+      email: string;
+      activeOrgId?: string;
+      isPlatformAdmin?: boolean;
+    };
+    expect(meBody.email).toBe("admin@example.com");
+    expect(meBody.activeOrgId).toStartWith("org_");
+    expect(meBody.isPlatformAdmin).toBe(true);
   });
 
   test("preserves CSRF rejection through the Hono middleware", async () => {
@@ -649,17 +656,19 @@ describe("createHonoApp", () => {
     test("returns 400 when org context is missing on protected routes", async () => {
       const options = createServerOptions();
       const app = createHonoApp(options);
-      await app.fetch(
-        new Request("http://localhost:4310/v1/auth/setup", {
-          method: "POST",
-          body: JSON.stringify(buildSetupAuthBody()),
-        }),
-      );
+      const now = new Date().toISOString();
+      await options.databaseAdapter.createUser({
+        id: "user_no_org",
+        email: "noorg@example.com",
+        passwordHash: await options.authService.hashPassword("password123"),
+        createdAt: now,
+        updatedAt: now,
+      });
 
       const loginResponse = await app.fetch(
         new Request("http://localhost:4310/v1/auth/login", {
           method: "POST",
-          body: JSON.stringify({ email: "admin@example.com", password: "password123" }),
+          body: JSON.stringify({ email: "noorg@example.com", password: "password123" }),
         }),
       );
 

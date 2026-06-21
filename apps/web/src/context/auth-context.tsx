@@ -4,19 +4,25 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
 import { client } from "@/lib/client";
 import { queryClient } from "@/lib/query-client";
-import type { SetupAuthRequest } from "@tinyclaw/core/contract";
+import type { AuthUserResponse, SetupAuthRequest, UserOrgSummary } from "@tinyclaw/core/contract";
 
 interface AuthContextValue {
-  user: { email: string } | null;
+  user: AuthUserResponse | null;
+  orgs: UserOrgSummary[];
+  activeOrg: UserOrgSummary | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   setup: (request: SetupAuthRequest) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  switchOrg: (orgId: string) => Promise<void>;
+  createOrg: (input: { name: string; slug: string }) => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -25,49 +31,96 @@ function refreshAuthenticatedQueries(): void {
   void queryClient.invalidateQueries();
 }
 
+async function loadSessionState(): Promise<{
+  user: AuthUserResponse;
+  orgs: UserOrgSummary[];
+}> {
+  const user = await client.getMe();
+  const { orgs } = await client.listUserOrgs();
+  return { user, orgs };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<{ email: string } | null>(null);
+  const [user, setUser] = useState<AuthUserResponse | null>(null);
+  const [orgs, setOrgs] = useState<UserOrgSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const refreshSession = useCallback(async () => {
+    const session = await loadSessionState();
+    setUser(session.user);
+    setOrgs(session.orgs);
+    refreshAuthenticatedQueries();
+  }, []);
+
   useEffect(() => {
-    client
-      .getMe()
-      .then((me) => {
-        setUser(me);
+    loadSessionState()
+      .then((session) => {
+        setUser(session.user);
+        setOrgs(session.orgs);
         refreshAuthenticatedQueries();
       })
       .catch(() => {
         setUser(null);
+        setOrgs([]);
       })
       .finally(() => {
         setIsLoading(false);
       });
   }, []);
 
+  const activeOrg = useMemo(() => {
+    const activeOrgId = user?.activeOrgId ?? user?.orgId ?? null;
+    if (!activeOrgId) {
+      return null;
+    }
+
+    return orgs.find((org) => org.id === activeOrgId) ?? null;
+  }, [orgs, user]);
+
   const setup = useCallback(async (request: SetupAuthRequest) => {
-    const me = await client.setupUser(request);
-    setUser(me);
-    refreshAuthenticatedQueries();
-  }, []);
+    await client.setupUser(request);
+    await refreshSession();
+  }, [refreshSession]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const me = await client.login(email, password);
-    setUser(me);
-    refreshAuthenticatedQueries();
-  }, []);
+    await client.login(email, password);
+    await refreshSession();
+  }, [refreshSession]);
 
   const logout = useCallback(async () => {
     await client.logout();
+    client.setOrgId(null);
     setUser(null);
+    setOrgs([]);
+  }, []);
+
+  const switchOrg = useCallback(async (orgId: string) => {
+    const nextUser = await client.setActiveOrg(orgId);
+    setUser(nextUser);
+    refreshAuthenticatedQueries();
+  }, []);
+
+  const createOrg = useCallback(async (input: { name: string; slug: string }) => {
+    const created = await client.createPlatformOrganization(input);
+    const { orgs: nextOrgs } = await client.listUserOrgs();
+    setOrgs(nextOrgs);
+    const nextUser = await client.setActiveOrg(created.organization.id);
+    setUser(nextUser);
+    refreshAuthenticatedQueries();
   }, []);
 
   const value: AuthContextValue = {
     user,
+    orgs,
+    activeOrg,
     isAuthenticated: user !== null,
     isLoading,
     setup,
     login,
     logout,
+    switchOrg,
+    createOrg,
+    refreshSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useAppContext } from "@/context/app-context";
 import { useAuth } from "@/context/auth-context";
+import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { usePrefetchAppData } from "@/hooks/use-app-queries";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,10 @@ export function Layout() {
             ) : null}
             {!collapsed ? <GitHubRepoButton /> : null}
             <SidebarCollapseButton collapsed={collapsed} onToggle={toggle} />
+          </div>
+
+          <div className={cn("shrink-0", collapsed ? "px-2 pb-2" : "px-3 pb-3")}>
+            <OrgSwitcher collapsed={collapsed} />
           </div>
 
           <nav

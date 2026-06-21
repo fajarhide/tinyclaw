@@ -11,6 +11,9 @@ import type {
   OrgRole,
   OrganizationSummary,
   AcceptOrgInviteRequest,
+  AuthUserResponse,
+  ListUserOrgsResponse,
+  UserOrgSummary,
 } from "@tinyclaw/core/contract";
 import { ORG_INVITE_EXPIRY_DAYS, ORG_ROLES } from "@tinyclaw/db";
 import type {
@@ -36,22 +39,125 @@ export class OrgService {
     return organizations.map(toOrganizationSummary);
   }
 
-  async createOrganization(request: CreateOrganizationRequest): Promise<CreateOrganizationResponse> {
+  async createOrganization(
+    request: CreateOrganizationRequest,
+    creatorUserId?: string,
+  ): Promise<CreateOrganizationResponse> {
     const organization = await this.insertOrganization(request);
 
-    if (!request.admin) {
-      return { organization };
+    if (request.admin) {
+      const adminMember = await this.addMember({
+        orgId: organization.id,
+        name: request.admin.name,
+        email: request.admin.email,
+        phone: request.admin.phone,
+        role: "admin",
+      });
+
+      return { organization, adminMember };
     }
 
-    const adminMember = await this.addMember({
-      orgId: organization.id,
-      name: request.admin.name,
-      email: request.admin.email,
-      phone: request.admin.phone,
-      role: "admin",
-    });
+    if (creatorUserId) {
+      const creator = await this.databaseAdapter.getUserById(creatorUserId);
+      if (creator) {
+        const now = new Date().toISOString();
+        await this.databaseAdapter.upsertOrgMember({
+          orgId: organization.id,
+          userId: creator.id,
+          role: "admin",
+          createdAt: now,
+        });
 
-    return { organization, adminMember };
+        return {
+          organization,
+          adminMember: {
+            member: toOrgMemberSummary(creator, "admin", now),
+            temporaryPassword: null,
+          },
+        };
+      }
+    }
+
+    return { organization };
+  }
+
+  async listUserOrgs(userId: string): Promise<ListUserOrgsResponse> {
+    const memberships = await this.databaseAdapter.listUserOrganizations(userId);
+    return {
+      orgs: memberships.map((membership) => ({
+        ...toOrganizationSummary(membership.organization),
+        role: membership.role,
+      })),
+    };
+  }
+
+  async resolveActiveOrgId(
+    userId: string,
+    sessionId?: string,
+    requestedOrgId?: string | null,
+  ): Promise<string | null> {
+    const memberships = await this.databaseAdapter.listUserOrganizations(userId);
+    if (memberships.length === 0) {
+      return null;
+    }
+
+    const trimmed = requestedOrgId?.trim();
+    const matched = trimmed
+      ? memberships.find((membership) => membership.organization.id === trimmed)
+      : undefined;
+    const activeOrgId = matched?.organization.id ?? memberships[0]!.organization.id;
+
+    if (sessionId && activeOrgId !== (trimmed ?? null)) {
+      await this.databaseAdapter.updateBrowserSessionActiveOrgId(sessionId, activeOrgId);
+    }
+
+    return activeOrgId;
+  }
+
+  async setActiveOrg(input: {
+    userId: string;
+    orgId: string;
+    sessionId?: string;
+  }): Promise<UserOrgSummary> {
+    const memberships = await this.databaseAdapter.listUserOrganizations(input.userId);
+    const membership = memberships.find(
+      (record) => record.organization.id === input.orgId,
+    );
+
+    if (!membership) {
+      throw new TinyClawApiError("Not found", 404);
+    }
+
+    if (input.sessionId) {
+      await this.databaseAdapter.updateBrowserSessionActiveOrgId(
+        input.sessionId,
+        membership.organization.id,
+      );
+    }
+
+    return {
+      ...toOrganizationSummary(membership.organization),
+      role: membership.role,
+    };
+  }
+
+  async buildAuthUserResponse(
+    user: StoredUserRecord,
+    sessionId?: string,
+    requestedOrgId?: string | null,
+  ): Promise<AuthUserResponse> {
+    const activeOrgId = await this.resolveActiveOrgId(
+      user.id,
+      sessionId,
+      requestedOrgId,
+    );
+
+    return {
+      email: user.email,
+      isPlatformAdmin: Boolean(user.isPlatformAdmin),
+      activeOrgId,
+      orgId: activeOrgId,
+    };
   }
 
   async addMember(input: {
@@ -149,7 +255,7 @@ export class OrgService {
 
     const name = input.admin.name.trim();
     const email = normalizeEmail(input.admin.email);
-    const phone = input.admin.phone.trim();
+    const phone = normalizeOptionalPhone(input.admin.phone);
 
     if (!name) {
       throw new TinyClawApiError("Admin name is required.", 400);
@@ -159,16 +265,13 @@ export class OrgService {
       throw new TinyClawApiError("A valid email address is required.", 400);
     }
 
-    if (!phone || !PHONE_PATTERN.test(phone)) {
-      throw new TinyClawApiError("A valid phone number is required.", 400);
-    }
-
     const now = new Date().toISOString();
     const user: StoredUserRecord = {
       id: "user_admin",
       email,
       name,
       phone,
+      isPlatformAdmin: true,
       passwordHash: input.admin.passwordHash,
       createdAt: now,
       updatedAt: now,
@@ -437,8 +540,8 @@ export class OrgService {
     }
 
     if (request.admin) {
-      if (!request.admin.name.trim() || !request.admin.email.trim() || !request.admin.phone.trim()) {
-        throw new TinyClawApiError("Admin name, email, and phone are required.", 400);
+      if (!request.admin.name.trim() || !request.admin.email.trim()) {
+        throw new TinyClawApiError("Admin name and email are required.", 400);
       }
     }
 
@@ -463,6 +566,19 @@ export class OrgService {
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+function normalizeOptionalPhone(phone: string): string | null {
+  const trimmed = phone.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (!PHONE_PATTERN.test(trimmed)) {
+    throw new TinyClawApiError("Enter a valid phone number.", 400);
+  }
+
+  return trimmed;
 }
 
 function generateInviteToken(): string {

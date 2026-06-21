@@ -85,6 +85,11 @@ import type {
   TaskMessagesResponse,
   AuthUserResponse,
   SetupAuthRequest,
+  CreateOrganizationRequest,
+  CreateOrganizationResponse,
+  ListOrganizationsResponse,
+  ListUserOrgsResponse,
+  SetActiveOrgRequest,
   StoredTask,
   TaskRunRecord,
   WorkerLogsResponse,
@@ -129,6 +134,11 @@ export class TinyClawClient {
 
   setOrgId(orgId: string | null): void {
     this.orgId = orgId?.trim() || null;
+  }
+
+  private applyAuthUserResponse(response: AuthUserResponse): void {
+    const activeOrgId = response.activeOrgId ?? response.orgId ?? null;
+    this.setOrgId(activeOrgId);
   }
 
   async health(): Promise<HealthResponse> {
@@ -887,23 +897,51 @@ export class TinyClawClient {
       body: JSON.stringify(request),
     });
 
-    const activeOrgId = response.activeOrgId ?? response.orgId ?? null;
-    if (activeOrgId) {
-      this.setOrgId(activeOrgId);
-    }
-
+    this.applyAuthUserResponse(response);
     return response;
   }
 
   async login(email: string, password: string): Promise<AuthUserResponse> {
-    return this.request<AuthUserResponse>("/v1/auth/login", {
+    const response = await this.request<AuthUserResponse>("/v1/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
+
+    this.applyAuthUserResponse(response);
+    return response;
   }
 
   async getMe(): Promise<AuthUserResponse> {
-    return this.request<AuthUserResponse>("/v1/auth/me");
+    const response = await this.request<AuthUserResponse>("/v1/auth/me");
+    this.applyAuthUserResponse(response);
+    return response;
+  }
+
+  async listUserOrgs(): Promise<ListUserOrgsResponse> {
+    return this.request<ListUserOrgsResponse>("/v1/auth/orgs");
+  }
+
+  async setActiveOrg(orgId: string): Promise<AuthUserResponse> {
+    const response = await this.request<AuthUserResponse>("/v1/auth/active-org", {
+      method: "POST",
+      body: JSON.stringify({ orgId } satisfies SetActiveOrgRequest),
+    });
+
+    this.applyAuthUserResponse(response);
+    return response;
+  }
+
+  async listPlatformOrganizations(): Promise<ListOrganizationsResponse> {
+    return this.request<ListOrganizationsResponse>("/v1/platform/orgs");
+  }
+
+  async createPlatformOrganization(
+    request: CreateOrganizationRequest,
+  ): Promise<CreateOrganizationResponse> {
+    return this.request<CreateOrganizationResponse>("/v1/platform/orgs", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
   }
 
   async logout(): Promise<void> {

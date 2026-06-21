@@ -3,7 +3,10 @@ import {
   LocalAuthTokenManagedExternallyError,
   rotateLocalAuthToken,
   type AcceptOrgInviteResponse,
+  type AuthUserResponse,
+  type ListUserOrgsResponse,
   type RotateLocalAuthTokenResponse,
+  type SetActiveOrgRequest,
   type SetupAuthRequest,
 } from "@tinyclaw/core";
 import type { HonoApp } from "../types";
@@ -27,6 +30,9 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
   }).openapi("AuthCredentialsRequest");
   const authUserSchema = z.object({
     email: z.string(),
+    isPlatformAdmin: z.boolean().optional(),
+    activeOrgId: z.string().nullable().optional(),
+    orgId: z.string().nullable().optional(),
   }).openapi("AuthUserResponse");
   const loggedOutSchema = z.object({
     ok: z.boolean(),
@@ -53,7 +59,7 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
                 admin: z.object({
                   name: z.string(),
                   email: z.string(),
-                  phone: z.string(),
+                  phone: z.string().optional(),
                   password: z.string(),
                 }),
               })
@@ -221,7 +227,6 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
       !body.organization?.slug?.trim() ||
       !body.admin?.name?.trim() ||
       !body.admin?.email?.trim() ||
-      !body.admin?.phone?.trim() ||
       !password
     ) {
       return errorResponse("Organization and admin details are required.", 400);
@@ -239,7 +244,7 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
       admin: {
         name: body.admin.name,
         email: body.admin.email,
-        phone: body.admin.phone,
+        phone: body.admin.phone ?? "",
         passwordHash: await authService.hashPassword(password),
       },
     });
@@ -247,21 +252,18 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
     const response = await createBrowserSessionResponse(authService, databaseAdapter, user, {
       activeOrgId: organization.id,
     });
-
-    return json(
-      {
-        ...response.body,
-        orgId: organization.id,
-        activeOrgId: organization.id,
-      },
-      201,
-      response.headers,
+    const authBody = await orgService.buildAuthUserResponse(
+      user,
+      response.session.id,
+      organization.id,
     );
+
+    return json<AuthUserResponse>(authBody, 201, response.headers);
   });
 
   app.openAPIRegistry.registerPath(loginRoute);
   app.post("/v1/auth/login", async (c) => {
-    if (!authService || !databaseAdapter) {
+    if (!authService || !databaseAdapter || !orgService) {
       return errorResponse("Authentication not configured", 500);
     }
 
@@ -277,11 +279,16 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
     }
 
     const response = await createBrowserSessionResponse(authService, databaseAdapter, user);
-    return json(response.body, 200, response.headers);
+    const authBody = await orgService.buildAuthUserResponse(
+      user,
+      response.session.id,
+      response.session.activeOrgId,
+    );
+    return json<AuthUserResponse>(authBody, 200, response.headers);
   });
 
   app.openapi(meRoute, async (c) => {
-    if (!authService || !databaseAdapter) {
+    if (!authService || !databaseAdapter || !orgService) {
       return errorResponse("Authentication not configured", 500);
     }
 
@@ -290,7 +297,17 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
       return errorResponse("Authentication required", 401);
     }
 
-    return json({ email: auth.user.email }, 200);
+    const user = await databaseAdapter.getUserById(auth.user.id);
+    if (!user) {
+      return errorResponse("Authentication required", 401);
+    }
+
+    const authBody = await orgService.buildAuthUserResponse(
+      user,
+      auth.session?.id,
+      auth.session?.activeOrgId,
+    );
+    return json<AuthUserResponse>(authBody, 200);
   });
 
   app.openapi(logoutRoute, async (c) => {
@@ -393,5 +410,39 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
 
       throw error;
     }
+  });
+
+  app.get("/v1/auth/orgs", async (c) => {
+    if (!orgService) {
+      return errorResponse("Authentication not configured", 500);
+    }
+
+    const auth = getRequestAuth(c);
+    const orgs = await orgService.listUserOrgs(auth.user.id);
+    return json<ListUserOrgsResponse>(orgs);
+  });
+
+  app.post("/v1/auth/active-org", async (c) => {
+    if (!authService || !databaseAdapter || !orgService) {
+      return errorResponse("Authentication not configured", 500);
+    }
+
+    const auth = getRequestAuth(c);
+    assertBrowserCsrf(c.req.raw, auth, authService);
+
+    const body = await readJson<SetActiveOrgRequest>(c.req.raw);
+    await orgService.setActiveOrg({
+      userId: auth.user.id,
+      orgId: body.orgId,
+      sessionId: auth.session?.id,
+    });
+
+    const user = await databaseAdapter.getUserById(auth.user.id);
+    if (!user) {
+      return errorResponse("Authentication required", 401);
+    }
+
+    const authBody = await orgService.buildAuthUserResponse(user, auth.session?.id, body.orgId);
+    return json<AuthUserResponse>(authBody);
   });
 }

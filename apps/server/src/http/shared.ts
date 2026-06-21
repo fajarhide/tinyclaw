@@ -225,7 +225,11 @@ export async function createBrowserSessionResponse(
   databaseAdapter: DatabaseAdapter,
   user: StoredUserRecord,
   options: { activeOrgId?: string | null } = {},
-): Promise<{ body: { email: string }; headers: Headers }> {
+): Promise<{
+  body: { email: string };
+  headers: Headers;
+  session: StoredBrowserSessionRecord;
+}> {
   const now = new Date().toISOString();
   const session = authService.createBrowserSessionTokens();
   const record: StoredBrowserSessionRecord = {
@@ -248,6 +252,7 @@ export async function createBrowserSessionResponse(
   return {
     body: { email: user.email },
     headers,
+    session: record,
   };
 }
 

@@ -36,6 +36,51 @@ describe("OrgService", () => {
     expect(members.members[0]?.role).toBe("admin");
   });
 
+  test("bootstrapInitialSetup allows admin without phone", async () => {
+    const { orgService, authService } = createOrgService();
+
+    const bootstrapped = await orgService.bootstrapInitialSetup({
+      organization: { name: "Acme", slug: "acme-no-phone" },
+      admin: {
+        name: "Acme Admin",
+        email: "admin-no-phone@acme.com",
+        phone: "",
+        passwordHash: await authService.hashPassword("password123"),
+      },
+    });
+
+    expect(bootstrapped.user.phone).toBeNull();
+    expect(bootstrapped.user.isPlatformAdmin).toBe(true);
+  });
+
+  test("lists and switches active orgs for a user", async () => {
+    const { orgService, authService } = createOrgService();
+
+    const bootstrapped = await orgService.bootstrapInitialSetup({
+      organization: { name: "Acme", slug: "acme-switch" },
+      admin: {
+        name: "Acme Admin",
+        email: "admin@acme.com",
+        phone: "",
+        passwordHash: await authService.hashPassword("password123"),
+      },
+    });
+
+    const second = await orgService.createOrganization(
+      { name: "Beta", slug: "beta-switch" },
+      bootstrapped.user.id,
+    );
+
+    const orgs = await orgService.listUserOrgs(bootstrapped.user.id);
+    expect(orgs.orgs.map((org) => org.slug)).toEqual(["acme-switch", "beta-switch"]);
+
+    const switched = await orgService.setActiveOrg({
+      userId: bootstrapped.user.id,
+      orgId: second.organization.id,
+    });
+    expect(switched.slug).toBe("beta-switch");
+  });
+
   test("creates and lists organizations", async () => {
     const { orgService } = createOrgService();
 

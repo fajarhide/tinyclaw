@@ -16,6 +16,7 @@ import type {
   StoredOrgMemberRecord,
   StoredOrgInviteRecord,
   StoredOrganizationRecord,
+  StoredUserOrganizationRecord,
   StoredProfileRecord,
   StoredSessionMessageRecord,
   StoredSessionRecord,
@@ -566,6 +567,11 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
     SET last_used_at = ?
     WHERE id = ?
   `);
+  const updateBrowserSessionActiveOrgIdStmt = db.prepare(`
+    UPDATE browser_sessions
+    SET active_org_id = ?
+    WHERE id = ?
+  `);
   const upsertOrganizationStmt = db.prepare(`
     INSERT INTO organizations (id, name, slug, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?)
@@ -636,6 +642,20 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
     WHERE org_id = ?
     ORDER BY created_at ASC
   `);
+  const listUserOrganizationsStmt = db.prepare(`
+    SELECT
+      o.id,
+      o.name,
+      o.slug,
+      o.created_at,
+      o.updated_at,
+      om.role,
+      om.created_at AS joined_at
+    FROM org_members om
+    INNER JOIN organizations o ON o.id = om.org_id
+    WHERE om.user_id = ?
+    ORDER BY o.name ASC
+  `);
   const deleteOrgMemberStmt = db.prepare(`
     DELETE FROM org_members
     WHERE org_id = ? AND user_id = ?
@@ -702,6 +722,10 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
       updateBrowserSessionLastUsedAtStmt.run(lastUsedAt, id);
     },
 
+    async updateBrowserSessionActiveOrgId(id, activeOrgId) {
+      updateBrowserSessionActiveOrgIdStmt.run(activeOrgId, id);
+    },
+
     async upsertOrganization(record) {
       upsertOrganizationStmt.run(
         record.id,
@@ -766,6 +790,32 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
           userId: member.user_id,
           role: member.role as StoredOrgMemberRecord["role"],
           createdAt: member.created_at,
+        };
+      });
+    },
+
+    async listUserOrganizations(userId) {
+      return listUserOrganizationsStmt.all(userId).map((row) => {
+        const record = row as {
+          id: string;
+          name: string;
+          slug: string;
+          created_at: string;
+          updated_at: string;
+          role: string;
+          joined_at: string;
+        };
+
+        return {
+          organization: {
+            id: record.id,
+            name: record.name,
+            slug: record.slug,
+            createdAt: record.created_at,
+            updatedAt: record.updated_at,
+          },
+          role: record.role as StoredUserOrganizationRecord["role"],
+          joinedAt: record.joined_at,
         };
       });
     },

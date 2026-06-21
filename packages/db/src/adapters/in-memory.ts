@@ -12,6 +12,7 @@ import type {
   StoredOrgMemberRecord,
   StoredOrgInviteRecord,
   StoredOrganizationRecord,
+  StoredUserOrganizationRecord,
   StoredProfileRecord,
   StoredSessionMessageRecord,
   StoredSessionRecord,
@@ -109,6 +110,15 @@ export function createInMemoryDatabaseAdapter(): DatabaseAdapter {
       }
     },
 
+    async updateBrowserSessionActiveOrgId(id, activeOrgId) {
+      for (const [hash, session] of browserSessionsByHash.entries()) {
+        if (session.id === id) {
+          browserSessionsByHash.set(hash, { ...session, activeOrgId });
+          return;
+        }
+      }
+    },
+
     async upsertOrganization(record) {
       organizations.set(record.id, record);
       organizationsBySlug.set(record.slug, record);
@@ -140,6 +150,25 @@ export function createInMemoryDatabaseAdapter(): DatabaseAdapter {
       return Array.from(orgMembers.values())
         .filter((member) => member.orgId === orgId)
         .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    },
+
+    async listUserOrganizations(userId) {
+      return Array.from(orgMembers.values())
+        .filter((member) => member.userId === userId)
+        .map((member) => {
+          const organization = organizations.get(member.orgId);
+          if (!organization) {
+            return null;
+          }
+
+          return {
+            organization,
+            role: member.role,
+            joinedAt: member.createdAt,
+          } satisfies StoredUserOrganizationRecord;
+        })
+        .filter((record): record is StoredUserOrganizationRecord => record !== null)
+        .sort((left, right) => left.organization.name.localeCompare(right.organization.name));
     },
 
     async deleteOrgMember(orgId, userId) {

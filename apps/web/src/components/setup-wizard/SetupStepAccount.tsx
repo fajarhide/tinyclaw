@@ -68,7 +68,8 @@ export function SetupStepAccount({ onNext }: SetupStepAccountProps) {
         </div>
         <div>
           <label htmlFor="setup-phone" className="mb-1 block text-sm font-medium">
-            Phone
+            Phone{" "}
+            <span className="font-normal text-muted-foreground">(optional)</span>
           </label>
           <Input
             id="setup-phone"
@@ -76,7 +77,6 @@ export function SetupStepAccount({ onNext }: SetupStepAccountProps) {
             value={phone}
             onChange={(event) => setPhone(event.target.value)}
             placeholder="+628123456789"
-            required
           />
         </div>
         <div>

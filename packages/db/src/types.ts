@@ -194,6 +194,12 @@ export interface StoredOrgMemberRecord {
   createdAt: string;
 }
 
+export interface StoredUserOrganizationRecord {
+  organization: StoredOrganizationRecord;
+  role: OrgRole;
+  joinedAt: string;
+}
+
 export interface StoredOrgInviteRecord {
   id: string;
   orgId: string;
@@ -240,6 +246,7 @@ export interface DatabaseAdapter {
   ): Promise<StoredBrowserSessionRecord | null>;
   revokeBrowserSessionBySessionTokenHash(sessionTokenHash: string, revokedAt: string): Promise<boolean>;
   updateBrowserSessionLastUsedAt(id: string, lastUsedAt: string): Promise<void>;
+  updateBrowserSessionActiveOrgId(id: string, activeOrgId: string | null): Promise<void>;
 
   upsertOrganization(record: StoredOrganizationRecord): Promise<void>;
   listOrganizations(): Promise<StoredOrganizationRecord[]>;
@@ -248,6 +255,7 @@ export interface DatabaseAdapter {
   upsertOrgMember(record: StoredOrgMemberRecord): Promise<void>;
   getOrgMember(orgId: string, userId: string): Promise<StoredOrgMemberRecord | null>;
   listOrgMembers(orgId: string): Promise<StoredOrgMemberRecord[]>;
+  listUserOrganizations(userId: string): Promise<StoredUserOrganizationRecord[]>;
   deleteOrgMember(orgId: string, userId: string): Promise<boolean>;
 
   createOrgInvite(record: StoredOrgInviteRecord): Promise<void>;
