@@ -13,6 +13,7 @@ import {
 } from "@tinyclaw/core";
 import type { HonoApp } from "../types";
 import type { ServerOptions } from "../context";
+import { requirePlatformAdminFromContext } from "../org-guards";
 import {
   assertBrowserCsrf,
   authenticateRequest,
@@ -429,7 +430,7 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
       return errorResponse("Authentication not configured", 500);
     }
 
-    const auth = getRequestAuth(c);
+    const auth = requirePlatformAdminFromContext(c);
     assertBrowserCsrf(c.req.raw, auth, authService);
 
     const body = await readJson<CreateOrganizationRequest>(c.req.raw);

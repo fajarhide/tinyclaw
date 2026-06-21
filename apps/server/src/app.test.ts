@@ -294,7 +294,7 @@ describe("browser session auth", () => {
     expect(allowed.status).toBe(200);
   });
 
-  test("authenticated users can create organizations", async () => {
+  test("platform admins can create organizations", async () => {
     const { app } = createBrowserAuthApp();
 
     const setupResponse = await app.fetch(

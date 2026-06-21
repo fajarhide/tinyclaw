@@ -131,18 +131,21 @@ export function OrgSwitcher({ collapsed = false }: OrgSwitcherProps) {
             </DropdownMenuItem>
           ))}
 
-          <DropdownMenuItem
-            onSelect={() => {
-              setError(null);
-              setCreateOpen(true);
-            }}
-          >
-            <PlusIcon className="size-4" />
-            Create organization
-          </DropdownMenuItem>
+          {user.isPlatformAdmin ? (
+            <DropdownMenuItem
+              onSelect={() => {
+                setError(null);
+                setCreateOpen(true);
+              }}
+            >
+              <PlusIcon className="size-4" />
+              Create organization
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {user.isPlatformAdmin ? (
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
@@ -187,6 +190,7 @@ export function OrgSwitcher({ collapsed = false }: OrgSwitcherProps) {
           </form>
         </DialogContent>
       </Dialog>
+      ) : null}
     </>
   );
 }
