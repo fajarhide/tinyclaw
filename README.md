@@ -2,15 +2,15 @@
 
 # TinyClaw
 
-> Deploy your own personal AI Assistant as easy as using WordPress.
+> Deploy your own AI Agent platform as easily as spinning up WordPress.
 
-A tiny, working Bun + TypeScript monorepo for running your own AI agent. Chat, create automations from natural language, and connect via web, CLI, Telegram, or WhatsApp — all through one server.
+TinyClaw is a small, self-hosted Bun + TypeScript monorepo for running AI agents. Chat, create automations from natural language, and connect via web, CLI, Telegram, or WhatsApp — all through one server.
 
 ![Demo](./tinyclaw-demo.png)
 
-Inspired by [OpenClaw](https://github.com/openclaw/openclaw) and [Hermes](https://github.com/nousresearch/hermes-agent).
+Inspired by [OpenClaw](https://github.com/openclaw/openclaw) and [Hermes Agent](https://github.com/nousresearch/hermes-agent) — same self-hosted agent idea (tools, channels, soul, automations) — but **multi-tenant by design**. Those projects target one operator on one machine; TinyClaw is one server, many orgs, with isolated profiles, sessions, member invites, and roles built in.
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — system design, package layout, and data flows
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for system design and data flows.
 
 ## Quick start
 
