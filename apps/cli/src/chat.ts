@@ -1023,27 +1023,24 @@ function formatSoulInitLines(result: InitSoulResponse): string[] {
 }
 
 function formatUserStatusLines(status: UserContextStatusResponse): string[] {
-  const lines = [
-    `USER.md path: ${status.path}`,
-    `Active: ${status.active ? "yes" : "no"}`,
-  ];
+  const lines = [`Active: ${status.active ? "yes" : "no"}`];
 
   if (!status.active) {
     lines.push("Run /user init to scaffold USER.md, or edit it in Settings (web).");
   } else {
-    lines.push("Edit USER.md in Settings (web) or on disk. Start a new session to reload.");
+    lines.push("Edit USER.md in Settings (web). Start a new session to reload.");
   }
 
   return lines;
 }
 
 function formatUserInitLines(result: InitUserContextResponse): string[] {
-  const lines = [`USER.md path: ${result.path}`];
+  const lines: string[] = [];
 
   if (!result.created) {
     lines.push("Template already exists — nothing created.");
   } else {
-    lines.push("Created USER.md. Edit it in Settings (web) or on disk, then start a new session.");
+    lines.push("Created USER.md. Edit it in Settings (web), then start a new session.");
   }
 
   return lines;

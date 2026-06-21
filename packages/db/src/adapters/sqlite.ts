@@ -80,6 +80,7 @@ interface SessionRow {
   id: string;
   profile_id: string;
   channel: string;
+  user_id?: string | null;
   created_at: string;
   title: string | null;
   agent_todos: string;
@@ -175,6 +176,7 @@ interface UserRow {
   name?: string | null;
   phone?: string | null;
   is_platform_admin?: number | null;
+  user_context?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -325,11 +327,12 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
   const listSessionsStmt = db.prepare("SELECT * FROM sessions");
   const getSessionStmt = db.prepare("SELECT * FROM sessions WHERE id = ?");
   const upsertSessionStmt = db.prepare(`
-    INSERT INTO sessions (id, profile_id, channel, created_at)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO sessions (id, profile_id, channel, created_at, user_id)
+    VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       profile_id = excluded.profile_id,
-      channel = excluded.channel
+      channel = excluded.channel,
+      user_id = COALESCE(excluded.user_id, sessions.user_id)
   `);
   const deleteSessionStmt = db.prepare("DELETE FROM sessions WHERE id = ?");
   const updateSessionTitleStmt = db.prepare(`
@@ -536,6 +539,14 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
     SET password_hash = ?, updated_at = ?
     WHERE id = ?
   `);
+  const getUserContextStmt = db.prepare(`
+    SELECT user_context FROM users WHERE id = ?
+  `);
+  const setUserContextStmt = db.prepare(`
+    UPDATE users
+    SET user_context = ?, updated_at = ?
+    WHERE id = ?
+  `);
   const countUsersStmt = db.prepare("SELECT COUNT(*) as count FROM users");
 
   const createBrowserSessionStmt = db.prepare(`
@@ -687,6 +698,15 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
 
     async updateUserPassword(id, passwordHash, updatedAt) {
       updateUserPasswordStmt.run(passwordHash, updatedAt, id);
+    },
+
+    async getUserContext(userId) {
+      const row = getUserContextStmt.get(userId) as { user_context?: string | null } | null;
+      return row?.user_context ?? null;
+    },
+
+    async setUserContext(userId, content, updatedAt) {
+      setUserContextStmt.run(content, updatedAt, userId);
     },
 
     async countUsers() {
@@ -1011,6 +1031,7 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
         record.profileId,
         record.channel,
         record.createdAt,
+        record.userId ?? null,
       );
     },
 
@@ -1382,6 +1403,7 @@ function toSessionRecord(row: SessionRow): StoredSessionRecord {
     id: row.id,
     profileId: row.profile_id,
     channel: row.channel,
+    userId: row.user_id ?? null,
     createdAt: row.created_at,
     title: row.title ?? null,
     agentTodos: parseAgentTodos(row.agent_todos),

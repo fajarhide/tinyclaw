@@ -56,6 +56,7 @@ export interface StoredSessionRecord {
   profileId: string;
   channel: string;
   orgId?: string | null;
+  userId?: string | null;
   createdAt: string;
   title: string | null;
   agentTodos: AgentTodo[];
@@ -238,6 +239,8 @@ export interface DatabaseAdapter {
   getUserById(id: string): Promise<StoredUserRecord | null>;
   createUser(record: StoredUserRecord): Promise<void>;
   updateUserPassword(id: string, passwordHash: string, updatedAt: string): Promise<void>;
+  getUserContext(userId: string): Promise<string | null>;
+  setUserContext(userId: string, content: string, updatedAt: string): Promise<void>;
   countUsers(): Promise<number>;
 
   createBrowserSession(record: StoredBrowserSessionRecord): Promise<void>;

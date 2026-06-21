@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import {
   createAgentHarness,
   draftTaskPromptFromFields,
@@ -77,15 +78,17 @@ import {
   getActiveProviderInstance,
   getProfileSoulDir,
   getResolvedSoulStatus,
-  getUserContextStatus,
+  buildUserContextStatus,
+  getUserConfigDir,
+  normalizeUserContextContent,
+  readTextIfExists,
+  USER_CONTEXT_TEMPLATE,
   initSoulDirectory,
-  initUserContext as initializeUserContext,
   isProviderConfigured,
   isWritableSoulFileKey,
   loadSoulStack,
   loadTelegramSettingsPublic,
   loadWhatsAppSettingsPublic,
-  loadUserContext,
   loadUserTimezone,
   loadUserVisionSettings,
   messageContentHasImages,
@@ -101,7 +104,6 @@ import {
   saveUserTimezone,
   TinyClawApiError,
   writeSoulFile,
-  writeUserContext as persistUserContext,
 } from "@tinyclaw/core";
 import {
   DEFAULT_PROFILE_ID,
@@ -490,7 +492,7 @@ export class AgentService {
       profile.systemPrompt,
     );
     const userTimezone = await this.getUserTimezone();
-    const userContext = await loadUserContext();
+    const userContext = await this.loadUserContextForUser(undefined);
     const harness = this.createHarnessForProfile(profile);
 
     const session = harness.createChatSession({
@@ -633,6 +635,7 @@ export class AgentService {
   async createSession(
     channel: AgentChannel,
     profileId = DEFAULT_PROFILE_ID,
+    userId?: string | null,
   ): Promise<string> {
     const resolvedProfileId = await this.resolveSessionProfile(profileId);
     const sessionId = createSessionId();
@@ -641,12 +644,18 @@ export class AgentService {
       id: sessionId,
       profileId: resolvedProfileId,
       channel,
+      userId: userId ?? null,
       createdAt: new Date().toISOString(),
       title: null,
       agentTodos: [],
     });
 
-    const session = await this.buildChatSession(channel, resolvedProfileId, sessionId);
+    const session = await this.buildChatSession(
+      channel,
+      resolvedProfileId,
+      sessionId,
+      userId ?? null,
+    );
 
     this.sessions.set(sessionId, { channel, profileId: resolvedProfileId, session });
 
@@ -713,6 +722,7 @@ export class AgentService {
       id: nextSessionId,
       profileId: record.profileId,
       channel: record.channel,
+      userId: record.userId ?? null,
       createdAt: new Date().toISOString(),
       title: null,
       agentTodos: [],
@@ -731,7 +741,12 @@ export class AgentService {
       throw new Error("Session channel is invalid.");
     }
 
-    const session = await this.buildChatSession(channel, record.profileId, nextSessionId);
+    const session = await this.buildChatSession(
+      channel,
+      record.profileId,
+      nextSessionId,
+      record.userId ?? null,
+    );
     this.sessions.set(nextSessionId, {
       channel,
       profileId: record.profileId,
@@ -804,6 +819,7 @@ export class AgentService {
       channel,
       record.profileId,
       sessionId,
+      record.userId ?? null,
     );
 
     this.sessions.set(sessionId, {
@@ -1360,23 +1376,64 @@ export class AgentService {
     await writeSoulFile(getProfileSoulDir(profileId), key, request.content);
   }
 
-  async getUserContext(includeContent = false): Promise<UserContextStatusResponse> {
-    const status = await getUserContextStatus();
+  async getUserContext(
+    userId: string,
+    includeContent = false,
+  ): Promise<UserContextStatusResponse> {
+    const raw = await this.resolveUserContextRaw(userId);
+    return buildUserContextStatus(raw, includeContent);
+  }
 
-    if (!includeContent) {
-      const { content: _content, ...rest } = status;
-      return rest;
+  async initUserContext(userId: string): Promise<InitUserContextResponse> {
+    const existing = normalizeUserContextContent(await this.db.getUserContext(userId));
+    if (existing !== undefined) {
+      return { created: false };
     }
 
-    return status;
+    await this.db.setUserContext(
+      userId,
+      USER_CONTEXT_TEMPLATE,
+      new Date().toISOString(),
+    );
+    return { created: true };
   }
 
-  async initUserContext(): Promise<InitUserContextResponse> {
-    return initializeUserContext();
+  async writeUserContext(
+    userId: string,
+    request: UpdateUserContextRequest,
+  ): Promise<void> {
+    await this.db.setUserContext(
+      userId,
+      request.content,
+      new Date().toISOString(),
+    );
   }
 
-  async writeUserContext(request: UpdateUserContextRequest): Promise<void> {
-    await persistUserContext(request.content);
+  private async loadUserContextForUser(
+    userId?: string | null,
+  ): Promise<string | undefined> {
+    if (!userId) {
+      return undefined;
+    }
+
+    return normalizeUserContextContent(await this.resolveUserContextRaw(userId));
+  }
+
+  private async resolveUserContextRaw(userId: string): Promise<string | null> {
+    const stored = await this.db.getUserContext(userId);
+    if (normalizeUserContextContent(stored) !== undefined) {
+      return stored;
+    }
+
+    const legacy = normalizeUserContextContent(
+      await readTextIfExists(join(getUserConfigDir(), "USER.md")),
+    );
+    if (!legacy) {
+      return stored;
+    }
+
+    await this.db.setUserContext(userId, legacy, new Date().toISOString());
+    return legacy;
   }
 
   private createHarness(options: {
@@ -1511,6 +1568,7 @@ export class AgentService {
     channel: AgentChannel,
     profileId: string,
     sessionId: string,
+    userId?: string | null,
   ): Promise<AgentChatSession> {
     await this.ensureVisionSettingsLoaded();
     const profile = await this.requireProfile(profileId);
@@ -1524,7 +1582,7 @@ export class AgentService {
       : systemPrompt;
     const initialHistory = await loadSessionHistory(this.db, sessionId);
     const userTimezone = await this.getUserTimezone();
-    const userContext = await loadUserContext();
+    const userContext = await this.loadUserContextForUser(userId);
     const compaction = this.resolveCompactionConfig(profile);
     const harness = this.createHarnessForProfile(profile);
 

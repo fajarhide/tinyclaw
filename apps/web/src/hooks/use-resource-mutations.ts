@@ -13,7 +13,6 @@ import { client } from "@/lib/client";
 import { queryKeys } from "@/lib/query-keys";
 
 const EMPTY_USER_CONTEXT: UserContextStatusResponse = {
-  path: "",
   active: false,
 };
 

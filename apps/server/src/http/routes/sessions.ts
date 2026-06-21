@@ -17,6 +17,7 @@ import {
   parseChannel,
   readJson,
   streamMessage,
+  getRequestAuth,
 } from "../shared";
 import type { ServerOptions } from "../context";
 import type { HonoApp } from "../types";
@@ -171,8 +172,13 @@ export function registerSessionRoutes(app: HonoApp, options: ServerOptions): voi
   }));
 
   app.post("/v1/sessions", async (c) => {
+    const auth = getRequestAuth(c);
     const body = await readJson<CreateSessionRequest>(c.req.raw);
-    const sessionId = await agent.createSession(parseChannel(body.channel), body.profileId);
+    const sessionId = await agent.createSession(
+      parseChannel(body.channel),
+      body.profileId,
+      auth.user.id,
+    );
     return json<CreateSessionResponse>({ sessionId }, 201);
   });
 

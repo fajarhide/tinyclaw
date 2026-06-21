@@ -36,10 +36,12 @@ CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY NOT NULL,
   profile_id TEXT NOT NULL,
   channel TEXT NOT NULL,
+  user_id TEXT,
   created_at TEXT NOT NULL,
   title TEXT,
   agent_todos TEXT DEFAULT '[]' NOT NULL,
-  FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
+  FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS session_messages (
@@ -174,6 +176,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT,
   phone TEXT,
   is_platform_admin INTEGER DEFAULT 0 NOT NULL,
+  user_context TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

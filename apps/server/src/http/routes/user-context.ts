@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { InitUserContextResponse, UpdateUserContextRequest, UserContextStatusResponse } from "@tinyclaw/core";
-import { json, readJson } from "../shared";
+import { json, readJson, getRequestAuth } from "../shared";
 import type { ServerOptions } from "../context";
 import type { HonoApp } from "../types";
 
@@ -51,17 +51,25 @@ export function registerUserContextRoutes(app: HonoApp, options: ServerOptions):
   }));
 
   app.get("/v1/user/context", async (c) => {
+    const auth = getRequestAuth(c);
     const includeContent = c.req.query("content") === "true";
-    return json<UserContextStatusResponse>(await agent.getUserContext(includeContent));
+    return json<UserContextStatusResponse>(
+      await agent.getUserContext(auth.user.id, includeContent),
+    );
   });
 
   app.put("/v1/user/context", async (c) => {
+    const auth = getRequestAuth(c);
     const body = await readJson<UpdateUserContextRequest>(c.req.raw);
-    await agent.writeUserContext(body);
+    await agent.writeUserContext(auth.user.id, body);
     return new Response(null, { status: 204 });
   });
 
-  app.post("/v1/user/context/init", async () => {
-    return json<InitUserContextResponse>(await agent.initUserContext(), 201);
+  app.post("/v1/user/context/init", async (c) => {
+    const auth = getRequestAuth(c);
+    return json<InitUserContextResponse>(
+      await agent.initUserContext(auth.user.id),
+      201,
+    );
   });
 }

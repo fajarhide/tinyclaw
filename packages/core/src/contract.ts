@@ -990,7 +990,6 @@ export interface DeleteKnowledgeBaseResponse {
 }
 
 export interface UserContextStatusResponse {
-  path: string;
   active: boolean;
   content?: string;
 }
@@ -1000,7 +999,6 @@ export interface UpdateUserContextRequest {
 }
 
 export interface InitUserContextResponse {
-  path: string;
   created: boolean;
 }
 

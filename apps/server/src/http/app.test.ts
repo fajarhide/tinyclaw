@@ -23,9 +23,12 @@ function createServerOptions() {
   return {
     agent: {
       providerConfigured: true,
-      getUserContext: async (includeContent: boolean) => ({ content: includeContent ? "ctx" : null }),
-      writeUserContext: async (_body: unknown) => {},
-      initUserContext: async () => ({ content: "init" }),
+      getUserContext: async (_userId: string, includeContent: boolean) => ({
+        active: includeContent,
+        ...(includeContent ? { content: "ctx" } : {}),
+      }),
+      writeUserContext: async (_userId: string, _body: unknown) => {},
+      initUserContext: async (_userId: string) => ({ created: true }),
       createSession: async (_channel: string, _profileId?: string) => "session_1",
       listSessions: async (profileId: string, channel: string) => ({ sessions: [{ id: `${profileId}-${channel}` }] }),
       clearSession: async (_sessionId: string) => true,
@@ -446,7 +449,10 @@ describe("createHonoApp", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ content: "ctx" });
+    await expect(response.json()).resolves.toEqual({
+      active: true,
+      content: "ctx",
+    });
   });
 
   test("creates and lists sessions through Hono routes", async () => {

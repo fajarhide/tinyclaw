@@ -234,6 +234,10 @@ function migrateUsersTable(db: Database): void {
   if (!columnNames.has("phone")) {
     db.exec(`ALTER TABLE users ADD COLUMN phone TEXT;`);
   }
+
+  if (!columnNames.has("user_context")) {
+    db.exec(`ALTER TABLE users ADD COLUMN user_context TEXT;`);
+  }
 }
 
 function migrateOrgTables(db: Database): void {
@@ -481,6 +485,12 @@ function migrateSessionsTable(db: Database): void {
   if (!columnNames.has("agent_todos")) {
     db.exec(`
       ALTER TABLE sessions ADD COLUMN agent_todos TEXT DEFAULT '[]' NOT NULL;
+    `);
+  }
+
+  if (!columnNames.has("user_id")) {
+    db.exec(`
+      ALTER TABLE sessions ADD COLUMN user_id TEXT REFERENCES users (id) ON DELETE SET NULL;
     `);
   }
 }
