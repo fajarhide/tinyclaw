@@ -1,10 +1,10 @@
 import type { ToolDetail } from "@tinyclaw/core/contract";
-import { isProtectedToolId } from "@tinyclaw/core/tools/protected";
+import { BUILTIN_TOOL_IDS, isProtectedToolId } from "@tinyclaw/core/tools/protected";
 import { BlocksIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ToolDetailDialog } from "@/components/tools/ToolDetailDialog";
-import { EmailSettingsCard } from "@/components/EmailSettingsCard";
+import { EmailSettingsDialog } from "@/components/EmailSettingsDialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useToolsQuery } from "@/hooks/use-app-queries";
@@ -31,6 +31,7 @@ export function ToolsTab() {
   const deleteToolMutation = useDeleteToolMutation();
   const [actionError, setActionError] = useState<string | null>(null);
   const [detailToolId, setDetailToolId] = useState<string | null>(null);
+  const [emailConfigOpen, setEmailConfigOpen] = useState(false);
 
   const loading = isLoading && tools.length === 0;
   const refreshing = isFetching && !loading;
@@ -71,12 +72,7 @@ export function ToolsTab() {
   }
 
   if (loading) {
-    return (
-      <>
-        <PageState message="Loading tools…" />
-        {isOrgAdmin ? <EmailSettingsCard /> : null}
-      </>
-    );
+    return <PageState message="Loading tools…" />;
   }
 
   return (
@@ -208,6 +204,11 @@ export function ToolsTab() {
                       busy={busy}
                       onView={() => setDetailToolId(tool.id)}
                       onDelete={() => void handleDeleteTool(tool.id, tool.name)}
+                      onConfigure={
+                        isOrgAdmin && tool.id === BUILTIN_TOOL_IDS.email
+                          ? () => setEmailConfigOpen(true)
+                          : undefined
+                      }
                     />
                   ))}
                 </ul>
@@ -227,7 +228,9 @@ export function ToolsTab() {
         </div>
       </section>
 
-      {isOrgAdmin ? <EmailSettingsCard /> : null}
+      {isOrgAdmin ? (
+        <EmailSettingsDialog open={emailConfigOpen} onOpenChange={setEmailConfigOpen} />
+      ) : null}
 
       <ToolDetailDialog
         toolId={detailToolId}
@@ -248,11 +251,13 @@ function ToolListItem({
   busy,
   onView,
   onDelete,
+  onConfigure,
 }: {
   tool: ToolDetail;
   busy: boolean;
   onView: () => void;
   onDelete: () => void;
+  onConfigure?: () => void;
 }) {
   const deletable = isDeletableTool(tool);
 
@@ -295,6 +300,21 @@ function ToolListItem({
         >
           {deletable ? tool.handlerType : "built-in"}
         </span>
+
+        {onConfigure ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={(event) => {
+              event.stopPropagation();
+              onConfigure();
+            }}
+          >
+            Configure
+          </Button>
+        ) : null}
 
         {deletable ? (
           <Button

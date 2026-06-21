@@ -590,6 +590,7 @@ export interface EmailSettingsResponse {
   smtpSecure: boolean | null;
   username: string | null;
   from: string | null;
+  fromName: string | null;
   passwordMasked: string | null;
 }
 
@@ -603,6 +604,7 @@ export interface UpdateEmailSettingsRequest {
   username?: string;
   password?: string;
   from?: string;
+  fromName?: string;
 }
 
 export interface SendEmailTestRequest {

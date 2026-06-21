@@ -21,6 +21,7 @@ export interface EmailConfigFile {
   username: string;
   password: string;
   from: string;
+  fromName: string;
 }
 
 export interface EmailSettingsPublic {
@@ -33,6 +34,7 @@ export interface EmailSettingsPublic {
   smtpSecure: boolean | null;
   username: string | null;
   from: string | null;
+  fromName: string | null;
   passwordMasked: string | null;
 }
 
@@ -46,6 +48,7 @@ export interface UpdateEmailSettingsInput {
   username?: string;
   password?: string;
   from?: string;
+  fromName?: string;
 }
 
 export function maskSecret(secret: string): string | null {
@@ -108,6 +111,24 @@ export function resolveFromAddress(config: Pick<EmailConfigFile, "from" | "usern
   return config.from.trim() || config.username.trim();
 }
 
+export function resolveFromHeader(
+  config: Pick<EmailConfigFile, "from" | "fromName" | "username">,
+): string {
+  const address = resolveFromAddress(config);
+  const name = config.fromName.trim();
+
+  if (!address) {
+    return "";
+  }
+
+  if (!name) {
+    return address;
+  }
+
+  const escaped = name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `"${escaped}" <${address}>`;
+}
+
 export function isEmailConfigComplete(config: EmailConfigFile | null): boolean {
   if (!config) {
     return false;
@@ -142,6 +163,7 @@ function parseEmailSection(values: Record<string, string>): EmailConfigFile | nu
     username,
     password,
     from: values.from?.trim() ?? "",
+    fromName: values.from_name?.trim() ?? "",
   };
 }
 
@@ -156,6 +178,7 @@ function buildEmailSectionValues(config: EmailConfigFile): Record<string, string
     username: config.username,
     password: config.password,
     from: resolveFromAddress(config),
+    from_name: config.fromName,
   };
 }
 
@@ -188,6 +211,7 @@ export function toEmailSettingsPublic(file: EmailConfigFile | null): EmailSettin
       smtpSecure: null,
       username: null,
       from: null,
+      fromName: null,
       passwordMasked: null,
     };
   }
@@ -202,6 +226,7 @@ export function toEmailSettingsPublic(file: EmailConfigFile | null): EmailSettin
     smtpSecure: file.smtpSecure,
     username: file.username || null,
     from: resolveFromAddress(file) || null,
+    fromName: file.fromName || null,
     passwordMasked: maskSecret(file.password),
   };
 }
@@ -240,6 +265,8 @@ function buildSavedEmailConfig(
   const password = resolveEmailPassword(input.password, existing);
   const from =
     input.from !== undefined ? input.from.trim() : (existing?.from ?? username);
+  const fromName =
+    input.fromName !== undefined ? input.fromName.trim() : (existing?.fromName ?? "");
 
   return {
     imapHost,
@@ -257,6 +284,7 @@ function buildSavedEmailConfig(
     username,
     password,
     from,
+    fromName,
   };
 }
 
@@ -280,7 +308,7 @@ export function toMailboxConfig(config: EmailConfigFile) {
       user: config.username,
       pass: config.password,
     },
-    from: resolveFromAddress(config),
+    from: resolveFromHeader(config),
     imap: {
       host: config.imapHost,
       port: config.imapPort,

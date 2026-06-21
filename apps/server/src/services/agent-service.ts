@@ -161,7 +161,7 @@ import { ProfileService } from "./profile-service";
 import type { SkillsService } from "./skills-service";
 import { SessionTitleService } from "./session-title-service";
 import { SuperBotSessionState } from "./super-bot-session-state";
-import { resolveToolsFromStorage } from "./tool-resolver";
+import { resolveProfileStoredTools } from "./tool-resolver";
 import { wrapProviderWithUsageTracking } from "../providers/usage-tracking";
 import type { LlmUsageTracker } from "./llm-usage-tracker";
 import {
@@ -1555,7 +1555,7 @@ export class AgentService {
     const builtinOverrides = this.skillsService
       ? [createCreateSkillTool(this.skillsService)]
       : [];
-    const tools = await resolveToolsFromStorage(storedTools, builtinOverrides);
+    const tools = await resolveProfileStoredTools(storedTools, builtinOverrides);
     const includeAutomationTools = options.includeAutomationTools ?? true;
     const includeTodoTools = options.includeTodoTools ?? true;
 

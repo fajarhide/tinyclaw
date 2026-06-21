@@ -12,6 +12,7 @@ const completeConfig: EmailConfigFile = {
   username: "user@example.com",
   password: "secret-password",
   from: "user@example.com",
+  fromName: "",
 };
 
 describe("email tool", () => {

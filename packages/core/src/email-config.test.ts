@@ -13,6 +13,8 @@ import {
   REDACTED_SECRET_VALUE,
   loadEmailConfig,
   loadEmailSettingsPublic,
+  resolveFromAddress,
+  resolveFromHeader,
   saveEmailConfig,
   toEmailSettingsPublic,
 } from "./email-config";
@@ -30,6 +32,24 @@ describe("email config", () => {
     delete process.env.TINYCLAW_CONFIG_DIR;
   });
 
+  test("formats from header with optional display name", () => {
+    expect(
+      resolveFromHeader({
+        username: "user@example.com",
+        from: "user@example.com",
+        fromName: "",
+      }),
+    ).toBe("user@example.com");
+
+    expect(
+      resolveFromHeader({
+        username: "user@example.com",
+        from: "user@example.com",
+        fromName: "Acme Support",
+      }),
+    ).toBe('"Acme Support" <user@example.com>');
+  });
+
   test("round-trips email settings without exposing password publicly", async () => {
     configDir = await mkdtemp(join(tmpdir(), "tinyclaw-email-config-"));
     process.env.TINYCLAW_CONFIG_DIR = configDir;
@@ -44,13 +64,16 @@ describe("email config", () => {
       username: "user@example.com",
       password: "super-secret-password",
       from: "user@example.com",
+      fromName: "Support Team",
     });
 
+    expect(saved.fromName).toBe("Support Team");
+
+    const loaded = await loadEmailConfig();
     expect(saved.configured).toBe(true);
     expect(saved.passwordMasked).not.toBe("super-secret-password");
     expect(saved.passwordMasked).toContain("word");
-
-    const loaded = await loadEmailConfig();
+    expect(loaded?.fromName).toBe("Support Team");
     expect(loaded?.password).toBe("super-secret-password");
 
     const publicSettings = await loadEmailSettingsPublic();
@@ -113,6 +136,7 @@ describe("email config", () => {
         username: "user@example.com",
         password: "secret",
         from: "user@example.com",
+        fromName: "",
       }).configured,
     ).toBe(false);
   });
