@@ -16,20 +16,11 @@ export default withMermaid(
           text: 'Guide',
           items: [
             { text: 'Getting Started', link: '/getting-started' },
-          ],
-        },
-        {
-          text: 'Concepts',
-          items: [
             { text: 'Overview', link: '/overview' },
-            { text: 'Architecture', link: '/architecture' },
             { text: 'Multi-tenancy', link: '/multi-tenancy' },
+            { text: 'Profiles', link: '/profiles' },
             { text: 'Builtin tools', link: '/builtin-tools' },
           ],
-        },
-        {
-          text: 'Contributing',
-          items: [{ text: 'Development', link: '/development' }],
         },
       ],
       socialLinks: [

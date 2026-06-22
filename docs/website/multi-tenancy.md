@@ -1,55 +1,80 @@
 # Multi-tenancy
 
-Each **organization** is a flat tenant boundary. Within an org, each profile has a **soul** — files that define the agent's identity, style, operating instructions, and continuity memory.
+TinyClaw is built for running more than one team or customer on the same deployment.
 
-Organizations isolate tenant-owned data: profiles, sessions, automations, tasks, tools, MCP servers, skills, and usage stats. Each row carries an optional `org_id` column (see `packages/db/sql/schema.sql` and `migrateTenantOrgScope` in `packages/db/src/migrate.ts`).
+The main rule is simple:
+
+- One **organization** is one tenant boundary
+
+That organization keeps its own:
+
+- Profiles
+- Sessions
+- Members
+- Tools
+- Skills
+- MCP servers
+- Usage data
+
+## Why this matters
+
+Multi-tenancy lets you run one TinyClaw server without mixing teams together.
+
+For example:
+
+- Agency A should not see Agency B's profiles
+- Internal HR bots should not share memory with Sales bots
+- A contractor can be added to one org without seeing the others
 
 ## Actors and roles
 
 | Actor | Scope | Capabilities |
 |---|---|---|
-| Platform admin | Deployment | Create/list orgs (`/v1/platform/orgs`), manage profiles/tools/MCP/skills |
-| Org admin | One org | Invite/remove members, change roles (`/v1/orgs/{orgId}/members`) |
-| Org member | One org | Chat, run agents, manage automations/tasks |
-| Org viewer | One org | Read chat history only — blocked from agent invocation and mutations |
+| Platform admin | Whole deployment | Create orgs and manage shared system-level bot resources |
+| Org admin | One organization | Invite members and manage roles |
+| Org member | One organization | Chat with profiles and use the workspace |
+| Org viewer | One organization | Read chat history only |
 
-## Org context on requests
+## Practical mental model
 
-Every authenticated API call (except `/v1/auth/*` and `/v1/platform/*`) requires org context:
+When deciding permissions, think of it like this:
 
-1. `X-Org-Id` request header (set by `@tinyclaw/client` and tests), or
-2. `active_org_id` on the browser session cookie (set via `POST /v1/auth/active-org`).
+- **Platform admin** manages the deployment itself
+- **Org admin** manages who is inside one organization
+- **Member** uses the bots
+- **Viewer** can look, but not act
 
-Org middleware (`apps/server/src/http/org-middleware.ts`) verifies membership and attaches `orgRole` to the request auth context. Role guards live in `apps/server/src/http/org-guards.ts`.
+## First-time setup
 
-## Onboarding flow
+When you install TinyClaw for the first time:
 
-- Fresh install: `POST /v1/auth/setup` creates the first org, admin user, and browser session.
-- Additional orgs: platform admin creates via `POST /v1/platform/orgs`.
-- New members: org admin invites via `/v1/orgs/{orgId}/invites`; invitee accepts via `POST /v1/auth/accept-invite`.
-- Multi-org users: web org switcher (`apps/web/src/components/OrgSwitcher.tsx`) or `client.setActiveOrg()`.
+1. You create the first admin user
+2. TinyClaw creates the first organization
+3. That admin can invite more people
+4. More organizations can be created later if needed
 
-## Flat org-as-tenant model
+## Common examples
 
-First-time setup (`POST /v1/auth/setup`) creates the initial org and admin user. Platform admins provision additional orgs via `/v1/platform/orgs`. Org admins invite members through `/v1/orgs/{orgId}/members` and `/v1/orgs/{orgId}/invites`. Users with multiple org memberships switch via the web org switcher or `POST /v1/auth/active-org`. Shared channel bots (Telegram/WhatsApp) will route via `channel_org_mappings`; schema is in place.
+Use separate organizations when you want clear separation between:
 
-## Where to make org-related changes
+- Different customers
+- Different internal teams
+- Different environments
+- Different privacy boundaries
 
-| What you want to change | File |
-|---|---|
-| Org context resolution, header name | `apps/server/src/http/org-middleware.ts` |
-| Org CRUD, invites, member management | `apps/server/src/services/org-service.ts` |
-| Platform org routes | `apps/server/src/http/routes/platform-orgs.ts` |
-| Org member routes | `apps/server/src/http/routes/org-members.ts` |
-| Auth setup, login, active-org switching | `apps/server/src/http/routes/auth.ts` |
-| Role guard helpers | `apps/server/src/http/org-guards.ts` |
-| Org types and DB adapter methods | `packages/db/src/types.ts`, `packages/db/src/adapters/sqlite.ts` |
-| API contract types | `packages/core/src/contract.ts` |
-| Client org header injection | `packages/client/src/client.ts` (`setOrgId`, `X-Org-Id`) |
-| Web auth state and org switcher | `apps/web/src/context/auth-context.tsx`, `OrgSwitcher.tsx` |
+If one team needs different bots but should still share users and data boundaries, use multiple **profiles** inside one organization instead.
 
-## Route access summary
+## Important limitation
 
-- **Platform-admin-only routes:** profiles, tools, MCP servers, skills (mutations). Org admins cannot create profiles — they use profiles provisioned by the platform admin.
-- **Org-admin routes:** member list, invite, add, remove, role change under `/v1/orgs/{orgId}/…`.
-- **Viewer restrictions:** `requireNotViewer` on worker control and agent-invocation paths.
+Org admins manage members, but profile and tool provisioning is still a platform-admin responsibility.
+
+So the split is:
+
+- Org admin manages people
+- Platform admin manages the bot system
+
+## Next steps
+
+- [Profiles](/profiles) — how to model bots inside an organization
+- [Builtin tools](/builtin-tools) — how profile capabilities are controlled
+- [Getting Started](/getting-started) — setup flow from zero

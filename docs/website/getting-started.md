@@ -1,59 +1,88 @@
 # Getting Started
 
-Requires [Bun](https://bun.sh).
+TinyClaw can run locally with Bun or in Docker.
 
-## Local development
+## Before you start
+
+You need:
+
+- An LLM provider API key
+- [Bun](https://bun.sh) if you want to run from source
+
+## Run locally
 
 ```bash
-# Install dependencies
 bun install
-
-# Start the web (starts the server automatically if needed)
 bun run dev:web
 ```
 
-Visit the web dashboard at `http://localhost:3000`
+Open:
 
-Or run the server on its own:
+- Dashboard: `http://localhost:3000`
+- API server: `http://127.0.0.1:4310`
+- API docs: `http://127.0.0.1:4310/docs`
+
+If you only want the API server:
 
 ```bash
 bun run dev:server
 ```
 
-On first run, the server prompts for a provider and API key if none is configured. Settings are saved to `~/.tinyclaw/config.ini`.
-
-The server listens on `http://127.0.0.1:4310` by default. Interactive API docs are available at `http://127.0.0.1:4310/docs`.
+On first run, TinyClaw asks for your provider and API key if they are not configured yet. Settings are saved in `~/.tinyclaw/config.ini`.
 
 ## Docker
 
-You can also run TinyClaw with Docker.
+If you want a simpler deployment path, run TinyClaw with Docker.
 
-**Prebuilt image (quickest):**
+Quickest option:
 
 ```bash
-# Pull and run the latest image
 docker pull ghcr.io/ahmadrosid/tinyclaw:latest
 docker run -d -p 4310:4310 -v tinyclaw-config:/root/.tinyclaw ghcr.io/ahmadrosid/tinyclaw:latest
 ```
 
-**Build from source:**
+Build it yourself:
 
 ```bash
-# Build the image
 docker build --platform=linux/amd64 -t tinyclaw .
-
-# Run the container
 docker run -d -p 4310:4310 -v tinyclaw-config:/root/.tinyclaw tinyclaw
 ```
 
-The dashboard will be available at `http://localhost:4310`.
+With Docker, the app is available at `http://localhost:4310`.
+
+## First-time setup
+
+After TinyClaw is running:
+
+1. Open the dashboard
+2. Create the first admin account and first organization
+3. Configure your model provider
+4. Create or review profiles
+5. Invite other users if needed
+
+## What you configure in TinyClaw
+
+Most operators only need to think about four things:
+
+- **Organization**: the tenant boundary
+- **Members**: who can access that org
+- **Profiles**: the bots people talk to
+- **Tools**: what each profile is allowed to do
 
 ## Integrations
 
-TinyClaw integrates with **Telegram** and **WhatsApp**. Enable them in the web app under **Settings → Telegram** or **Settings → WhatsApp**.
+TinyClaw can expose the same agent runtime through:
+
+- Web dashboard
+- CLI
+- Telegram
+- WhatsApp
+
+Enable Telegram or WhatsApp from the web app settings when you are ready.
 
 ## Next steps
 
-- [Overview](/overview) — what TinyClaw is and how it is structured
-- [Architecture](/architecture) — system diagram, codemap, and request lifecycle
-- [Multi-tenancy](/multi-tenancy) — orgs, roles, and onboarding
+- [Overview](/overview) — what TinyClaw is and how to think about it
+- [Multi-tenancy](/multi-tenancy) — how orgs, members, and roles work
+- [Profiles](/profiles) — how to define each bot
+- [Builtin tools](/builtin-tools) — what bots can do

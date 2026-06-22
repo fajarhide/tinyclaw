@@ -1,53 +1,94 @@
 # Overview
 
-TinyClaw is a multi-tenant AI assistant platform: one agent runtime, multiple thin clients. Each **organization** is a flat tenant boundary — profiles, sessions, tools, and related data are scoped to an org. Users chat with configurable bots, draft automations, and (eventually) run them. Everything funnels through a single HTTP server; clients do not embed agent logic.
+TinyClaw is a self-hosted AI agent platform for teams.
 
-## Monorepo layout
+The easiest way to think about it:
 
-```text
-tinyclaw/
-├── apps/
-│   ├── web/                 # Dashboard (primary UI); org switcher, setup wizard
-│   ├── cli/                 # Terminal client; auto-starts server
-│   ├── platform/
-│   │   └── telegram/        # Telegram bot bridge; auto-starts server
-│   │   └── whatsapp/        # WhatsApp bot bridge; auto-starts server
-│   └── server/              # HTTP API, agent runtime, LLM providers
-├── packages/
-│   ├── core/                # Config, API types, provider interfaces, builtin tools
-│   ├── agent/               # Chat harness, tool loop, automation engine
-│   ├── db/                  # SQLite via bun:sqlite
-│   └── client/              # HTTP SDK for apps
-```
+- One TinyClaw server can host many organizations
+- Each organization can have many members
+- Each organization can have many profiles
+- Each profile is a bot with its own behavior, memory, and tool access
 
-**Dependency rule:** `packages/*` never import from `apps/*`. Shared code flows packages → apps only.
+## Core mental model
 
-## Architectural invariants
+If you are using TinyClaw, most of the product can be understood through these four ideas.
 
-**One agent runtime.** Chat and automation drafting run only in `apps/server`. No client talks to OpenAI or Anthropic directly.
+### 1. Organization
 
-**Hub and spoke.** New channels are thin apps on `@tinyclaw/client`. There is no second agent implementation per channel.
+An organization is the main boundary in TinyClaw.
 
-**Packages do not depend on apps.** `packages/*` must not import from `apps/*`. Shared code flows packages → apps, never the reverse.
+It keeps one team's data separate from another team's data, including:
 
-**Hono owns the HTTP surface.** The server entrypoint builds a single `OpenAPIHono` app in `apps/server/src/http/app.ts`. Runtime, tests, auth, and OpenAPI all go through that same app.
+- Members
+- Profiles
+- Sessions
+- Tools
+- Skills
+- MCP servers
+- Usage data
 
-**Providers are server-only.** OpenAI and Anthropic adapters live under `apps/server/src/providers/`, not in `@tinyclaw/core` or `@tinyclaw/agent`.
+### 2. Profile
 
-**Organizations gate tenancy.** Each deployment hosts many orgs. Authenticated requests (except `/v1/auth/*` and `/v1/platform/*`) must carry org context via the `X-Org-Id` header or the browser session's `active_org_id`. Middleware verifies org membership and attaches `orgRole` before route handlers run.
+A profile is the bot users talk to.
 
-**Profiles gate behavior.** A session binds to a profile (`default` when omitted). The profile supplies the system prompt and tool allowlist before any message is handled. Profile, tool, MCP, and skill admin routes require **platform admin**; org admins manage members only.
+It defines:
 
-**Org roles.** Three org roles: `admin`, `member`, `viewer`. Viewers may read chat history but cannot invoke agents or mutate state (`requireNotViewer`). Platform admins manage org lifecycle but do not access org data unless they are also org members.
+- The bot's identity
+- The bot's instructions
+- Which model it uses
+- Which tools it may call
+- Which knowledge base it can search
 
-**Chat history is in-memory.** `AgentChatSession` holds `ChatMessage[]` in the server process. SQLite stores orgs, profiles, tools, session metadata — not message bodies. Tenant-owned tables carry an `org_id` column for per-org isolation.
+If two profiles should behave differently, make two profiles.
 
-**Tools are allowlisted per profile.** The model may only invoke tools assigned to the active profile. Super Bot gets extra runtime tools (meta-tools, `bash`) injected server-side for `super_bot`.
+### 3. Tool access
 
-**Tool calls use native LLM function calling.** Allowed tools are sent to OpenAI or Anthropic as structured definitions with JSON Schema parameters. The model returns tool calls; the server executes handlers and feeds results back as tool messages. Streaming clients receive `tool_start` / `tool_end` SSE events during execution.
+Profiles do not automatically get every capability.
+
+You choose which tools a profile can use, such as:
+
+- Web search
+- File access
+- Knowledge base search
+- Email
+- Skill creation
+
+This is how you keep one bot safe and narrow while another bot can be more capable.
+
+### 4. Channels
+
+The same TinyClaw profile can be used from different places:
+
+- Web dashboard
+- CLI
+- Telegram
+- WhatsApp
+
+## Typical setup
+
+Most deployments follow this pattern:
+
+1. Create the first organization
+2. Add members
+3. Create one or more profiles
+4. Assign tools to each profile
+5. Upload knowledge base documents if needed
+6. Let users chat with the right profile
+
+## Who TinyClaw is for
+
+TinyClaw is a good fit when you want:
+
+- Your own hosted agent system
+- Multiple bots with different behavior
+- Team or tenant separation
+- Control over tools and model access
+- Web and messaging channels on top of one backend
+
+It is less about writing prompts manually and more about operating a small agent platform for yourself or your team.
 
 ## Next steps
 
-- [Architecture](/architecture) — full system diagram and codemap
-- [Multi-tenancy](/multi-tenancy) — org model, roles, and onboarding
-- [Builtin tools](/builtin-tools) — allowlisted tools, defaults, and availability
+- [Multi-tenancy](/multi-tenancy) — org model, members, and roles
+- [Profiles](/profiles) — how each bot is defined
+- [Builtin tools](/builtin-tools) — what profiles can do

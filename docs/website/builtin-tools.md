@@ -1,36 +1,31 @@
 # Builtin tools
 
-TinyClaw ships nine **builtin tools** in `@tinyclaw/core`. Each profile has an allowlist — the model may only call tools assigned to the active profile. Tool definitions use native LLM function calling (JSON Schema parameters). Builtin tool rows are seeded on startup and are protected from deletion.
+Builtin tools are the actions a profile is allowed to take.
 
-Platform admins assign tools to profiles from the dashboard. See [Multi-tenancy](/multi-tenancy) for roles and provisioning.
+The mental model is simple:
 
-## How tools reach a session
+- A profile can only use the tools assigned to it
+- Different profiles can have different permissions
+- Tool access is one of the main ways you control risk
 
-```mermaid
-flowchart LR
-  db[("SQLite<br/>profile tool rows")]
-  resolve["AgentService.resolveProfileTools"]
-  filter["Availability filter<br/>(e.g. email config)"]
-  model["LLM function calling"]
-  handler["Tool handler<br/>@tinyclaw/core"]
+Platform admins assign tools to profiles from the dashboard.
 
-  db --> resolve
-  resolve --> filter
-  filter --> model
-  model -->|"tool call"| handler
-  handler -->|"tool result"| model
-```
+## Why tools matter
 
-1. The active profile's assigned tools are loaded from SQLite.
-2. `AgentService.resolveProfileTools` resolves stored tool records to live `ToolDefinition` handlers (see [Architecture](/architecture) — Agent ↔ tools).
-3. Availability filters remove tools that cannot run (for example, `email` when mailbox settings are incomplete).
-4. Allowed tools are sent to the provider as function definitions. The model returns tool calls; the server executes handlers and feeds results back as tool messages.
+The same model behaves very differently depending on its tools.
 
-Runtime-injected tools (MCP, automations, Super Bot meta-tools) are assembled after DB-backed tools — see [What's not a builtin](#whats-not-a-builtin).
+For example:
+
+- A writing bot may need no tools at all
+- A research bot may need web search and knowledge base search
+- An ops bot may need file access and email
+- A power-user bot may need skills and MCP servers
+
+Give each profile the minimum tool set it needs.
 
 ## Default assignments
 
-On startup, `seedDatabase` upserts all nine builtin tool rows and assigns them to profiles:
+TinyClaw includes these builtins:
 
 | Tool | `default` / `super_bot` | All profiles | Notes |
 |------|-------------------------|--------------|-------|
@@ -46,11 +41,20 @@ On startup, `seedDatabase` upserts all nine builtin tool rows and assigns them t
 
 **New custom profiles** receive only `create_skill` until a platform admin assigns additional tools. System profiles (`default`, `super_bot`) get the full seeded set.
 
+## Choosing tools for a profile
+
+Good starting patterns:
+
+- **Simple chat bot**: no extra tools
+- **Research bot**: `web_search`, `knowledge_base_search`
+- **Knowledge bot**: `knowledge_base_search`, `update_profile_memory`
+- **Ops bot**: file tools, `email`
+
 ## Tool reference
 
 ### `write_file`
 
-Write text content to a file in the active profile workspace. Creates parent directories if needed.
+Write text to a file in the profile workspace.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
@@ -66,7 +70,7 @@ Write text content to a file in the active profile workspace. Creates parent dir
 
 ### `delete_file`
 
-Delete a file from disk within the profile workspace or custom tools directory.
+Delete a file from the profile workspace or custom tools directory.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
@@ -81,7 +85,7 @@ Delete a file from disk within the profile workspace or custom tools directory.
 
 ### `read_file`
 
-Read text from a file in the profile workspace. Supports line pagination for large files.
+Read text from a file in the profile workspace.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
@@ -98,7 +102,7 @@ Read text from a file in the profile workspace. Supports line pagination for lar
 
 ### `create_skill`
 
-Save a step-by-step procedure or repeatable workflow as a skill for the active profile and assign it immediately. Use for actions the agent executes — not for facts (use `update_profile_memory` for those).
+Save a repeatable procedure as a skill for the active profile and assign it immediately.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
@@ -107,13 +111,11 @@ Save a step-by-step procedure or repeatable workflow as a skill for the active p
 | `body` | string | No | Step-by-step instructions |
 | `disableModelInvocation` | boolean | No | When true, skill only activates on explicit invocation |
 
-**Behavior:** The core package exports a stub handler; the server replaces it at runtime via `createCreateSkillTool()` and persists the skill through `SkillsService`.
-
 **Availability:** When assigned to the profile.
 
 ### `search_files`
 
-Search text in files under the active profile workspace and return compact matching snippets.
+Search text in files under the profile workspace.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
@@ -131,7 +133,7 @@ Search text in files under the active profile workspace and return compact match
 
 ### `knowledge_base_search`
 
-Search uploaded knowledge base documents for relevant facts. Use for project data and reference docs instead of loading full files into context.
+Search uploaded knowledge base documents for relevant facts.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
@@ -148,19 +150,17 @@ Search uploaded knowledge base documents for relevant facts. Use for project dat
 
 ### `web_search`
 
-Search the web for current information. Search runs on the provider natively with citations — not executed locally.
+Search the web for current information.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
 | `query` | string | Yes | Search query |
 
-**Behavior:** Stripped from the local tool loop and passed to the provider as a native web-search option (`partitionTools` in `@tinyclaw/core`).
-
 **Availability:** When assigned **and** the configured provider is OpenAI or Anthropic with a valid API key. Not available on OpenRouter. On Gemini, web search is disabled when other local tools are present on the same turn.
 
 ### `update_profile_memory`
 
-Record a fact, preference, decision, or observation in the profile's `MEMORY.md` for cross-session continuity. Creates the file if missing.
+Record a fact, preference, or decision in the profile's `MEMORY.md`.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
@@ -198,24 +198,24 @@ List, read, search, and send email through the deployment mailbox configured in 
 
 ### Email
 
-The `email` tool uses a deployment-global mailbox — not per-org database state. Required keys in `~/.tinyclaw/config.ini` under `[email]`:
+The `email` tool uses a deployment-global mailbox. Required keys in `~/.tinyclaw/config.ini` under `[email]`:
 
 - `imap_host`, `smtp_host`
 - `username`, `password`
 - Resolvable `from` address
 - TLS flags as needed
 
-Org admins configure these from the web **System → Tools** page. See [Architecture](/architecture) cross-cutting concerns.
+Org admins configure these from the web **System → Tools** page.
 
 ### Web search
 
-Requires an OpenAI or Anthropic provider with a configured API key. The search runs on the provider's native web-search API; TinyClaw does not execute searches locally.
+Requires an OpenAI or Anthropic provider with a configured API key.
 
 ### Knowledge base
 
 Upload documents via the profile dashboard or API. Search only indexes extracted text from documents with `status: "ready"`. Upload path: `~/.tinyclaw/profiles/{profileId}/data/knowledge-base/`.
 
-## File workspace and safety
+## Safety boundaries
 
 File tools (`read_file`, `write_file`, `delete_file`) are scoped to:
 
@@ -229,24 +229,9 @@ Path guards enforce:
 - No reads of `config.ini` by basename
 - Blocked special paths (`/dev/`, `/proc/`, `/sys/`)
 
-All nine builtin tool IDs are **protected** — they cannot be deleted from the dashboard.
-
-## What's not a builtin
-
-These tool categories are resolved separately at runtime. See [Architecture](/architecture) boundaries for details.
-
-| Category | Handler type | Where defined | Notes |
-|----------|--------------|---------------|-------|
-| Bash | `bash` | `apps/server/src/tools/bash.ts` | Seeded for `super_bot` only |
-| JavaScript tools | `javascript` | `~/.tinyclaw/tools/*.js` | User- or Super-Bot-authored modules |
-| MCP tools | MCP bridge | Assigned MCP servers | Expanded at runtime per profile |
-| Super Bot meta-tools | Server-injected | `super-bot-tools.ts` | Profile management, tool assignment |
-| Automation tools | Server-injected | `automation-tools.ts` | e.g. `create_automation` |
-| Todo tools | Server-injected | `todo-tools.ts` | e.g. `todo_write` |
-| Skill invocation | Skill loader | `packages/skills/` | Loaded from skill files on disk |
+All nine builtin tool IDs are protected and cannot be deleted from the dashboard.
 
 ## Next steps
 
-- [Architecture](/architecture) — system diagram, codemap, and tool handler boundaries
-- [Multi-tenancy](/multi-tenancy) — org roles and platform-admin tool provisioning
-- [Development](/development) — contributor paths and package layout
+- [Profiles](/profiles) — how to design each bot
+- [Multi-tenancy](/multi-tenancy) — who can assign tools and manage access

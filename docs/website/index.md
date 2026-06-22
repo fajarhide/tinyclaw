@@ -4,7 +4,7 @@ layout: home
 hero:
   name: TinyClaw
   text: Self-hosted AI agents
-  tagline: Deploy your own AI Agent platform as easily as spinning up WordPress.
+  tagline: Run your own multi-tenant AI agent workspace with profiles, tools, and channels.
   actions:
     - theme: brand
       text: Get Started
@@ -14,18 +14,18 @@ hero:
       link: https://github.com/ahmadrosid/tinyclaw
 
 features:
+  - title: One server, many bots
+    details: Run multiple agent profiles from one TinyClaw deployment.
   - title: Multi-tenant by design
-    details: One server, many orgs — isolated profiles, sessions, member invites, and roles built in.
-  - title: One agent runtime
-    details: Web, CLI, Telegram, and WhatsApp are thin clients on a single HTTP server. No duplicated agent logic.
-  - title: Configurable souls
-    details: Each profile has identity, style, instructions, and continuity memory via soul files.
-  - title: Tool allowlists
-    details: Builtin tools, bash, JavaScript, and MCP servers — scoped per profile with native LLM function calling.
+    details: Separate organizations, members, profiles, sessions, and tools cleanly.
+  - title: Flexible agent behavior
+    details: Give each profile its own soul, memory, knowledge base, and allowed tools.
+  - title: Works across channels
+    details: Use the same agent runtime from the web app, CLI, Telegram, or WhatsApp.
+  - title: Operator friendly
+    details: Configure providers, orgs, members, and profiles from one dashboard.
   - title: Self-hosted
-    details: Bun + TypeScript monorepo. Run locally, in Docker, or on your own infrastructure.
-  - title: OpenAPI-first
-    details: The HTTP surface is generated from route registration and served at /openapi.json.
+    details: Run locally for testing or host it on your own infrastructure.
 ---
 
-Inspired by [OpenClaw](https://github.com/openclaw/openclaw) and [Hermes Agent](https://github.com/nousresearch/hermes-agent) — same self-hosted agent idea (tools, channels, soul, automations) — but **multi-tenant by design**. Those projects target one operator on one machine; TinyClaw is one server, many orgs.
+TinyClaw is for people who want to run their own AI agent system instead of using a hosted SaaS. You set up the server once, create organizations and profiles, assign tools, and let users chat with the right bot for their use case.
