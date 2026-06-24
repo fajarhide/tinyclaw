@@ -8,8 +8,6 @@ describe("SETUP_STEPS", () => {
       "Organization",
       "Provider",
       "About You",
-      "Telegram",
-      "WhatsApp",
     ]);
   });
 

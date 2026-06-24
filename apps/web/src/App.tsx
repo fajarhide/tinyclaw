@@ -12,6 +12,7 @@ import { SetupGuard } from "@/components/SetupGuard";
 import { AutomationsPage } from "@/pages/AutomationsPage";
 import { ChatPage } from "@/pages/ChatPage";
 import { HistoryPage } from "@/pages/HistoryPage";
+import { IntegrationsPage } from "@/pages/IntegrationsPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { ProfilesPage } from "@/pages/ProfilesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
@@ -54,6 +55,7 @@ function AppShell() {
                   </Route>
                   <Route path="/automations" element={<AutomationsPage />} />
                   <Route path="/tasks" element={<TasksPage />} />
+                  <Route path="/integrations" element={<IntegrationsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="*" element={<Navigate to="/chat" replace />} />
                 </Route>

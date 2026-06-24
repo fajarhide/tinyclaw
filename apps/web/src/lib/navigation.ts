@@ -8,6 +8,7 @@ import {
   ClockIcon,
   CogIcon,
   WorkflowIcon,
+  CableIcon,
 } from "lucide-react";
 
 export type PageId =
@@ -18,6 +19,7 @@ export type PageId =
   | "soul"
   | "automations"
   | "tasks"
+  | "integrations"
   | "settings";
 
 export interface NavItem {
@@ -84,6 +86,11 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Tasks",
         description: "Agent swarm kanban board",
       },
+      {
+        id: "integrations",
+        label: "Integrations",
+        description: "Telegram and WhatsApp connections",
+      },
     ],
   },
 ];
@@ -104,6 +111,7 @@ export const NAV_ITEM_ICONS: Record<PageId, LucideIcon> = {
   soul: BrainIcon,
   automations: WorkflowIcon,
   tasks: KanbanIcon,
+  integrations: CableIcon,
   settings: CogIcon,
 };
 
@@ -141,6 +149,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   soul: "/system",
   automations: "/automations",
   tasks: "/tasks",
+  integrations: "/integrations",
   settings: "/settings",
 };
 
