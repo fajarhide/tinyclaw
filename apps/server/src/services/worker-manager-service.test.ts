@@ -1,8 +1,9 @@
-import { describe, expect, test, mock } from "bun:test";
+import { describe, expect, test, mock, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, writeFile, unlink, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { WorkerManagerService } from "./worker-manager-service";
+import { readWorkerDesiredState, setWorkerDesiredRunning } from "@tinyclaw/core";
 
 function createMockPm2() {
   const mockPm2 = {
@@ -21,6 +22,21 @@ function createMockPm2() {
 }
 
 const projectRoot = "/tmp/test-project";
+let configDir: string | null = null;
+
+beforeEach(async () => {
+  configDir = await mkdtemp(join(tmpdir(), "tinyclaw-worker-manager-"));
+  process.env.TINYCLAW_CONFIG_DIR = configDir;
+});
+
+afterEach(async () => {
+  if (configDir) {
+    await rm(configDir, { recursive: true, force: true });
+    configDir = null;
+  }
+
+  delete process.env.TINYCLAW_CONFIG_DIR;
+});
 
 describe("WorkerManagerService", () => {
   describe("CJS interop", () => {
@@ -65,6 +81,7 @@ describe("WorkerManagerService", () => {
       expect(opts.args).toContain("apps/platform/telegram/src/index.ts");
       expect(opts.interpreter).toBeUndefined();
       expect(opts.name).toBe("telegram");
+      expect(await readWorkerDesiredState()).toEqual({ telegram: true, whatsapp: false });
     });
 
     test("starts whatsapp worker", async () => {
@@ -139,6 +156,7 @@ describe("WorkerManagerService", () => {
       await service.stopWorker("telegram");
 
       expect(mockPm2.stop).toHaveBeenCalledWith("telegram", expect.any(Function));
+      expect(await readWorkerDesiredState()).toEqual({ telegram: false, whatsapp: false });
     });
 
     test("throws for unknown worker", async () => {
@@ -354,6 +372,40 @@ describe("WorkerManagerService", () => {
       const service = new WorkerManagerService(projectRoot, mockPm2);
 
       expect(service.getWorkerLogs("whatsapp", 10)).rejects.toThrow("PM2 describe failed");
+    });
+  });
+
+  describe("recoverDesiredWorkers", () => {
+    test("starts workers marked as desired when they are not online", async () => {
+      const mockPm2 = createMockPm2();
+      mockPm2.list = mock((cb: (err: Error | null, list: unknown[]) => void) =>
+        cb(null, []),
+      );
+      const service = new WorkerManagerService(projectRoot, mockPm2);
+
+      await setWorkerDesiredRunning("telegram", true);
+      await service.recoverDesiredWorkers();
+
+      expect(mockPm2.start).toHaveBeenCalledTimes(1);
+    });
+
+    test("skips workers that are already online", async () => {
+      const mockPm2 = createMockPm2();
+      mockPm2.list = mock((cb: (err: Error | null, list: unknown[]) => void) =>
+        cb(null, [
+          {
+            name: "telegram",
+            pm2_env: { status: "online", pm_uptime: Date.now() },
+            monit: { cpu: 1, memory: 1_000_000 },
+          },
+        ]),
+      );
+      const service = new WorkerManagerService(projectRoot, mockPm2);
+
+      await setWorkerDesiredRunning("telegram", true);
+      await service.recoverDesiredWorkers();
+
+      expect(mockPm2.start).not.toHaveBeenCalled();
     });
   });
 

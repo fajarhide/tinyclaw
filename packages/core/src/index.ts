@@ -24,6 +24,7 @@ export { createImapReader } from "./mail/imap-reader";
 export * from "./telegram-worker";
 export * from "./whatsapp-config";
 export * from "./whatsapp-worker";
+export * from "./worker-desired-state";
 export * from "./thinking-content";
 export * from "./tools";
 export * from "./user-context";

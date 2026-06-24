@@ -1,4 +1,10 @@
 import type { WorkerLogsResponse, WorkerProcessInfo } from "@tinyclaw/core";
+import {
+  readWorkerDesiredState,
+  readRuntimeServerUrl,
+  setWorkerDesiredRunning,
+  type PlatformWorkerName,
+} from "@tinyclaw/core";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -83,6 +89,8 @@ export class WorkerManagerService {
       throw new Error(`Unknown worker: ${name}`);
     }
 
+    await setWorkerDesiredRunning(name as PlatformWorkerName, true);
+
     await this.withPm2(async (pm2) => {
       const script = this.resolveWorkerScript(name);
       await promisifyPm2<void>((cb) => pm2.delete(name, cb)).catch(() => {});
@@ -93,9 +101,7 @@ export class WorkerManagerService {
             args: ["run", script],
             name,
             cwd: this.projectRoot,
-            env: {
-              NODE_ENV: process.env.NODE_ENV ?? "development",
-            },
+            env: this.workerProcessEnv(),
           },
           cb,
         ),
@@ -111,6 +117,31 @@ export class WorkerManagerService {
     await this.withPm2(async (pm2) => {
       await promisifyPm2<void>((cb) => pm2.stop(name, cb));
     });
+
+    await setWorkerDesiredRunning(name as PlatformWorkerName, false);
+  }
+
+  async recoverDesiredWorkers(): Promise<void> {
+    const desired = await readWorkerDesiredState();
+    const statuses = await this.getAllWorkerStatuses();
+
+    for (const name of VALID_WORKERS) {
+      if (!desired[name as PlatformWorkerName]) {
+        continue;
+      }
+
+      if (statuses[name]?.status === "online") {
+        continue;
+      }
+
+      try {
+        await this.startWorker(name);
+        console.log(`Recovered ${name} worker`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`Could not recover ${name} worker: ${message}`);
+      }
+    }
   }
 
   async restartWorker(name: string): Promise<void> {
@@ -216,6 +247,26 @@ export class WorkerManagerService {
     return this.withPm2(async (pm2) => {
       return promisifyPm2<Pm2ProcessDescription[]>((cb) => pm2.list(cb));
     });
+  }
+
+  private workerProcessEnv(): Record<string, string> {
+    const env: Record<string, string> = {
+      NODE_ENV: process.env.NODE_ENV ?? "development",
+    };
+
+    const serverUrl =
+      process.env.TINYCLAW_SERVER_URL?.trim() || readRuntimeServerUrl() || "";
+
+    if (serverUrl) {
+      env.TINYCLAW_SERVER_URL = serverUrl;
+    }
+
+    const configDir = process.env.TINYCLAW_CONFIG_DIR?.trim();
+    if (configDir) {
+      env.TINYCLAW_CONFIG_DIR = configDir;
+    }
+
+    return env;
   }
 }
 

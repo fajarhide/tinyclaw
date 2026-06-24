@@ -151,6 +151,12 @@ if (server.port !== requestedPort) {
 console.log(`TinyClaw server listening on ${serverUrl}`);
 console.log(`TinyClaw database ready at ${config.databaseUrl}`);
 
+try {
+  await workerManager.recoverDesiredWorkers();
+} catch (error) {
+  console.warn("Could not recover platform workers:", error);
+}
+
 if (webDistDir) {
   console.log(`TinyClaw web dashboard ready at ${serverUrl}`);
 }

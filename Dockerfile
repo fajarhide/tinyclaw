@@ -25,15 +25,20 @@ RUN apt-get update \
 
 COPY package.json bun.lock ./
 COPY apps/server apps/server
+COPY apps/platform/telegram apps/platform/telegram
+COPY apps/platform/whatsapp apps/platform/whatsapp
 COPY packages packages
-# Workspace stubs keep the lockfile valid without pulling web/cli/telegram sources.
+# Workspace stubs keep the lockfile valid without pulling web/cli sources.
 COPY apps/web/package.json apps/web/
 COPY apps/cli/package.json apps/cli/
-COPY apps/platform/telegram/package.json apps/platform/telegram/
-COPY apps/platform/whatsapp/package.json apps/platform/whatsapp/
 COPY --from=web-builder /app/apps/web/dist apps/web/dist
 
-RUN bun install --frozen-lockfile --production --filter '@tinyclaw/server'
+RUN bun install --frozen-lockfile --production \
+      --filter '@tinyclaw/server' \
+      --filter '@tinyclaw/telegram' \
+      --filter '@tinyclaw/whatsapp' \
+  && bun run --filter @tinyclaw/telegram build \
+  && bun run --filter @tinyclaw/whatsapp build
 
 ENV NODE_ENV=production \
     TINYCLAW_HOST=0.0.0.0 \
