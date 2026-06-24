@@ -54,6 +54,10 @@ export function Layout() {
             return canAccessSystemPage(user?.isPlatformAdmin === true, activeOrg?.role);
           }
 
+          if (item.id === "integrations") {
+            return activeOrg?.role === "admin";
+          }
+
           return (
             !PLATFORM_ADMIN_PAGE_IDS.has(item.id) || user?.isPlatformAdmin === true
           );

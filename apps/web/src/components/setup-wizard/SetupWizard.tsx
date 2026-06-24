@@ -5,8 +5,6 @@ import { SetupStepOrganization } from "@/components/setup-wizard/SetupStepOrgani
 import { SetupStepAccount } from "@/components/setup-wizard/SetupStepAccount";
 import { SetupStepProvider } from "@/components/setup-wizard/SetupStepProvider";
 import { SetupStepUserContext } from "@/components/setup-wizard/SetupStepUserContext";
-import { SetupStepTelegram } from "@/components/setup-wizard/SetupStepTelegram";
-import { SetupStepWhatsApp } from "@/components/setup-wizard/SetupStepWhatsApp";
 import { pathForPage } from "@/lib/navigation";
 
 export interface SetupOrganizationDraft {
@@ -26,8 +24,6 @@ export const SETUP_STEPS = [
   { id: 2, label: "Organization", required: true },
   { id: 3, label: "Provider", required: true },
   { id: 4, label: "About You", required: false },
-  { id: 5, label: "Telegram", required: false },
-  { id: 6, label: "WhatsApp", required: false },
 ] as const;
 
 export type SetupStepId = (typeof SETUP_STEPS)[number]["id"];
@@ -49,8 +45,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
   const goNext = useCallback(() => {
     setCurrentStep((prev) => {
-      if (prev >= 6) {
-        return 6;
+      if (prev >= 4) {
+        return 4;
       }
       return (prev + 1) as SetupStepId;
     });
@@ -58,8 +54,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
   const goSkip = useCallback(() => {
     setCurrentStep((prev) => {
-      if (prev >= 6) {
-        return 6;
+      if (prev >= 4) {
+        return 4;
       }
       return (prev + 1) as SetupStepId;
     });
@@ -83,7 +79,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   }, [navigate, onComplete]);
 
   const handleStepAdvance = useCallback(() => {
-    if (currentStep >= 6) {
+    if (currentStep >= 4) {
       handleComplete();
     } else {
       goNext();
@@ -91,7 +87,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   }, [currentStep, goNext, handleComplete]);
 
   const handleSkip = useCallback(() => {
-    if (currentStep >= 6) {
+    if (currentStep >= 4) {
       handleComplete();
     } else {
       goSkip();
@@ -105,11 +101,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         ? "Create your organization"
         : currentStep === 3
           ? "Welcome to TinyClaw"
-          : currentStep === 4
-            ? "Tell us about yourself"
-            : currentStep === 5
-              ? "Connect Telegram"
-              : "Connect WhatsApp";
+          : "Tell us about yourself";
 
   const subtitle =
     currentStep === 1
@@ -118,11 +110,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         ? "Every workspace lives inside an organization. Name yours to finish setup."
         : currentStep === 3
           ? "Set up your AI provider to get started. You can add more later."
-          : currentStep === 4
-            ? "Help the agent understand your preferences — optional."
-            : currentStep === 5
-              ? "Link Telegram so the agent can message you — optional."
-              : "Link WhatsApp so the agent can message you — optional.";
+          : "Help the agent understand your preferences — optional.";
 
   function renderStep(): ReactNode {
     switch (currentStep) {
@@ -156,22 +144,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             onBack={goBack}
           />
         );
-      case 5:
-        return (
-          <SetupStepTelegram
-            onNext={handleStepAdvance}
-            onSkip={handleSkip}
-            onBack={goBack}
-          />
-        );
-      case 6:
-        return (
-          <SetupStepWhatsApp
-            onNext={handleStepAdvance}
-            onSkip={handleSkip}
-            onBack={goBack}
-          />
-        );
+      default:
+        throw new Error(`Unexpected setup step: ${currentStep}`);
     }
   }
 
