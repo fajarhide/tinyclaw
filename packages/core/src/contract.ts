@@ -913,6 +913,8 @@ export interface ToolSummary {
 
 export interface ToolDetail extends ToolSummary {
   handlerConfig: unknown;
+  /** Resolved JSON Schema for javascript tools (module export or handlerConfig). */
+  parameters?: JsonSchema;
   createdAt: string;
   updatedAt: string;
 }
@@ -961,6 +963,24 @@ export interface ListToolsResponse {
 
 export interface AssignToolRequest {
   toolId: string;
+}
+
+export interface RunToolRequest {
+  parameters: Record<string, unknown>;
+}
+
+export interface RunToolResponse {
+  ok: boolean;
+  result?: unknown;
+  error?: string;
+}
+
+export interface SuggestToolParamsRequest {
+  prompt: string;
+}
+
+export interface SuggestToolParamsResponse {
+  parameters: Record<string, unknown>;
 }
 
 import type { SoulFileStatus, SoulStackFiles } from "./soul/types";
@@ -1143,6 +1163,8 @@ export interface ToolContext {
   orgId?: string;
   profileId?: string;
   sessionId?: string;
+  /** Profile workspace root (~/.tinyclaw/orgs/{orgId}/profiles/{profileId}/). */
+  workspaceRoot?: string;
 }
 
 export interface ToolDefinition<Input = unknown, Output = unknown> {

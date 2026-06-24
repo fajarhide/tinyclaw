@@ -1,11 +1,18 @@
 import type { ToolDetail } from "@tinyclaw/core/contract";
 import { BUILTIN_TOOL_IDS, isProtectedToolId } from "@tinyclaw/core/tools/protected";
-import { BlocksIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
+import { PlusIcon, Trash2Icon } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { ToolDetailDialog } from "@/components/tools/ToolDetailDialog";
 import { EmailSettingsDialog } from "@/components/EmailSettingsDialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { useToolsQuery, useProfilesQuery } from "@/hooks/use-app-queries";
 import { useAppNavigation } from "@/hooks/use-app-navigation";
@@ -13,7 +20,7 @@ import { useAuth } from "@/context/auth-context";
 import { useDeleteToolMutation } from "@/hooks/use-resource-mutations";
 import { formatError } from "@/lib/client";
 import { findSuperBotProfile } from "@/lib/profiles";
-import { queryKeys } from "@/lib/query-keys";
+import { canUseToolPlayground, toolPlaygroundPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 const sectionClass = "rounded-md border border-border bg-card";
@@ -24,27 +31,25 @@ function isDeletableTool(tool: ToolDetail): boolean {
 
 export function ToolsTab() {
   const { navigateToNewChat } = useAppNavigation();
-  const { activeOrg } = useAuth();
+  const { user, activeOrg } = useAuth();
   const isOrgAdmin = activeOrg?.role === "admin";
-  const queryClient = useQueryClient();
-  const { data: tools = [], isLoading, error, isFetching } = useToolsQuery();
+  const canUsePlayground = canUseToolPlayground(
+    user?.isPlatformAdmin === true,
+    activeOrg?.role,
+  );
+  const { data: tools = [], isLoading, error } = useToolsQuery();
   const { data: profiles = [] } = useProfilesQuery();
   const superBotProfile = findSuperBotProfile(profiles);
   const deleteToolMutation = useDeleteToolMutation();
   const [actionError, setActionError] = useState<string | null>(null);
-  const [detailToolId, setDetailToolId] = useState<string | null>(null);
   const [emailConfigOpen, setEmailConfigOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const loading = isLoading && tools.length === 0;
-  const refreshing = isFetching && !loading;
   const busy = deleteToolMutation.isPending;
   const errorMessage = actionError ?? (error ? formatError(error) : null);
-  const deletableCount = tools.filter(isDeletableTool).length;
-
-  async function refresh() {
-    setActionError(null);
-    await queryClient.invalidateQueries({ queryKey: queryKeys.tools.all });
-  }
+  const customTools = tools.filter(isDeletableTool);
+  const builtinTools = tools.filter((tool) => !isDeletableTool(tool));
 
   function goToCreateTool() {
     if (!superBotProfile) {
@@ -55,24 +60,24 @@ export function ToolsTab() {
     navigateToNewChat(superBotProfile.id);
   }
 
-  async function handleDeleteTool(toolId: string, toolName: string) {
+  function requestDeleteTool(toolId: string, toolName: string) {
     if (isProtectedToolId(toolId)) {
       return;
     }
 
-    if (
-      !window.confirm(
-        `Delete tool "${toolName}"? This removes it from every profile and cannot be undone.`,
-      )
-    ) {
+    setDeleteTarget({ id: toolId, name: toolName });
+  }
+
+  async function confirmDeleteTool() {
+    if (!deleteTarget || isProtectedToolId(deleteTarget.id)) {
       return;
     }
 
     setActionError(null);
 
     try {
-      await deleteToolMutation.mutateAsync(toolId);
-      setDetailToolId(null);
+      await deleteToolMutation.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
     } catch (err) {
       setActionError(formatError(err));
     }
@@ -91,104 +96,22 @@ export function ToolsTab() {
       ) : null}
 
       <section className={cn(sectionClass, "overflow-hidden")}>
-        <div className="flex flex-wrap items-center gap-3 border-b border-border p-4 lg:hidden">
-          <div className="min-w-0 flex-1">
-            <h2 className="type-section-title">All tools</h2>
-            <p className="type-body mt-1 text-xs">
-              {tools.length === 0
-                ? "No tools registered yet"
-                : `${tools.length} registered · ${deletableCount} custom`}
-            </p>
-          </div>
+        <div className="min-w-0 p-4 sm:p-5">
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="type-section-title">All tools</h2>
+              <p className="type-body mt-1 text-xs">
+                {tools.length === 0
+                  ? "No tools registered yet"
+                  : `${tools.length} registered · ${customTools.length} custom · ${builtinTools.length} built-in`}
+              </p>
+            </div>
 
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              disabled={busy || refreshing}
-              aria-label="Refresh tools"
-              onClick={() => void refresh()}
-            >
-              {refreshing ? (
-                <Spinner className="size-4" />
-              ) : (
-                <RefreshCwIcon className="size-4" aria-hidden />
-              )}
-            </Button>
             <Button type="button" size="sm" onClick={goToCreateTool}>
               <PlusIcon className="size-4" aria-hidden />
               Create tool
             </Button>
           </div>
-        </div>
-
-        <div className="grid gap-0 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <aside className="hidden border-b border-border p-4 lg:block lg:border-r lg:border-b-0">
-            <div className="mb-4">
-              <h2 className="type-section-title">Tools</h2>
-              <p className="type-body mt-1 text-xs">
-                Registered capabilities the agent can call. Assign them per profile on the
-                Profiles page.
-              </p>
-            </div>
-
-            <button type="button" onClick={goToCreateTool} className="scope-item">
-              <div className="flex items-start gap-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted/60">
-                  <PlusIcon className="size-4 text-muted-foreground" aria-hidden />
-                </span>
-                <div className="min-w-0 flex-1 text-left">
-                  <p className="truncate text-sm font-medium text-foreground">Create tool</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Opens a new Super Bot chat session
-                  </p>
-                </div>
-              </div>
-            </button>
-
-            <div className="type-body mt-5 rounded-md border border-border bg-muted/40 p-3 text-xs dark:bg-muted/30">
-              <p className="font-medium text-foreground">How it works</p>
-              <p className="mt-2">
-                New tools are registered by <strong className="text-foreground">Super Bot</strong> in
-                Chat using the{" "}
-                <code className="rounded bg-muted px-1 py-0.5 type-code">create_tool</code>{" "}
-                meta-tool. Built-in tools cannot be deleted.
-              </p>
-            </div>
-          </aside>
-
-          <div className="min-w-0 p-4 sm:p-5">
-            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <h2 className="type-section-title">All tools</h2>
-                <p className="type-body mt-1 text-xs">
-                  {tools.length === 0
-                    ? "No tools registered yet"
-                    : `${tools.length} registered · ${deletableCount} custom`}
-                </p>
-              </div>
-
-              <div className="hidden shrink-0 items-center gap-2 lg:flex">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={busy || refreshing}
-                  onClick={() => void refresh()}
-                >
-                  {refreshing ? (
-                    <Spinner className="size-4" />
-                  ) : (
-                    <RefreshCwIcon className="size-4" aria-hidden />
-                  )}
-                  Refresh
-                </Button>
-                <Button type="button" size="sm" onClick={goToCreateTool}>
-                  Create tool
-                </Button>
-              </div>
-            </div>
 
             {tools.length === 0 ? (
               <div className="flex min-h-48 flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground">
@@ -198,40 +121,35 @@ export function ToolsTab() {
                 </Button>
               </div>
             ) : (
-              <>
-                <p className="mb-4 text-xs text-muted-foreground lg:hidden">
-                  Built-in tools are protected; custom tools can be removed.
-                </p>
+              <div className="space-y-6">
+                <ToolListSection
+                  title="Custom tools"
+                  description={
+                    customTools.length === 0
+                      ? "No custom tools yet. Ask Super Bot to create one."
+                      : `${customTools.length} registered`
+                  }
+                  tools={customTools}
+                  busy={busy}
+                  canUsePlayground={canUsePlayground}
+                  isOrgAdmin={isOrgAdmin}
+                  onCreateTool={goToCreateTool}
+                  onDelete={requestDeleteTool}
+                  onConfigureEmail={() => setEmailConfigOpen(true)}
+                />
 
-                <ul className="divide-y divide-border rounded-md border border-border">
-                  {tools.map((tool) => (
-                    <ToolListItem
-                      key={tool.id}
-                      tool={tool}
-                      busy={busy}
-                      onView={() => setDetailToolId(tool.id)}
-                      onDelete={() => void handleDeleteTool(tool.id, tool.name)}
-                      onConfigure={
-                        isOrgAdmin && tool.id === BUILTIN_TOOL_IDS.email
-                          ? () => setEmailConfigOpen(true)
-                          : undefined
-                      }
-                    />
-                  ))}
-                </ul>
-              </>
+                <ToolListSection
+                  title="Built-in tools"
+                  description={`${builtinTools.length} registered`}
+                  tools={builtinTools}
+                  busy={busy}
+                  canUsePlayground={canUsePlayground}
+                  isOrgAdmin={isOrgAdmin}
+                  onDelete={requestDeleteTool}
+                  onConfigureEmail={() => setEmailConfigOpen(true)}
+                />
+              </div>
             )}
-
-            <div className="type-body mt-5 rounded-md border border-border bg-muted/40 p-3 text-xs lg:hidden dark:bg-muted/30">
-              <p className="font-medium text-foreground">How it works</p>
-              <p className="mt-2">
-                New tools are registered by <strong className="text-foreground">Super Bot</strong> in
-                Chat using the{" "}
-                <code className="rounded bg-muted px-1 py-0.5 type-code">create_tool</code>{" "}
-                meta-tool. Assign tools to profiles from the Profiles page.
-              </p>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -239,74 +157,158 @@ export function ToolsTab() {
         <EmailSettingsDialog open={emailConfigOpen} onOpenChange={setEmailConfigOpen} />
       ) : null}
 
-      <ToolDetailDialog
-        toolId={detailToolId}
-        busy={busy}
+      <Dialog
+        open={deleteTarget !== null}
         onOpenChange={(open) => {
-          if (!open) {
-            setDetailToolId(null);
+          if (!open && !busy) {
+            setDeleteTarget(null);
           }
         }}
-        onDelete={(toolId, toolName) => void handleDeleteTool(toolId, toolName)}
-      />
+      >
+        <DialogContent className="gap-6 p-6 sm:max-w-md">
+          <DialogHeader className="gap-3">
+            <DialogTitle>Delete tool?</DialogTitle>
+            <DialogDescription>
+              Remove {deleteTarget?.name ? `"${deleteTarget.name}"` : "this tool"} from every
+              profile it is assigned to.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="mx-0 mb-0 gap-2 border-0 bg-transparent p-0 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setDeleteTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={busy}
+              onClick={() => void confirmDeleteTool()}
+            >
+              {busy ? <Spinner className="size-4" /> : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+function ToolListSection({
+  title,
+  description,
+  tools,
+  busy,
+  canUsePlayground,
+  isOrgAdmin,
+  onCreateTool,
+  onDelete,
+  onConfigureEmail,
+}: {
+  title: string;
+  description: string;
+  tools: ToolDetail[];
+  busy: boolean;
+  canUsePlayground: boolean;
+  isOrgAdmin: boolean;
+  onCreateTool?: () => void;
+  onDelete: (toolId: string, toolName: string) => void;
+  onConfigureEmail: () => void;
+}) {
+  return (
+    <section>
+      <div className="mb-3">
+        <h3 className="text-sm font-medium text-foreground">{title}</h3>
+        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+      </div>
+
+      {tools.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border px-4 py-6 text-center">
+          <p className="text-xs text-muted-foreground">None registered.</p>
+          {onCreateTool ? (
+            <Button type="button" size="sm" disabled={busy} onClick={onCreateTool}>
+              <PlusIcon className="size-4" aria-hidden />
+              Create custom tool
+            </Button>
+          ) : null}
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-md border border-border">
+          {tools.map((tool) => (
+            <ToolListItem
+              key={tool.id}
+              tool={tool}
+              busy={busy}
+              playgroundHref={
+                canUsePlayground && isDeletableTool(tool)
+                  ? toolPlaygroundPath(tool.id)
+                  : undefined
+              }
+              onDelete={() => onDelete(tool.id, tool.name)}
+              onConfigure={
+                isOrgAdmin && tool.id === BUILTIN_TOOL_IDS.email
+                  ? onConfigureEmail
+                  : undefined
+              }
+            />
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
 function ToolListItem({
   tool,
   busy,
-  onView,
+  playgroundHref,
   onDelete,
   onConfigure,
 }: {
   tool: ToolDetail;
   busy: boolean;
-  onView: () => void;
+  playgroundHref?: string;
   onDelete: () => void;
   onConfigure?: () => void;
 }) {
   const deletable = isDeletableTool(tool);
 
+  const summary = (
+    <div className="min-w-0">
+      <p className="text-sm font-medium text-foreground">{tool.name}</p>
+      <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+        {tool.description}
+      </p>
+    </div>
+  );
+
   return (
     <li className="group flex items-start justify-between gap-3 px-4 py-3 first:rounded-t-md last:rounded-b-md hover:bg-muted/40">
-      <button
-        type="button"
-        disabled={busy}
-        className="flex min-w-0 flex-1 items-start gap-3 text-left disabled:opacity-50"
-        aria-label={`View details for ${tool.name}`}
-        onClick={onView}
-      >
-        <span
+      {playgroundHref ? (
+        <Link
+          to={playgroundHref}
+          aria-label={`Open playground for ${tool.name}`}
           className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted/30",
-            deletable ? "text-muted-foreground" : "text-emerald-700 dark:text-emerald-300",
+            "min-w-0 flex-1 text-left",
+            busy && "pointer-events-none opacity-50",
           )}
         >
-          <BlocksIcon className="size-4" aria-hidden />
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">{tool.name}</p>
-          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-            {tool.description}
-          </p>
-          <p className="type-code mt-2 truncate text-muted-foreground/80" title={tool.id}>
-            {tool.id}
-          </p>
-        </div>
-      </button>
+          {summary}
+        </Link>
+      ) : (
+        <div className="min-w-0 flex-1">{summary}</div>
+      )}
 
       <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
-        <span
-          className={cn(
-            "inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium",
-            deletable
-              ? "bg-muted text-muted-foreground"
-              : "scope-badge scope-badge-active",
-          )}
-        >
-          {deletable ? tool.handlerType : "built-in"}
-        </span>
+        {deletable ? (
+          <span className="scope-badge scope-badge-custom">custom tool</span>
+        ) : (
+          <span className="scope-badge scope-badge-active">built-in</span>
+        )}
 
         {onConfigure ? (
           <Button
@@ -336,7 +338,7 @@ function ToolListItem({
             }}
           >
             <Trash2Icon className="size-4" aria-hidden />
-            Remove
+            Delete
           </Button>
         ) : null}
       </div>

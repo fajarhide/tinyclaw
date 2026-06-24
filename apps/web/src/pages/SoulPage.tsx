@@ -1,11 +1,14 @@
 import type { LucideIcon } from "lucide-react";
 import { BlocksIcon, BookOpenIcon, BrainIcon, PlugIcon } from "lucide-react";
 import { useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { KnowledgeTab } from "@/components/soul-tools/KnowledgeTab";
 import { SoulTab } from "@/components/soul-tools/SoulTab";
 import { McpTab } from "@/components/soul-tools/McpTab";
 import { ToolsTab } from "@/components/soul-tools/ToolsTab";
+import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/context/auth-context";
+import { canAccessSystemPage } from "@/lib/navigation";
 
 const TABS = [
   { id: "soul" as const, label: "Soul", icon: BrainIcon },
@@ -16,7 +19,11 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-function resolveTab(value: string | null): TabId {
+function resolveTab(value: string | null, isPlatformAdmin: boolean): TabId {
+  if (!isPlatformAdmin) {
+    return "tools";
+  }
+
   if (value === "knowledge" || value === "tools" || value === "mcp") {
     return value;
   }
@@ -25,8 +32,24 @@ function resolveTab(value: string | null): TabId {
 }
 
 export function SoulPage() {
+  const { user, activeOrg, isLoading } = useAuth();
+  const isPlatformAdmin = user?.isPlatformAdmin === true;
+  const canAccess = canAccessSystemPage(isPlatformAdmin, activeOrg?.role);
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = resolveTab(searchParams.get("tab"));
+  const tab = resolveTab(searchParams.get("tab"), isPlatformAdmin);
+  const visibleTabs = isPlatformAdmin ? TABS : TABS.filter((item) => item.id === "tools");
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
+        <Spinner className="size-5" />
+      </div>
+    );
+  }
+
+  if (!canAccess) {
+    return <Navigate to="/chat" replace />;
+  }
 
   const setTab = useCallback(
     (nextTab: TabId) => {
@@ -53,7 +76,7 @@ export function SoulPage() {
         aria-label="Soul and tools"
         className="segmented-control"
       >
-        {TABS.map((item) => (
+        {visibleTabs.map((item) => (
           <SegmentedTab
             key={item.id}
             id={`soul-tools-tab-${item.id}`}

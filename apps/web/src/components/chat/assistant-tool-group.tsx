@@ -134,8 +134,8 @@ function AssistantWorkGroup({
   thinking?: ChatListItem;
   tools: ChatListItem[];
 }) {
-  if (thinking && tools.length === 0) {
-    return <ThinkingBlock message={thinking} />;
+  if (tools.length === 0) {
+    return thinking ? <ThinkingBlock message={thinking} /> : null;
   }
 
   const hasRunningTools = tools.some((tool) => tool.toolStatus === "running");
