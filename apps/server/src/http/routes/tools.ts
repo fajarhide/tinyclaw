@@ -13,7 +13,6 @@ import type {
 } from "@tinyclaw/core";
 import { json, readJson } from "../shared";
 import {
-  requireOrgAdminFromContext,
   requireOrgAdminOrPlatformAdminFromContext,
   requirePlatformAdminFromContext,
   requireActiveOrgIdFromContext,
@@ -214,7 +213,7 @@ export function registerToolRoutes(app: HonoApp, options: ServerOptions): void {
   });
 
   app.post("/v1/tools/:toolId/run", async (c) => {
-    const auth = requireOrgAdminFromContext(c);
+    const auth = requireOrgAdminOrPlatformAdminFromContext(c);
     const orgId = requireActiveOrgIdFromContext(c);
     const toolId = decodeURIComponent(c.req.param("toolId"));
     const body = await readJson<RunToolRequest>(c.req.raw);
@@ -234,7 +233,7 @@ export function registerToolRoutes(app: HonoApp, options: ServerOptions): void {
   });
 
   app.post("/v1/tools/:toolId/params/suggest", async (c) => {
-    requireOrgAdminFromContext(c);
+    requireOrgAdminOrPlatformAdminFromContext(c);
     const toolId = decodeURIComponent(c.req.param("toolId"));
     const body = await readJson<SuggestToolParamsRequest>(c.req.raw);
 

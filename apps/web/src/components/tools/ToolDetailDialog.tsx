@@ -21,7 +21,7 @@ const SHARED_BUILTIN_FILE = "packages/core/src/tools/builtin.ts";
 interface ToolDetailDialogProps {
   toolId: string | null;
   busy: boolean;
-  isOrgAdmin: boolean;
+  canUsePlayground: boolean;
   superBotProfileId: string | null;
   onOpenChange: (open: boolean) => void;
   onDelete: (toolId: string, toolName: string) => void;
@@ -58,7 +58,7 @@ function isEmptyHandlerConfig(handlerConfig: unknown): boolean {
 export function ToolDetailDialog({
   toolId,
   busy,
-  isOrgAdmin,
+  canUsePlayground,
   superBotProfileId,
   onOpenChange,
   onDelete,
@@ -129,6 +129,18 @@ export function ToolDetailDialog({
                 </p>
               ) : null}
 
+              {canUsePlayground && tool.handlerType === "javascript" ? (
+                <ToolPlaygroundPanel tool={tool} superBotProfileId={superBotProfileId} />
+              ) : canUsePlayground ? (
+                <p
+                  className="rounded-md border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200"
+                  role="status"
+                >
+                  Playground is available for custom JavaScript tools only. Built-in and MCP tools
+                  cannot be run here.
+                </p>
+              ) : null}
+
               <dl className="grid gap-3 text-sm sm:grid-cols-[7rem_minmax(0,1fr)]">
                 <dt className="text-muted-foreground">ID</dt>
                 <dd className="type-code break-all text-foreground">{tool.id}</dd>
@@ -150,10 +162,6 @@ export function ToolDetailDialog({
                   </pre>
                 )}
               </div>
-
-              {isOrgAdmin && tool.handlerType === "javascript" ? (
-                <ToolPlaygroundPanel tool={tool} superBotProfileId={superBotProfileId} />
-              ) : null}
 
               <div className="space-y-2">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">

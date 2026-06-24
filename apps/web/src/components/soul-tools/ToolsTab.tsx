@@ -1,6 +1,6 @@
 import type { ToolDetail } from "@tinyclaw/core/contract";
 import { BUILTIN_TOOL_IDS, isProtectedToolId } from "@tinyclaw/core/tools/protected";
-import { BlocksIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
+import { PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ToolDetailDialog } from "@/components/tools/ToolDetailDialog";
@@ -14,6 +14,7 @@ import { useDeleteToolMutation } from "@/hooks/use-resource-mutations";
 import { formatError } from "@/lib/client";
 import { findSuperBotProfile } from "@/lib/profiles";
 import { queryKeys } from "@/lib/query-keys";
+import { canUseToolPlayground } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 const sectionClass = "rounded-md border border-border bg-card";
@@ -24,8 +25,12 @@ function isDeletableTool(tool: ToolDetail): boolean {
 
 export function ToolsTab() {
   const { navigateToNewChat } = useAppNavigation();
-  const { activeOrg } = useAuth();
+  const { user, activeOrg } = useAuth();
   const isOrgAdmin = activeOrg?.role === "admin";
+  const canUsePlayground = canUseToolPlayground(
+    user?.isPlatformAdmin === true,
+    activeOrg?.role,
+  );
   const queryClient = useQueryClient();
   const { data: tools = [], isLoading, error, isFetching } = useToolsQuery();
   const { data: profiles = [] } = useProfilesQuery();
@@ -40,6 +45,9 @@ export function ToolsTab() {
   const busy = deleteToolMutation.isPending;
   const errorMessage = actionError ?? (error ? formatError(error) : null);
   const deletableCount = tools.filter(isDeletableTool).length;
+  const playgroundToolCount = tools.filter(
+    (tool) => tool.handlerType === "javascript" && isDeletableTool(tool),
+  ).length;
 
   async function refresh() {
     setActionError(null);
@@ -87,6 +95,17 @@ export function ToolsTab() {
       {errorMessage ? (
         <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {errorMessage}
+        </p>
+      ) : null}
+
+      {canUsePlayground && playgroundToolCount === 0 ? (
+        <p
+          className="mb-4 rounded-md border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200"
+          role="status"
+        >
+          The Tools Playground opens inside a tool&apos;s detail view. Create a custom JavaScript
+          tool with Super Bot first — built-in tools like <code className="type-code">web_search</code>{" "}
+          do not have a playground.
         </p>
       ) : null}
 
@@ -209,6 +228,7 @@ export function ToolsTab() {
                       key={tool.id}
                       tool={tool}
                       busy={busy}
+                      showPlayground={canUsePlayground && tool.handlerType === "javascript"}
                       onView={() => setDetailToolId(tool.id)}
                       onDelete={() => void handleDeleteTool(tool.id, tool.name)}
                       onConfigure={
@@ -242,7 +262,7 @@ export function ToolsTab() {
       <ToolDetailDialog
         toolId={detailToolId}
         busy={busy}
-        isOrgAdmin={isOrgAdmin}
+        canUsePlayground={canUsePlayground}
         superBotProfileId={superBotProfile?.id ?? null}
         onOpenChange={(open) => {
           if (!open) {
@@ -258,12 +278,14 @@ export function ToolsTab() {
 function ToolListItem({
   tool,
   busy,
+  showPlayground = false,
   onView,
   onDelete,
   onConfigure,
 }: {
   tool: ToolDetail;
   busy: boolean;
+  showPlayground?: boolean;
   onView: () => void;
   onDelete: () => void;
   onConfigure?: () => void;
@@ -275,25 +297,14 @@ function ToolListItem({
       <button
         type="button"
         disabled={busy}
-        className="flex min-w-0 flex-1 items-start gap-3 text-left disabled:opacity-50"
+        className="min-w-0 flex-1 text-left disabled:opacity-50"
         aria-label={`View details for ${tool.name}`}
         onClick={onView}
       >
-        <span
-          className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted/30",
-            deletable ? "text-muted-foreground" : "text-emerald-700 dark:text-emerald-300",
-          )}
-        >
-          <BlocksIcon className="size-4" aria-hidden />
-        </span>
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{tool.name}</p>
           <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
             {tool.description}
-          </p>
-          <p className="type-code mt-2 truncate text-muted-foreground/80" title={tool.id}>
-            {tool.id}
           </p>
         </div>
       </button>
@@ -309,6 +320,12 @@ function ToolListItem({
         >
           {deletable ? tool.handlerType : "built-in"}
         </span>
+
+        {showPlayground ? (
+          <span className="inline-flex w-fit items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            Playground
+          </span>
+        ) : null}
 
         {onConfigure ? (
           <Button

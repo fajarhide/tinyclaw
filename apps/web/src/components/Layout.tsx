@@ -26,6 +26,7 @@ import {
   navHrefForPage,
   NAV_GROUPS,
   NAV_ITEM_ICONS,
+  canAccessSystemPage,
   PLATFORM_ADMIN_PAGE_IDS,
   pageIdFromPath,
   SETTINGS_NAV_ITEM,
@@ -39,7 +40,7 @@ export function Layout() {
   const page = pageIdFromPath(location.pathname) ?? "chat";
   const chatProfileId = chatProfileIdFromPath(location.pathname);
   const { error } = useAppContext();
-  const { logout, user } = useAuth();
+  const { logout, user, activeOrg } = useAuth();
   const prefetchAppData = usePrefetchAppData();
   const { collapsed, toggle } = useSidebarCollapsed();
   const activeNav = findNavItem(page);
@@ -47,12 +48,17 @@ export function Layout() {
     () =>
       NAV_GROUPS.map((group) => ({
         ...group,
-        items: group.items.filter(
-          (item) =>
-            !PLATFORM_ADMIN_PAGE_IDS.has(item.id) || user?.isPlatformAdmin === true,
-        ),
+        items: group.items.filter((item) => {
+          if (item.id === "soul") {
+            return canAccessSystemPage(user?.isPlatformAdmin === true, activeOrg?.role);
+          }
+
+          return (
+            !PLATFORM_ADMIN_PAGE_IDS.has(item.id) || user?.isPlatformAdmin === true
+          );
+        }),
       })).filter((group) => group.items.length > 0),
-    [user?.isPlatformAdmin],
+    [activeOrg?.role, user?.isPlatformAdmin],
   );
 
   return (
@@ -115,7 +121,11 @@ export function Layout() {
                         icon={NAV_ITEM_ICONS[item.id]}
                         active={item.id === page}
                         collapsed={collapsed}
-                        to={navHrefForPage(item.id, chatProfileId)}
+                        to={
+                          item.id === "soul"
+                            ? `${navHrefForPage(item.id, chatProfileId)}?tab=tools`
+                            : navHrefForPage(item.id, chatProfileId)
+                        }
                         onPrefetch={
                           item.id === "automations" ? prefetchAppData : undefined
                         }

@@ -46,9 +46,9 @@ function AppShell() {
                   <Route path="/chat" element={<ChatPage />} />
                   <Route path="/chat/:profileId/:sessionId" element={<ChatPage />} />
                   <Route path="/history" element={<HistoryPage />} />
+                  <Route path="/system" element={<SoulPage />} />
                   <Route element={<PlatformAdminGuard />}>
                     <Route path="/profiles" element={<ProfilesPage />} />
-                    <Route path="/system" element={<SoulPage />} />
                   </Route>
                   <Route path="/automations" element={<AutomationsPage />} />
                   <Route path="/tasks" element={<TasksPage />} />
