@@ -6,5 +6,6 @@ export * from "./ripgrep";
 export * from "./search-files";
 export * from "./schema";
 export * from "./web-search";
+export * from "./web-fetch";
 export * from "./profile-memory";
 export * from "./email";

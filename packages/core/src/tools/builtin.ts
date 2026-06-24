@@ -6,6 +6,7 @@ import { getCustomToolsDir, guardFilePath, PathGuardError, type PathGuardOptions
 import { searchFilesTool } from "./search-files";
 import { knowledgeBaseSearchTool } from "./knowledge-base-search";
 import { webSearchTool } from "./web-search";
+import { webFetchTool } from "./web-fetch";
 import { updateProfileMemoryTool } from "./profile-memory";
 import { emailTool } from "./email";
 
@@ -313,6 +314,7 @@ export const builtinTools: ToolDefinition[] = [
   searchFilesTool,
   knowledgeBaseSearchTool,
   webSearchTool,
+  webFetchTool,
   updateProfileMemoryTool,
   emailTool,
 ];

@@ -6,6 +6,7 @@ export const BUILTIN_TOOL_IDS = {
   search_files: "tool_search_files",
   knowledge_base_search: "tool_knowledge_base_search",
   web_search: "tool_web_search",
+  web_fetch: "tool_web_fetch",
   update_profile_memory: "tool_update_profile_memory",
   email: "tool_email",
 } as const;
