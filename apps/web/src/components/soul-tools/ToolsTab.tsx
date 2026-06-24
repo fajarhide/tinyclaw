@@ -1,9 +1,8 @@
 import type { ToolDetail } from "@tinyclaw/core/contract";
 import { BUILTIN_TOOL_IDS, isProtectedToolId } from "@tinyclaw/core/tools/protected";
-import { PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
+import { PlusIcon, Trash2Icon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { EmailSettingsDialog } from "@/components/EmailSettingsDialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +20,6 @@ import { useAuth } from "@/context/auth-context";
 import { useDeleteToolMutation } from "@/hooks/use-resource-mutations";
 import { formatError } from "@/lib/client";
 import { findSuperBotProfile } from "@/lib/profiles";
-import { queryKeys } from "@/lib/query-keys";
 import { canUseToolPlayground, toolPlaygroundPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -39,8 +37,7 @@ export function ToolsTab() {
     user?.isPlatformAdmin === true,
     activeOrg?.role,
   );
-  const queryClient = useQueryClient();
-  const { data: tools = [], isLoading, error, isFetching } = useToolsQuery();
+  const { data: tools = [], isLoading, error } = useToolsQuery();
   const { data: profiles = [] } = useProfilesQuery();
   const superBotProfile = findSuperBotProfile(profiles);
   const deleteToolMutation = useDeleteToolMutation();
@@ -49,17 +46,11 @@ export function ToolsTab() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const loading = isLoading && tools.length === 0;
-  const refreshing = isFetching && !loading;
   const busy = deleteToolMutation.isPending;
   const errorMessage = actionError ?? (error ? formatError(error) : null);
   const customTools = tools.filter(isDeletableTool);
   const builtinTools = tools.filter((tool) => !isDeletableTool(tool));
   const playgroundToolCount = customTools.filter((tool) => tool.handlerType === "javascript").length;
-
-  async function refresh() {
-    setActionError(null);
-    await queryClient.invalidateQueries({ queryKey: queryKeys.tools.all });
-  }
 
   function goToCreateTool() {
     if (!superBotProfile) {
@@ -118,94 +109,22 @@ export function ToolsTab() {
       ) : null}
 
       <section className={cn(sectionClass, "overflow-hidden")}>
-        <div className="flex flex-wrap items-center gap-3 border-b border-border p-4 lg:hidden">
-          <div className="min-w-0 flex-1">
-            <h2 className="type-section-title">All tools</h2>
-            <p className="type-body mt-1 text-xs">
-              {tools.length === 0
-                ? "No tools registered yet"
-                : `${tools.length} registered · ${customTools.length} custom · ${builtinTools.length} built-in`}
-            </p>
-          </div>
+        <div className="min-w-0 p-4 sm:p-5">
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="type-section-title">All tools</h2>
+              <p className="type-body mt-1 text-xs">
+                {tools.length === 0
+                  ? "No tools registered yet"
+                  : `${tools.length} registered · ${customTools.length} custom · ${builtinTools.length} built-in`}
+              </p>
+            </div>
 
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              disabled={busy || refreshing}
-              aria-label="Refresh tools"
-              onClick={() => void refresh()}
-            >
-              {refreshing ? (
-                <Spinner className="size-4" />
-              ) : (
-                <RefreshCwIcon className="size-4" aria-hidden />
-              )}
-            </Button>
             <Button type="button" size="sm" onClick={goToCreateTool}>
               <PlusIcon className="size-4" aria-hidden />
               Create tool
             </Button>
           </div>
-        </div>
-
-        <div className="grid gap-0 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <aside className="hidden border-b border-border p-4 lg:block lg:border-r lg:border-b-0">
-            <div className="mb-4">
-              <h2 className="type-section-title">Tools</h2>
-              <p className="type-body mt-1 text-xs">
-                Registered capabilities the agent can call. Assign them per profile on the
-                Profiles page.
-              </p>
-            </div>
-
-            <button type="button" onClick={goToCreateTool} className="scope-item">
-              <div className="flex items-start gap-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted/60">
-                  <PlusIcon className="size-4 text-muted-foreground" aria-hidden />
-                </span>
-                <div className="min-w-0 flex-1 text-left">
-                  <p className="truncate text-sm font-medium text-foreground">Create tool</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Opens a new Super Bot chat session
-                  </p>
-                </div>
-              </div>
-            </button>
-          </aside>
-
-          <div className="min-w-0 p-4 sm:p-5">
-            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <h2 className="type-section-title">All tools</h2>
-                <p className="type-body mt-1 text-xs">
-                  {tools.length === 0
-                    ? "No tools registered yet"
-                    : `${tools.length} registered · ${customTools.length} custom · ${builtinTools.length} built-in`}
-                </p>
-              </div>
-
-              <div className="hidden shrink-0 items-center gap-2 lg:flex">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={busy || refreshing}
-                  onClick={() => void refresh()}
-                >
-                  {refreshing ? (
-                    <Spinner className="size-4" />
-                  ) : (
-                    <RefreshCwIcon className="size-4" aria-hidden />
-                  )}
-                  Refresh
-                </Button>
-                <Button type="button" size="sm" onClick={goToCreateTool}>
-                  Create tool
-                </Button>
-              </div>
-            </div>
 
             {tools.length === 0 ? (
               <div className="flex min-h-48 flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground">
@@ -227,6 +146,7 @@ export function ToolsTab() {
                   busy={busy}
                   canUsePlayground={canUsePlayground}
                   isOrgAdmin={isOrgAdmin}
+                  onCreateTool={goToCreateTool}
                   onDelete={requestDeleteTool}
                   onConfigureEmail={() => setEmailConfigOpen(true)}
                 />
@@ -243,7 +163,6 @@ export function ToolsTab() {
                 />
               </div>
             )}
-          </div>
         </div>
       </section>
 
@@ -299,6 +218,7 @@ function ToolListSection({
   busy,
   canUsePlayground,
   isOrgAdmin,
+  onCreateTool,
   onDelete,
   onConfigureEmail,
 }: {
@@ -308,6 +228,7 @@ function ToolListSection({
   busy: boolean;
   canUsePlayground: boolean;
   isOrgAdmin: boolean;
+  onCreateTool?: () => void;
   onDelete: (toolId: string, toolName: string) => void;
   onConfigureEmail: () => void;
 }) {
@@ -319,9 +240,15 @@ function ToolListSection({
       </div>
 
       {tools.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
-          None registered.
-        </p>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border px-4 py-6 text-center">
+          <p className="text-xs text-muted-foreground">None registered.</p>
+          {onCreateTool ? (
+            <Button type="button" size="sm" disabled={busy} onClick={onCreateTool}>
+              <PlusIcon className="size-4" aria-hidden />
+              Create custom tool
+            </Button>
+          ) : null}
+        </div>
       ) : (
         <ul className="divide-y divide-border rounded-md border border-border">
           {tools.map((tool) => (
