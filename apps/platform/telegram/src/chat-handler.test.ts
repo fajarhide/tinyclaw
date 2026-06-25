@@ -1097,4 +1097,49 @@ describe("bridge API integration", () => {
       expect(sessionStore.get("1001")?.profileId).toBe("research");
     });
   });
+
+  test("/profile switches org when the profile lives in another org", async () => {
+    await withTempHome(async (homeDir) => {
+      await writeTelegramConfigIni(homeDir, {
+        botToken: "1234567890:TEST",
+        pairedUserIds: [1001],
+      });
+
+      const authStore = new TelegramAuthStore();
+      await authStore.reload();
+      const { client, getLastCreateSessionProfileId } = createMockClient({
+        orgs: createMultiTestOrgs(),
+        profilesByOrgId: {
+          org_a: [{ id: "default", name: "Default Bot", isDefault: true }],
+          org_b: [{ id: "gary", name: "Gary Vee", isDefault: true }],
+        },
+      });
+      const sessionStore = new SessionStore(
+        path.join(homeDir, ".tinyclaw", "telegram", "chat-sessions.json"),
+      );
+      const orgStore = createTestOrgStore(homeDir);
+      await orgStore.load();
+      orgStore.set("1001", "org_a");
+      await orgStore.save();
+      const handleMessage = createChatHandler({
+        client,
+        config: { botToken: "1234567890:TEST", profileId: "default" },
+        authStore,
+        sessionStore,
+        orgStore,
+      });
+
+      const switchProfile = createMessageContext({
+        userId: 1001,
+        text: "/profile garry-vee",
+      });
+      await handleMessage(switchProfile.ctx);
+
+      expect(orgStore.get("1001")?.orgId).toBe("org_b");
+      expect(getLastCreateSessionProfileId()).toBe("gary");
+      expect(switchProfile.replies).toEqual([
+        "Now using Gary Vee. Chat history reset. (Beta)",
+      ]);
+    });
+  });
 });

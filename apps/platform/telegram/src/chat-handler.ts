@@ -12,7 +12,8 @@ import {
   formatProfileSelectionPrompt,
   formatProfileSwitchConfirmation,
   pickProfileForOrg,
-  resolveProfileInput,
+  resolveProfileInScopes,
+  type ProfileScope,
 } from "@tinyclaw/core/profiles";
 import type { Context } from "grammy";
 import {
@@ -211,7 +212,11 @@ export function createChatHandler(deps: ChatHandlerDeps) {
         return;
 
       case "/profile":
-        await handleProfileCommand(ctx, text, chatId);
+        if (userId === undefined) {
+          return;
+        }
+
+        await handleProfileCommand(ctx, text, chatId, userId);
         return;
 
       default:
@@ -385,35 +390,85 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     ctx: Context,
     text: string,
     chatId: string,
+    userId: number,
   ): Promise<void> {
-    const profiles = await listSelectableProfiles();
-
-    if (profiles.length === 0) {
-      await ctx.reply("No profiles are available.");
-      return;
-    }
-
+    const channelUserId = String(userId);
+    const { orgs } = await client.listUserOrgs();
+    const currentOrgId = orgStore.get(channelUserId)?.orgId;
+    const currentOrg = currentOrgId ? orgs.find((org) => org.id === currentOrgId) : undefined;
     const arg = text.trim().split(/\s+/).slice(1).join(" ");
     const currentProfileId = await resolveSessionProfileId(chatId);
 
     if (!arg) {
-      await replyChunks(ctx, formatProfileSelectionPrompt(profiles, currentProfileId));
+      const profiles = await listSelectableProfiles();
+
+      if (profiles.length === 0) {
+        await ctx.reply("No profiles are available.");
+        return;
+      }
+
+      await replyChunks(
+        ctx,
+        formatProfileSelectionPrompt(profiles, currentProfileId, currentOrg?.name),
+      );
       return;
     }
 
-    const picked = resolveProfileInput(profiles, arg);
-    if (!picked) {
+    const scopes = await listProfileScopes(orgs, currentOrgId);
+    const resolved = resolveProfileInScopes(scopes, arg);
+
+    if (!resolved) {
       await ctx.reply("Unknown profile. Send /profile to see the list.");
       return;
     }
 
-    if (picked.id === currentProfileId) {
+    if ("ambiguous" in resolved) {
+      await ctx.reply(
+        `That profile exists in multiple orgs (${resolved.ambiguous}). Send /org first, then /profile.`,
+      );
+      return;
+    }
+
+    const { scope, profile: picked } = resolved;
+
+    if (scope.orgId !== currentOrgId) {
+      orgStore.set(channelUserId, scope.orgId);
+      await orgStore.save();
+      client.setOrgId(scope.orgId);
+      sessionStore.delete(chatId);
+      await sessionStore.save();
+    }
+
+    if (picked.id === currentProfileId && scope.orgId === currentOrgId) {
       await ctx.reply(`Already using ${picked.name}.`);
       return;
     }
 
     await createAndBindSession(chatId, picked.id);
-    await ctx.reply(formatProfileSwitchConfirmation(picked.name));
+    const orgNote = scope.orgId !== currentOrgId ? ` (${scope.orgName})` : "";
+    await ctx.reply(`${formatProfileSwitchConfirmation(picked.name)}${orgNote}`);
+  }
+
+  async function listProfileScopes(
+    orgs: Array<{ id: string; name: string }>,
+    restoreOrgId?: string,
+  ): Promise<ProfileScope[]> {
+    const scopes: ProfileScope[] = [];
+
+    for (const org of orgs) {
+      client.setOrgId(org.id);
+      const profiles = await listSelectableProfiles();
+
+      if (profiles.length > 0) {
+        scopes.push({ orgId: org.id, orgName: org.name, profiles });
+      }
+    }
+
+    if (restoreOrgId) {
+      client.setOrgId(restoreOrgId);
+    }
+
+    return scopes;
   }
 
   async function listSelectableProfiles() {

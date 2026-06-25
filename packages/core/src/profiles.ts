@@ -22,6 +22,17 @@ export function filterProfilesForChatAccess(
   return profiles;
 }
 
+export function slugifyProfileName(name: string): string {
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 64) || "profile"
+  );
+}
+
 export function sortProfilesForPicker(profiles: ProfileSummary[]): ProfileSummary[] {
   return [...profiles].sort((left, right) => {
     if (left.isDefault && !right.isDefault) {
@@ -59,6 +70,15 @@ export function resolveProfileInput(
     return exactName[0];
   }
 
+  const slugMatches = profiles.filter(
+    (profile) =>
+      slugifyProfileName(profile.name) === lower || slugifyProfileName(profile.id) === lower,
+  );
+
+  if (slugMatches.length === 1) {
+    return slugMatches[0];
+  }
+
   const sorted = sortProfilesForPicker(profiles);
   const numeric = Number(trimmed);
 
@@ -76,7 +96,51 @@ export function resolveProfileInput(
     return partialMatches[0];
   }
 
-  return undefined;
+  return findNearSlugProfileMatch(profiles, trimmed);
+}
+
+function levenshtein(left: string, right: string): number {
+  if (left === right) {
+    return 0;
+  }
+
+  const rows = left.length + 1;
+  const cols = right.length + 1;
+  const matrix = Array.from({ length: rows }, (_, rowIndex) =>
+    Array.from({ length: cols }, (_, colIndex) =>
+      rowIndex === 0 ? colIndex : colIndex === 0 ? rowIndex : 0,
+    ),
+  );
+
+  for (let rowIndex = 1; rowIndex < rows; rowIndex += 1) {
+    for (let colIndex = 1; colIndex < cols; colIndex += 1) {
+      const cost = left[rowIndex - 1] === right[colIndex - 1] ? 0 : 1;
+      matrix[rowIndex]![colIndex] = Math.min(
+        matrix[rowIndex - 1]![colIndex]! + 1,
+        matrix[rowIndex]![colIndex - 1]! + 1,
+        matrix[rowIndex - 1]![colIndex - 1]! + cost,
+      );
+    }
+  }
+
+  return matrix[rows - 1]![cols - 1]!;
+}
+
+function findNearSlugProfileMatch(
+  profiles: ProfileSummary[],
+  input: string,
+): ProfileSummary | undefined {
+  const lower = input.trim().toLowerCase();
+
+  if (!lower.includes("-")) {
+    return undefined;
+  }
+
+  const nearMatches = profiles.filter(
+    (profile) => levenshtein(slugifyProfileName(profile.name), lower) <= 1,
+  );
+
+  return nearMatches.length === 1 ? nearMatches[0] : undefined;
 }
 
 function formatProfileListLine(profile: ProfileSummary, index: number): string {
@@ -91,9 +155,43 @@ function formatProfileListLine(profile: ProfileSummary, index: number): string {
   return `${index + 1}. ${profile.name} (${markers})`;
 }
 
+export interface ProfileScope {
+  orgId: string;
+  orgName: string;
+  profiles: ProfileSummary[];
+}
+
+export function resolveProfileInScopes(
+  scopes: ProfileScope[],
+  input: string,
+): { scope: ProfileScope; profile: ProfileSummary } | { ambiguous: string } | null {
+  const matches: Array<{ scope: ProfileScope; profile: ProfileSummary }> = [];
+
+  for (const scope of scopes) {
+    const profile = resolveProfileInput(scope.profiles, input);
+
+    if (profile) {
+      matches.push({ scope, profile });
+    }
+  }
+
+  if (matches.length === 0) {
+    return null;
+  }
+
+  if (matches.length === 1) {
+    return { scope: matches[0]!.scope, profile: matches[0]!.profile };
+  }
+
+  return {
+    ambiguous: matches.map(({ scope, profile }) => `${profile.name} in ${scope.orgName}`).join(", "),
+  };
+}
+
 export function formatProfileSelectionPrompt(
   profiles: ProfileSummary[],
   currentProfileId?: string | null,
+  orgName?: string | null,
 ): string {
   const sorted = sortProfilesForPicker(profiles);
   const current = currentProfileId
@@ -101,7 +199,9 @@ export function formatProfileSelectionPrompt(
     : undefined;
 
   return [
-    "Choose a profile (reply with a number, id, or name):",
+    orgName
+      ? `Choose a profile in ${orgName} (reply with a number, id, or name):`
+      : "Choose a profile (reply with a number, id, or name):",
     "",
     ...sorted.map((profile, index) => formatProfileListLine(profile, index)),
     "",
@@ -120,7 +220,7 @@ export function pickProfileForOrg(
   preferredProfileId?: string,
 ): ProfileSummary {
   if (preferredProfileId) {
-    const match = profiles.find((profile) => profile.id === preferredProfileId);
+    const match = resolveProfileInput(profiles, preferredProfileId);
 
     if (match) {
       return match;

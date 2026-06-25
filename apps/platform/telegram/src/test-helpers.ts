@@ -113,6 +113,16 @@ export function createMockClient(
       isSuper?: boolean;
     }>;
     orgs?: UserOrgSummary[];
+    profilesByOrgId?: Record<
+      string,
+      Array<{
+        id: string;
+        name?: string;
+        model?: string | null;
+        isDefault?: boolean;
+        isSuper?: boolean;
+      }>
+    >;
   } = {},
 ) {
   const calls = {
@@ -242,6 +252,7 @@ export function createMockClient(
 
   const profiles = options.profiles ?? [{ id: "default", model: null }];
   const orgs = options.orgs ?? createDefaultTestOrgs();
+  let activeOrgId = orgs[0]?.id ?? null;
 
   const client = {
     createSession: async (_channel: string, input?: { profileId?: string }) => {
@@ -253,8 +264,11 @@ export function createMockClient(
     health: async () => ({ ok: true, providerConfigured: false }),
     listProfiles: async () => {
       calls.listProfiles += 1;
+      const scopedProfiles =
+        (activeOrgId ? options.profilesByOrgId?.[activeOrgId] : undefined) ?? profiles;
+
       return parseListProfilesResponse({
-        profiles: profiles.map((profile) => ({
+        profiles: scopedProfiles.map((profile) => ({
           id: profile.id,
           name: profile.name ?? profile.id,
           model: profile.model ?? null,
@@ -269,6 +283,7 @@ export function createMockClient(
     },
     setOrgId: (orgId: string | null) => {
       calls.setOrgId += 1;
+      activeOrgId = orgId?.trim() || null;
       orgIds.push(orgId ?? "");
     },
     getModels: async () => ({

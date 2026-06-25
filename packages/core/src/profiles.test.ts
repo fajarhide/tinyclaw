@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import type { ProfileSummary } from "./contract";
 import {
   filterProfilesForChatAccess,
+  resolveProfileInScopes,
   resolveProfileInput,
+  slugifyProfileName,
 } from "./profiles";
 
 const profiles: ProfileSummary[] = [
@@ -20,6 +22,16 @@ describe("resolveProfileInput", () => {
 
   test("returns undefined for ambiguous input", () => {
     expect(resolveProfileInput(profiles, "profile")).toBeUndefined();
+  });
+
+  test("matches slugified profile names and near slug typos", () => {
+    const scoped = [
+      { id: "gary", name: "Gary Vee", model: null, isDefault: false, isSuper: false },
+    ];
+
+    expect(resolveProfileInput(scoped, "gary-vee")?.id).toBe("gary");
+    expect(resolveProfileInput(scoped, "garry-vee")?.id).toBe("gary");
+    expect(slugifyProfileName("Gary Vee")).toBe("gary-vee");
   });
 });
 
@@ -39,5 +51,29 @@ describe("filterProfilesForChatAccess", () => {
     expect(
       filterProfilesForChatAccess(profiles, { orgRole: "admin" }).map((profile) => profile.id),
     ).toEqual(["profile_b", "profile_a", "super_bot"]);
+  });
+});
+
+describe("resolveProfileInScopes", () => {
+  test("finds a profile in a specific org scope", () => {
+    const result = resolveProfileInScopes(
+      [
+        {
+          orgId: "org_a",
+          orgName: "Acme",
+          profiles: [{ id: "default", name: "Default Bot", model: null, isDefault: true, isSuper: false }],
+        },
+        {
+          orgId: "org_b",
+          orgName: "Beta",
+          profiles: [{ id: "gary", name: "Gary Vee", model: null, isDefault: true, isSuper: false }],
+        },
+      ],
+      "gary-vee",
+    );
+
+    expect(result).not.toBeNull();
+    expect(result && "scope" in result && result.scope.orgId).toBe("org_b");
+    expect(result && "profile" in result && result.profile.name).toBe("Gary Vee");
   });
 });
