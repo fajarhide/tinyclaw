@@ -498,6 +498,18 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
   const countProfileMcpAssignmentsStmt = db.prepare(`
     SELECT COUNT(*) AS count FROM profile_mcp_servers
   `);
+  const listProfilesForMcpServerStmt = db.prepare(`
+    SELECT profiles.*
+    FROM profiles
+    INNER JOIN profile_mcp_servers ON profile_mcp_servers.profile_id = profiles.id
+    WHERE profile_mcp_servers.server_id = ?
+    ORDER BY profiles.name ASC
+  `);
+  const listMcpServerProfileCountsStmt = db.prepare(`
+    SELECT server_id, COUNT(*) AS count
+    FROM profile_mcp_servers
+    GROUP BY server_id
+  `);
 
   const listSkillsStmt = db.prepare("SELECT * FROM skills ORDER BY name ASC");
   const getSkillStmt = db.prepare("SELECT * FROM skills WHERE id = ?");
@@ -1329,6 +1341,25 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
     async countProfileMcpAssignments() {
       const row = countProfileMcpAssignmentsStmt.get() as { count: number };
       return row.count;
+    },
+
+    async listProfilesForMcpServer(serverId) {
+      return listProfilesForMcpServerStmt
+        .all(serverId)
+        .map((row) => toProfileRecord(row as ProfileRow));
+    },
+
+    async listMcpServerProfileCounts() {
+      const counts: Record<string, number> = {};
+
+      for (const row of listMcpServerProfileCountsStmt.all() as {
+        server_id: string;
+        count: number;
+      }[]) {
+        counts[row.server_id] = row.count;
+      }
+
+      return counts;
     },
 
     async listSkills() {

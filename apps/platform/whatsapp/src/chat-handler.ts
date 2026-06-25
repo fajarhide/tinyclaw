@@ -1,14 +1,14 @@
 import type { TinyClawClient, RemoteChatSession } from "@tinyclaw/client";
-import type { SendMessageInput } from "@tinyclaw/core";
+import type { SendMessageInput } from "@tinyclaw/core/contract";
 import type { WASocket } from "@whiskeysockets/baileys";
 import {
   findOrgBySelectionInput,
   formatOrgSelectionPrompt,
   formatOrgSwitchConfirmation,
-  pickProfileForOrg,
   prepareChannelOrgContext,
   type ChannelOrgStore,
-} from "@tinyclaw/core";
+} from "@tinyclaw/core/channel-org";
+import { pickProfileForOrg } from "@tinyclaw/core/profiles";
 import { normalizePairingCode } from "@tinyclaw/core/whatsapp-config";
 import {
   clearActiveStream,

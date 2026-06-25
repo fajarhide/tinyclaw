@@ -234,7 +234,7 @@ describe("McpService", () => {
     ).rejects.toThrow("stdio MCP servers require config.command.");
   });
 
-  test("deleting a server removes profile assignments", async () => {
+  test("blocks delete when MCP server is assigned to a profile", async () => {
     const db = createInMemoryDatabaseAdapter();
     const service = new McpService(db, new McpClientManager());
 
@@ -247,10 +247,47 @@ describe("McpService", () => {
 
     const profileId = await seedProfile(db);
     await service.assignServerToProfile(profileId, created.server.id);
+
+    await expect(service.deleteServer(created.server.id)).rejects.toMatchObject({
+      status: 409,
+      profiles: [{ id: profileId, name: "Test Bot" }],
+    });
+
+    expect(await db.getMcpServer(created.server.id)).not.toBeNull();
+  });
+
+  test("deletes MCP server when not assigned to any profile", async () => {
+    const db = createInMemoryDatabaseAdapter();
+    const service = new McpService(db, new McpClientManager());
+
+    const created = await service.createServer({
+      name: "demo",
+      transport: "http",
+      config: { url: "https://example.com/mcp" },
+      connect: false,
+    });
+
     await service.deleteServer(created.server.id);
 
-    const assigned = await db.listMcpServersForProfile(profileId);
+    expect(await db.getMcpServer(created.server.id)).toBeNull();
+  });
 
-    expect(assigned).toHaveLength(0);
+  test("lists assigned profile counts on MCP servers", async () => {
+    const db = createInMemoryDatabaseAdapter();
+    const service = new McpService(db, new McpClientManager());
+
+    const created = await service.createServer({
+      name: "demo",
+      transport: "http",
+      config: { url: "https://example.com/mcp" },
+      connect: false,
+    });
+
+    const profileId = await seedProfile(db);
+    await service.assignServerToProfile(profileId, created.server.id);
+
+    const listed = await service.listServers();
+
+    expect(listed.servers[0]?.assignedProfileCount).toBe(1);
   });
 });

@@ -28,7 +28,11 @@ export function createHonoApp(options: ServerOptions) {
 
   app.onError((err) => {
     if (err instanceof TinyClawApiError) {
-      return errorResponse(err.message, err.status);
+      return errorResponse(
+        err.message,
+        err.status,
+        err.profiles ? { profiles: err.profiles } : undefined,
+      );
     }
 
     if (err instanceof SyntaxError) {

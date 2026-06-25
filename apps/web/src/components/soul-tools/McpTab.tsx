@@ -37,11 +37,11 @@ export function McpTab() {
   const errorMessage = actionError ?? (error ? formatError(error) : null);
 
   async function handleDelete(server: McpServerSummary) {
-    if (
-      !window.confirm(
-        `Delete MCP server "${server.name}"? This removes it from every profile.`,
-      )
-    ) {
+    if ((server.assignedProfileCount ?? 0) > 0) {
+      return;
+    }
+
+    if (!window.confirm(`Delete MCP server "${server.name}"? This cannot be undone.`)) {
       return;
     }
 

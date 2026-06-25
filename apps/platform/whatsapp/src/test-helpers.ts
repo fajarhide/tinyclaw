@@ -6,10 +6,10 @@ import type { TinyClawClient } from "@tinyclaw/client";
 import type { ProfileSummary, UserOrgSummary } from "@tinyclaw/core/contract";
 import {
   assertBridgeClientMethods,
-  ChannelOrgStore,
   parseListProfilesResponse,
   parseListUserOrgsResponse,
-} from "@tinyclaw/core";
+} from "@tinyclaw/core/bridge-api";
+import { ChannelOrgStore } from "@tinyclaw/core/channel-org";
 import type { StreamHandlers } from "@tinyclaw/client";
 
 export interface MockStreamControl {

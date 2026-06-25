@@ -1,12 +1,16 @@
+import type { ProfileRef } from "./contract";
+
 export class TinyClawApiError extends Error {
   readonly status: number;
   readonly path?: string;
+  readonly profiles?: ProfileRef[];
 
-  constructor(message: string, status: number, path?: string) {
+  constructor(message: string, status: number, path?: string, profiles?: ProfileRef[]) {
     super(message);
     this.name = "TinyClawApiError";
     this.status = status;
     this.path = path;
+    this.profiles = profiles;
   }
 }
 

@@ -1,6 +1,6 @@
 import type { Context } from "grammy";
-import type { ImageAttachment } from "@tinyclaw/core";
-import { MAX_IMAGE_BYTES } from "@tinyclaw/core";
+import type { ImageAttachment } from "@tinyclaw/core/contract";
+import { MAX_IMAGE_BYTES } from "@tinyclaw/core/message-content";
 
 export interface TelegramImageInput {
   message: string;

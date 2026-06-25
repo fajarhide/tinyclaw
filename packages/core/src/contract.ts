@@ -696,8 +696,14 @@ export interface ListTimezonesResponse {
   groups: TimezoneCatalogGroup[];
 }
 
+export interface ProfileRef {
+  id: string;
+  name: string;
+}
+
 export interface ApiErrorResponse {
   error: string;
+  profiles?: ProfileRef[];
 }
 
 export interface CustomModelEntry {
@@ -896,6 +902,7 @@ export interface McpServerSummary {
   enabled: boolean;
   status: McpServerStatus;
   toolCount: number;
+  assignedProfileCount?: number;
   lastError: string | null;
   createdAt: string;
   updatedAt: string;

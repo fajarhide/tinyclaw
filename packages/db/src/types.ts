@@ -357,6 +357,8 @@ export interface DatabaseAdapter {
   deleteMcpServer(id: string): Promise<boolean>;
 
   listMcpServersForProfile(profileId: string): Promise<StoredMcpServerRecord[]>;
+  listProfilesForMcpServer(serverId: string): Promise<StoredProfileRecord[]>;
+  listMcpServerProfileCounts(): Promise<Record<string, number>>;
   assignMcpServerToProfile(profileId: string, serverId: string): Promise<void>;
   unassignMcpServerFromProfile(profileId: string, serverId: string): Promise<boolean>;
   countProfileMcpAssignments(): Promise<number>;

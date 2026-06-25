@@ -100,6 +100,7 @@ export function registerMcpRoutes(app: HonoApp, options: ServerOptions): void {
     request: { params: serverIdParam },
     responses: {
       204: { description: "MCP server deleted" },
+      409: { description: "MCP server in use by profiles", content: { "application/json": { schema: errorSchema } } },
       500: { description: "Error", content: { "application/json": { schema: errorSchema } } },
     },
   }));

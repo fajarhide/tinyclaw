@@ -1,5 +1,5 @@
 import { createClient } from "@tinyclaw/client";
-import { ChannelOrgStore, getChannelOrgSelectionPath } from "@tinyclaw/core";
+import { ChannelOrgStore, getChannelOrgSelectionPath } from "@tinyclaw/core/channel-org";
 import { ensureServerRunning, stopSpawnedServer } from "@tinyclaw/core/ensure-server";
 import { loadLocalAuthToken } from "@tinyclaw/core/local-auth";
 import {

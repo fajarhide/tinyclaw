@@ -305,8 +305,12 @@ export function json<T>(body: T, status = 200, headers?: Headers): Response {
   return Response.json(body, { status, headers: responseHeaders });
 }
 
-export function errorResponse(message: string, status: number): Response {
-  return Response.json({ error: message } satisfies ApiErrorResponse, { status });
+export function errorResponse(
+  message: string,
+  status: number,
+  extra?: Omit<ApiErrorResponse, "error">,
+): Response {
+  return Response.json({ error: message, ...extra } satisfies ApiErrorResponse, { status });
 }
 
 export function parseChannel(value: string | undefined): AgentChannel {

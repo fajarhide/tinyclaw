@@ -8,11 +8,12 @@ import type {
   McpServerSummary,
   McpStdioConfig,
   McpTransport,
+  ProfileRef,
   TestMcpServerResponse,
   UpdateMcpServerRequest,
 } from "@tinyclaw/core";
-import { createId } from "@tinyclaw/core";
-import type { CachedMcpTool, DatabaseAdapter, StoredMcpServerRecord } from "@tinyclaw/db";
+import { createId, TinyClawApiError } from "@tinyclaw/core";
+import type { CachedMcpTool, DatabaseAdapter, StoredMcpServerRecord, StoredProfileRecord } from "@tinyclaw/db";
 import {
   McpClientManager,
   toCachedMcpToolSummaries,
@@ -26,12 +27,20 @@ export class McpService {
 
   async listServers(): Promise<ListMcpServersResponse> {
     const servers = await this.db.listMcpServers();
-    return { servers: servers.map((server) => toMcpServerSummary(server)) };
+    const profileCounts = await this.db.listMcpServerProfileCounts();
+
+    return {
+      servers: servers.map((server) =>
+        toMcpServerSummary(server, profileCounts[server.id] ?? 0),
+      ),
+    };
   }
 
   async getServer(serverId: string): Promise<McpServerResponse> {
     const server = await this.requireServer(serverId);
-    return { server: toMcpServerDetail(server) };
+    const profileCounts = await this.db.listMcpServerProfileCounts();
+
+    return { server: toMcpServerDetail(server, profileCounts[serverId] ?? 0) };
   }
 
   async createServer(request: CreateMcpServerRequest): Promise<McpServerResponse> {
@@ -138,6 +147,19 @@ export class McpService {
 
   async deleteServer(serverId: string): Promise<void> {
     await this.requireServer(serverId);
+
+    const profiles = await this.db.listProfilesForMcpServer(serverId);
+
+    if (profiles.length > 0) {
+      const profileRefs = toProfileRefs(profiles);
+      throw new TinyClawApiError(
+        formatMcpServerInUseMessage(profileRefs),
+        409,
+        undefined,
+        profileRefs,
+      );
+    }
+
     await this.manager.disconnect(serverId);
 
     const deleted = await this.db.deleteMcpServer(serverId);
@@ -321,7 +343,10 @@ export class McpService {
   }
 }
 
-function toMcpServerSummary(server: StoredMcpServerRecord): McpServerSummary {
+function toMcpServerSummary(
+  server: StoredMcpServerRecord,
+  assignedProfileCount?: number,
+): McpServerSummary {
   return {
     id: server.id,
     name: server.name,
@@ -329,18 +354,36 @@ function toMcpServerSummary(server: StoredMcpServerRecord): McpServerSummary {
     enabled: server.enabled,
     status: server.status,
     toolCount: server.cachedTools.length,
+    assignedProfileCount,
     lastError: server.lastError,
     createdAt: server.createdAt,
     updatedAt: server.updatedAt,
   };
 }
 
-function toMcpServerDetail(server: StoredMcpServerRecord): McpServerDetail {
+function toMcpServerDetail(
+  server: StoredMcpServerRecord,
+  assignedProfileCount?: number,
+): McpServerDetail {
   return {
-    ...toMcpServerSummary(server),
+    ...toMcpServerSummary(server, assignedProfileCount),
     config: redactMcpConfig(server.transport, server.config),
     cachedTools: toCachedMcpToolSummaries(server.cachedTools),
   };
+}
+
+function toProfileRefs(profiles: StoredProfileRecord[]): ProfileRef[] {
+  return profiles.map((profile) => ({ id: profile.id, name: profile.name }));
+}
+
+function formatMcpServerInUseMessage(profiles: ProfileRef[]): string {
+  const names = profiles.map((profile) => profile.name).join(", ");
+
+  if (profiles.length === 1) {
+    return `MCP server is assigned to profile "${names}". Unassign it on the Profiles page before deleting.`;
+  }
+
+  return `MCP server is assigned to ${profiles.length} profiles (${names}). Unassign it from each profile before deleting.`;
 }
 
 const REDACTED_SECRET_VALUE = "••••••••";

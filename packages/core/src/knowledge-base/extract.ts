@@ -1,4 +1,3 @@
-import { PDFParse } from "pdf-parse";
 import { MAX_DOCUMENT_BYTES } from "../message-content";
 
 const KB_ALLOWED_MEDIA_TYPES = new Set([
@@ -61,6 +60,7 @@ export async function extractText(
 }
 
 async function extractPdfText(bytes: Buffer): Promise<string> {
+  const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: bytes });
 
   try {

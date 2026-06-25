@@ -3,14 +3,13 @@ import * as os from "node:os";
 import path from "node:path";
 import { spyOn } from "bun:test";
 import type { TinyClawClient } from "@tinyclaw/client";
-import type { AgentTodo } from "@tinyclaw/core/contract";
+import type { AgentTodo, UserOrgSummary } from "@tinyclaw/core/contract";
 import {
   assertBridgeClientMethods,
-  ChannelOrgStore,
   parseListProfilesResponse,
   parseListUserOrgsResponse,
-  type UserOrgSummary,
-} from "@tinyclaw/core";
+} from "@tinyclaw/core/bridge-api";
+import { ChannelOrgStore } from "@tinyclaw/core/channel-org";
 import type { StreamHandlers } from "@tinyclaw/client";
 import type { Context } from "grammy";
 

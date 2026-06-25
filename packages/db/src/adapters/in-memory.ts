@@ -670,6 +670,36 @@ export function createInMemoryDatabaseAdapter(): DatabaseAdapter {
       return count;
     },
 
+    async listProfilesForMcpServer(serverId) {
+      const matches: StoredProfileRecord[] = [];
+
+      for (const [profileId, assigned] of profileMcpServers) {
+        if (!assigned.has(serverId)) {
+          continue;
+        }
+
+        const profile = profiles.get(profileId);
+
+        if (profile) {
+          matches.push(profile);
+        }
+      }
+
+      return matches.sort((left, right) => left.name.localeCompare(right.name));
+    },
+
+    async listMcpServerProfileCounts() {
+      const counts: Record<string, number> = {};
+
+      for (const assigned of profileMcpServers.values()) {
+        for (const serverId of assigned) {
+          counts[serverId] = (counts[serverId] ?? 0) + 1;
+        }
+      }
+
+      return counts;
+    },
+
     async listSkills() {
       return Array.from(skills.values()).sort((left, right) =>
         left.name.localeCompare(right.name),

@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export function McpPageState({ message }: { message: string }) {
@@ -46,6 +47,13 @@ function McpServerActions({
   onSync: () => void;
   onDelete: () => void;
 }) {
+  const assignedProfileCount = server.assignedProfileCount ?? 0;
+  const deleteBlocked = assignedProfileCount > 0;
+  const deleteTooltip =
+    assignedProfileCount === 1
+      ? "Assigned to 1 profile. Unassign on the Profiles page before deleting."
+      : `Assigned to ${assignedProfileCount} profiles. Unassign on the Profiles page before deleting.`;
+
   return (
     <div className="flex shrink-0 items-center gap-1">
       <Button
@@ -87,10 +95,24 @@ function McpServerActions({
             <RefreshCwIcon aria-hidden />
             Sync tools
           </DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" disabled={busy} onClick={onDelete}>
-            <Trash2Icon aria-hidden />
-            Delete
-          </DropdownMenuItem>
+          {deleteBlocked ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <DropdownMenuItem variant="destructive" disabled>
+                    <Trash2Icon aria-hidden />
+                    Delete
+                  </DropdownMenuItem>
+                }
+              />
+              <TooltipContent side="left">{deleteTooltip}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <DropdownMenuItem variant="destructive" disabled={busy} onClick={onDelete}>
+              <Trash2Icon aria-hidden />
+              Delete
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -142,11 +164,35 @@ export function McpServersSection({
         </div>
       ) : (
         <ul className="divide-y divide-border">
-          {servers.map((server) => (
+          {servers.map((server) => {
+            const assignedProfileCount = server.assignedProfileCount ?? 0;
+
+            return (
             <li key={server.id} className="p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">{server.name}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{server.name}</p>
+                    {assignedProfileCount > 0 ? (
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <span
+                              className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                            >
+                              {assignedProfileCount} profile
+                              {assignedProfileCount === 1 ? "" : "s"}
+                            </span>
+                          }
+                        />
+                        <TooltipContent side="top">
+                          Assigned to {assignedProfileCount} profile
+                          {assignedProfileCount === 1 ? "" : "s"}. Unassign on the Profiles page
+                          before deleting.
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null}
+                  </div>
                   {server.lastError ? (
                     <p className="mt-1 text-xs text-destructive">{server.lastError}</p>
                   ) : null}
@@ -169,7 +215,8 @@ export function McpServersSection({
                 />
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </section>

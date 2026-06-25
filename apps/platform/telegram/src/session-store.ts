@@ -1,4 +1,4 @@
-import { readTextOrNull, writePrivateTextFile } from "@tinyclaw/core";
+import { readTextOrNull, writePrivateTextFile } from "@tinyclaw/core/fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
