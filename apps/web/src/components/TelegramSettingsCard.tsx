@@ -327,6 +327,10 @@ export function TelegramSettingsCard({
             <ol className="list-decimal space-y-1 px-4 py-3 pl-8 text-xs text-muted-foreground">
               <li>Open your bot in the Telegram app</li>
               <li>Paste or type the pairing code as a message</li>
+              <li>
+                For groups: link in a private chat first, then add the bot to a group and @mention
+                it
+              </li>
             </ol>
           ) : null}
         </div>

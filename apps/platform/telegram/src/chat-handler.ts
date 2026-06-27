@@ -39,8 +39,24 @@ import { replyAsChat } from "./reply";
 import { TelegramTodoStatusMessage } from "./todo-status-message";
 import { createTypingLoop } from "./typing-indicator";
 import type { SessionStore } from "./session-store";
+import {
+  explainGroupMessageHandling,
+  isTelegramGroupChat,
+  resolveChannelOrgKey,
+  resolveBotInfo,
+  stripBotMention,
+  type TelegramBotInfo,
+} from "./group-message";
 
 const chatLocks = new Map<string, Promise<void>>();
+
+const GROUP_MESSAGE_PREFIX =
+  "[Telegram group — your reply is visible to everyone in this group.]\n";
+
+const LINK_IN_PRIVATE_REPLY =
+  "Link your account in a private chat with this bot first.";
+
+const TELEGRAM_TRACE_PREFIX = "[telegram-trace]";
 
 const PAIRING_PROMPT =
   "Welcome to TinyClaw.\n\n" +
@@ -58,26 +74,62 @@ export interface ChatHandlerDeps {
   authStore: TelegramAuthStore;
   sessionStore: SessionStore;
   orgStore: ChannelOrgStore;
+  getBotInfo?: () => TelegramBotInfo | undefined;
 }
 
 export function createChatHandler(deps: ChatHandlerDeps) {
-  const { client, config, authStore, sessionStore, orgStore } = deps;
+  const { client, config, authStore, sessionStore, orgStore, getBotInfo = () => undefined } =
+    deps;
 
   return async function handleMessage(ctx: Context): Promise<void> {
-    if (!ctx.chat || ctx.chat.type !== "private") {
+    if (!ctx.chat) {
+      trace("ignored_update_without_chat", {});
       return;
     }
 
+    const chatId = String(ctx.chat.id);
     const userId = ctx.from?.id;
 
     if (userId === undefined) {
+      trace("ignored_update_without_user", {
+        chatId,
+        chatType: ctx.chat.type,
+      });
       return;
     }
 
     const text = ctx.message?.text?.trim();
-    const chatId = String(ctx.chat.id);
+    const isGroup = isTelegramGroupChat(ctx);
+    const botInfo = resolveBotInfo(ctx, getBotInfo());
+    const groupDecision = isGroup ? explainGroupMessageHandling(ctx, botInfo) : null;
+
+    trace("incoming_message", {
+      chatId,
+      userId,
+      chatType: ctx.chat.type,
+      isGroup,
+      text: previewText(text),
+      entityTypes: ctx.message?.entities?.map((entity) => entity.type) ?? [],
+      hasPhoto: Boolean(ctx.message?.photo?.length),
+      hasDocument: Boolean(ctx.message?.document),
+      isReply: Boolean(ctx.message?.reply_to_message),
+      botUsername: botInfo?.username ?? null,
+      groupReason: groupDecision?.reason ?? null,
+    });
+
+    if (groupDecision && !groupDecision.shouldHandle) {
+      trace("ignored_group_message", {
+        chatId,
+        userId,
+        reason: groupDecision.reason,
+      });
+      return;
+    }
+
+    const channelOrgKey = resolveChannelOrgKey(chatId, userId, isGroup);
 
     if (text && isStopCommand(text)) {
+      trace("stop_command_received", { chatId, userId });
       if (!stopActiveStream(chatId)) {
         await ctx.reply("Nothing to stop.");
       }
@@ -86,9 +138,27 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     }
 
     await withChatLock(chatId, async () => {
+      trace("chat_lock_acquired", { chatId, userId });
       await authStore.reload();
+      const isAuthorized = authStore.isAuthorized(userId);
 
-      if (!authStore.isAuthorized(userId)) {
+      trace("auth_checked", {
+        chatId,
+        userId,
+        isGroup,
+        isAuthorized,
+      });
+
+      if (!isAuthorized) {
+        if (isGroup) {
+          trace("blocked_group_message_user_not_paired", {
+            chatId,
+            userId,
+          });
+          await ctx.reply(LINK_IN_PRIVATE_REPLY);
+          return;
+        }
+
         if (!text) {
           const imageInput = await tryBuildImageInput(ctx);
 
@@ -110,12 +180,33 @@ export function createChatHandler(deps: ChatHandlerDeps) {
         return;
       }
 
+      if (isGroup && text && looksLikeHandshakeAttempt(text)) {
+        trace("blocked_group_pairing_attempt", { chatId, userId });
+        await ctx.reply(LINK_IN_PRIVATE_REPLY);
+        return;
+      }
+
       const command = text?.startsWith("/") ? parseTelegramCommand(text) : null;
       const bypassOrgGate = command === "/help" || command === "/start" || command === "/org";
 
       if (!bypassOrgGate) {
-        const orgReady = await ensureOrgReady(ctx, userId, text, chatId);
+        const orgGateText =
+          isGroup && text && botInfo?.username
+            ? stripBotMention(text, botInfo.username)
+            : text;
+        trace("org_gate_check", {
+          chatId,
+          userId,
+          channelOrgKey,
+          text: previewText(orgGateText),
+        });
+        const orgReady = await ensureOrgReady(ctx, channelOrgKey, orgGateText, chatId);
         if (!orgReady) {
+          trace("org_gate_blocked", {
+            chatId,
+            userId,
+            channelOrgKey,
+          });
           return;
         }
       }
@@ -123,32 +214,53 @@ export function createChatHandler(deps: ChatHandlerDeps) {
       const imageInput = await tryBuildImageInput(ctx);
 
       if (imageInput) {
-        await handleChatMessage(ctx, imageInput, chatId);
+        trace("handling_image_message", { chatId, userId });
+        await handleChatMessage(ctx, withGroupContext(imageInput, isGroup), chatId);
         return;
       }
 
       const documentInput = await tryBuildDocumentInput(ctx);
 
       if (documentInput) {
-        await handleChatMessage(ctx, documentInput, chatId);
+        trace("handling_document_message", { chatId, userId });
+        await handleChatMessage(ctx, withGroupContext(documentInput, isGroup), chatId);
         return;
       }
 
       if (hasTelegramDocument(ctx)) {
+        trace("document_message_rejected", { chatId, userId });
         return;
       }
 
       if (!text) {
+        trace("unsupported_message_without_text", { chatId, userId });
         await ctx.reply(UNSUPPORTED_MEDIA_REPLY);
         return;
       }
 
       if (text.startsWith("/")) {
-        await handleCommand(ctx, text, chatId);
+        trace("handling_command", {
+          chatId,
+          userId,
+          command: parseTelegramCommand(text),
+        });
+        await handleCommand(ctx, text, chatId, channelOrgKey);
         return;
       }
 
-      await handleChatMessage(ctx, { message: text }, chatId);
+      const messageText =
+        isGroup ? stripBotMention(text, botInfo?.username) : text;
+
+      trace("handling_text_message", {
+        chatId,
+        userId,
+        text: previewText(messageText),
+      });
+      await handleChatMessage(
+        ctx,
+        withGroupContext({ message: messageText }, isGroup),
+        chatId,
+      );
     });
   };
 
@@ -189,9 +301,13 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     // Pairing messages stay out of agent session history — only Telegram + config.ini.
   }
 
-  async function handleCommand(ctx: Context, text: string, chatId: string): Promise<void> {
+  async function handleCommand(
+    ctx: Context,
+    text: string,
+    chatId: string,
+    channelOrgKey: string,
+  ): Promise<void> {
     const command = parseTelegramCommand(text);
-    const userId = ctx.from?.id;
 
     switch (command) {
       case "/start":
@@ -226,19 +342,11 @@ export function createChatHandler(deps: ChatHandlerDeps) {
         return;
 
       case "/org":
-        if (userId === undefined) {
-          return;
-        }
-
-        await handleOrgCommand(ctx, text, userId, chatId);
+        await handleOrgCommand(ctx, text, channelOrgKey, chatId);
         return;
 
       case "/profile":
-        if (userId === undefined) {
-          return;
-        }
-
-        await handleProfileCommand(ctx, text, chatId, userId);
+        await handleProfileCommand(ctx, text, chatId, channelOrgKey);
         return;
 
       default:
@@ -286,6 +394,14 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     const signal = registerActiveStream(chatId);
     let reply = "";
 
+    trace("chat_send_start", {
+      chatId,
+      sessionId: session.id,
+      hasMessage: Boolean(input.message?.trim()),
+      message: previewText(input.message),
+      hasImages: Boolean(input.images?.length),
+      hasDocuments: Boolean(input.documents?.length),
+    });
     typingLoop.start();
 
     try {
@@ -313,6 +429,12 @@ export function createChatHandler(deps: ChatHandlerDeps) {
       );
 
       await todoStatus.complete();
+      trace("chat_send_complete", {
+        chatId,
+        sessionId: session.id,
+        replyLength: reply.length,
+        aborted: signal.aborted,
+      });
 
       if (signal.aborted) {
         if (reply.trim()) {
@@ -323,6 +445,11 @@ export function createChatHandler(deps: ChatHandlerDeps) {
         return;
       }
     } catch (error) {
+      trace("chat_send_error", {
+        chatId,
+        sessionId: session.id,
+        error: formatTraceError(error),
+      });
       if (isAbortError(error)) {
         await todoStatus.stop();
         if (reply.trim()) {
@@ -351,19 +478,26 @@ export function createChatHandler(deps: ChatHandlerDeps) {
 
   async function ensureOrgReady(
     ctx: Context,
-    userId: number,
+    channelOrgKey: string,
     messageText: string | undefined,
     chatId: string,
   ): Promise<boolean> {
-    const channelUserId = String(userId);
     const orgContext = await prepareChannelOrgContext({
       listOrgs: () => client.listUserOrgs(),
-      getSelectedOrgId: () => orgStore.get(channelUserId)?.orgId,
+      getSelectedOrgId: () => getOrgSelection(orgStore, channelOrgKey)?.orgId,
       saveSelectedOrgId: async (orgId) => {
-        orgStore.set(channelUserId, orgId);
+        orgStore.set(channelOrgKey, orgId);
         await orgStore.save();
       },
       text: messageText?.startsWith("/") ? undefined : messageText,
+    });
+
+    trace("org_gate_result", {
+      chatId,
+      channelOrgKey,
+      status: orgContext.status,
+      orgId: "orgId" in orgContext ? orgContext.orgId : null,
+      justSelected: "justSelected" in orgContext ? orgContext.justSelected : null,
     });
 
     if (orgContext.status === "empty") {
@@ -389,10 +523,9 @@ export function createChatHandler(deps: ChatHandlerDeps) {
   async function handleOrgCommand(
     ctx: Context,
     text: string,
-    userId: number,
+    channelOrgKey: string,
     chatId: string,
   ): Promise<void> {
-    const channelUserId = String(userId);
     const { orgs } = await client.listUserOrgs();
 
     if (orgs.length === 0) {
@@ -404,7 +537,7 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     if (!arg) {
       await replyChunks(
         ctx,
-        formatOrgSelectionPrompt(orgs, orgStore.get(channelUserId)?.orgId),
+        formatOrgSelectionPrompt(orgs, getOrgSelection(orgStore, channelOrgKey)?.orgId),
       );
       return;
     }
@@ -415,8 +548,8 @@ export function createChatHandler(deps: ChatHandlerDeps) {
       return;
     }
 
-    const previousOrgId = orgStore.get(channelUserId)?.orgId;
-    orgStore.set(channelUserId, picked.id);
+    const previousOrgId = getOrgSelection(orgStore, channelOrgKey)?.orgId;
+    orgStore.set(channelOrgKey, picked.id);
     await orgStore.save();
     client.setOrgId(picked.id);
 
@@ -432,11 +565,10 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     ctx: Context,
     text: string,
     chatId: string,
-    userId: number,
+    channelOrgKey: string,
   ): Promise<void> {
-    const channelUserId = String(userId);
     const { orgs } = await client.listUserOrgs();
-    const currentOrgId = orgStore.get(channelUserId)?.orgId;
+    const currentOrgId = getOrgSelection(orgStore, channelOrgKey)?.orgId;
     const currentOrg = currentOrgId ? orgs.find((org) => org.id === currentOrgId) : undefined;
     const arg = text.trim().split(/\s+/).slice(1).join(" ");
     const currentProfileId = await resolveSessionProfileId(chatId);
@@ -488,7 +620,7 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     const { scope, profile: picked } = resolved;
 
     if (scope.orgId !== currentOrgId) {
-      orgStore.set(channelUserId, scope.orgId);
+      orgStore.set(channelOrgKey, scope.orgId);
       await orgStore.save();
       client.setOrgId(scope.orgId);
       sessionStore.delete(chatId);
@@ -565,16 +697,30 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     const existing = sessionStore.get(chatId);
 
     if (existing) {
+      trace("session_lookup_existing", {
+        chatId,
+        sessionId: existing.sessionId,
+        profileId: existing.profileId,
+      });
       const session = client.createChatSession(existing.sessionId, "telegram");
 
       try {
         await session.getMessages();
+        trace("session_reused", {
+          chatId,
+          sessionId: existing.sessionId,
+        });
         return session;
       } catch {
+        trace("session_missing_on_server", {
+          chatId,
+          sessionId: existing.sessionId,
+        });
         // Session missing on server; create a new one below
       }
     }
 
+    trace("session_create_needed", { chatId });
     return createAndBindSession(chatId);
   }
 
@@ -583,6 +729,10 @@ export function createChatHandler(deps: ChatHandlerDeps) {
     profileId?: string,
   ): Promise<RemoteChatSession> {
     const resolvedProfileId = profileId ?? (await resolveSessionProfileId(chatId));
+    trace("session_creating", {
+      chatId,
+      profileId: resolvedProfileId,
+    });
     const session = await client.createSession("telegram", {
       profileId: resolvedProfileId,
     });
@@ -593,6 +743,12 @@ export function createChatHandler(deps: ChatHandlerDeps) {
       updatedAt: new Date().toISOString(),
     });
     await sessionStore.save();
+
+    trace("session_created", {
+      chatId,
+      sessionId: session.id,
+      profileId: resolvedProfileId,
+    });
 
     return session;
   }
@@ -611,6 +767,64 @@ export function createChatHandler(deps: ChatHandlerDeps) {
 
     return pickProfileForOrg(profiles, config.profileId).id;
   }
+}
+
+function trace(event: string, details: Record<string, unknown>): void {
+  console.log(TELEGRAM_TRACE_PREFIX, event, JSON.stringify(details));
+}
+
+function previewText(text: string | null | undefined, maxLength = 120): string | null {
+  if (!text) {
+    return null;
+  }
+
+  const normalized = text.replace(/\s+/g, " ").trim();
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength)}...`;
+}
+
+function formatTraceError(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+
+  return String(error);
+}
+
+function withGroupContext(input: SendMessageInput, isGroup: boolean): SendMessageInput {
+  if (!isGroup) {
+    return input;
+  }
+
+  const message = input.message?.trim();
+
+  if (message) {
+    return { ...input, message: `${GROUP_MESSAGE_PREFIX}${message}` };
+  }
+
+  return { ...input, message: GROUP_MESSAGE_PREFIX.trim() };
+}
+
+function getOrgSelection(
+  orgStore: ChannelOrgStore,
+  channelOrgKey: string,
+): ReturnType<ChannelOrgStore["get"]> {
+  const selected = orgStore.get(channelOrgKey);
+
+  if (selected) {
+    return selected;
+  }
+
+  // ponytail: legacy private keys were bare user ids before group support
+  if (channelOrgKey.startsWith("u:")) {
+    return orgStore.get(channelOrgKey.slice(2));
+  }
+
+  return undefined;
 }
 
 async function replyChunks(ctx: Context, text: string): Promise<void> {

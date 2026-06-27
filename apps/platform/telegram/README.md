@@ -44,7 +44,17 @@ Send plain text, a photo (optional caption), or a document (pdf, docx, txt, csv 
 
 **Stopping a reply:** While the bot is working on an answer, send `/stop`. Any text already generated is sent first, then the bot replies `Stopped.`. If nothing is in progress, you get `Nothing to stop.`
 
-Private chats only. New users must paste a one-time pairing code from Integrations → Telegram (unless pre-approved via allowed user IDs in Advanced settings).
+New users must paste a one-time pairing code from Integrations → Telegram in a **private chat** with the bot (unless pre-approved via allowed user IDs in Advanced settings).
+
+### Group chats
+
+1. Link your account in a private chat with the bot first (pairing code).
+2. Add the bot to a Telegram group.
+3. Trigger it with an @mention, a reply to one of its messages, or a slash command (e.g. `/status`).
+
+Each group shares one conversation history and one org/profile selection (`/org` and `/profile` apply to the whole group). Pairing codes cannot be used in groups.
+
+Telegram’s default **Group Privacy** only delivers mentions, replies, and commands to the bot — which matches TinyClaw’s trigger rules. Disabling privacy in BotFather does not make the bot respond to every message.
 
 Session mapping is stored in `~/.tinyclaw/telegram/chat-sessions.json`.
 
