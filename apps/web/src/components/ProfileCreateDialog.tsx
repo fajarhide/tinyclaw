@@ -271,6 +271,7 @@ export function ProfileCreateDialog({
                 placeholder="Research assistant"
                 value={name}
                 disabled={busy}
+                className="focus-visible:ring-1 focus-visible:ring-inset"
                 autoFocus
                 onChange={(event) => {
                   setSubmitError(null);
@@ -285,7 +286,7 @@ export function ProfileCreateDialog({
                 placeholder="research-assistant"
                 value={profileId}
                 disabled={busy}
-                className="font-mono text-sm"
+                className="font-mono text-sm focus-visible:ring-1 focus-visible:ring-inset aria-invalid:ring-1 aria-invalid:ring-inset"
                 aria-invalid={profileIdHasValue && !profileIdValid}
                 onChange={(event) => {
                   setSubmitError(null);
@@ -325,7 +326,10 @@ export function ProfileCreateDialog({
                       disabled={busy || availableTools.length === 0}
                       onValueChange={(value) => handleToolSelect(value != null ? String(value) : "")}
                     >
-                      <SelectTrigger className="w-full" aria-label="Tool to assign">
+                      <SelectTrigger
+                        className="w-full focus-visible:ring-1 focus-visible:ring-inset"
+                        aria-label="Tool to assign"
+                      >
                         <SelectValue
                           placeholder={
                             availableTools.length === 0 ? "All tools added" : "Add a tool…"

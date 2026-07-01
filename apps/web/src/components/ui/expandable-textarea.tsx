@@ -98,7 +98,7 @@ function ExpandableTextarea({
           onClick={() => setOpen(true)}
           className={cn(
             "w-full rounded-lg border border-input px-2.5 py-2 text-left text-xs leading-relaxed transition-colors outline-none",
-            "hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+            "hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:ring-inset",
             "disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
             trimmed ? "font-mono text-foreground" : "text-muted-foreground",
             previewClassName,
