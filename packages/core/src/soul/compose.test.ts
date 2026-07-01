@@ -85,7 +85,7 @@ describe("default seed compose integration", () => {
     }
   });
 
-  test("loads full default stack sections in compose output", async () => {
+  test("loads default stack sections in compose output", async () => {
     const directory = await mkdtemp(join(tmpdir(), "tinyclaw-soul-stack-"));
 
     try {
@@ -99,7 +99,7 @@ describe("default seed compose integration", () => {
       expect(prompt).toContain(INSTRUCTIONS_TEMPLATE.split("\n")[0] ?? "");
       expect(prompt).toContain("# Continuity (MEMORY.md)");
       expect(prompt).toContain(MEMORY_TEMPLATE.split("\n")[0] ?? "");
-      expect(prompt).toContain("# Calibration Examples");
+      expect(prompt).not.toContain("# Calibration Examples");
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

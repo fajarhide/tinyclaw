@@ -29,7 +29,6 @@ If the profile has soul files, TinyClaw uses them:
 | `STYLE.md` | Voice and style |
 | `INSTRUCTIONS.md` | Operating instructions |
 | `MEMORY.md` | Continuity |
-| `examples/*.md` | Calibration examples |
 
 If there are no soul files, TinyClaw uses the profile's stored `systemPrompt`.
 
@@ -81,4 +80,3 @@ Today is <current date>.
 | Build chat wrapper | `packages/agent/src/chat-prompt.ts` |
 | Add per-turn context | `packages/agent/src/chat.ts` |
 | Send final prompt to provider | `packages/agent/src/chat.ts` |
-

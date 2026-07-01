@@ -32,10 +32,6 @@ export function composeSoulSystemPrompt(
     sections.push("", "# Continuity (MEMORY.md)", stack.files.memory);
   }
 
-  if (stack.files.examples) {
-    sections.push("", "# Calibration Examples", stack.files.examples);
-  }
-
   if (
     stack.files.soul &&
     profilePrompt &&
