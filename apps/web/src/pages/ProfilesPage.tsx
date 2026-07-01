@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
+import { ArtifactsTab } from "@/components/soul-tools/ArtifactsTab";
 import { KnowledgeTab } from "@/components/soul-tools/KnowledgeTab";
 import { SoulTab } from "@/components/soul-tools/SoulTab";
 import { McpServerAssignPicker } from "@/components/McpServerAssignPicker";
@@ -98,10 +99,10 @@ const profileModelSaveDelayMs = 400;
 
 type ProfileSaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
 
-type ProfileDetailTab = "profile" | "prompt" | "knowledge";
+type ProfileDetailTab = "profile" | "prompt" | "knowledge" | "artifacts";
 
 function resolveProfileDetailTab(value: string | null): ProfileDetailTab {
-  if (value === "prompt" || value === "knowledge") {
+  if (value === "prompt" || value === "knowledge" || value === "artifacts") {
     return value;
   }
 
@@ -1117,6 +1118,14 @@ export function ProfilesPage() {
                     >
                       Knowledge
                     </ProfileDetailTabButton>
+                    <ProfileDetailTabButton
+                      id="profile-detail-tab-artifacts"
+                      active={detailTab === "artifacts"}
+                      controls="profile-detail-panel-artifacts"
+                      onSelect={() => setDetailTab("artifacts")}
+                    >
+                      Artifacts
+                    </ProfileDetailTabButton>
                   </div>
 
                   <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
@@ -1440,13 +1449,21 @@ export function ProfilesPage() {
                       >
                         <SoulTab profileId={selectedId} />
                       </div>
-                    ) : (
+                    ) : detailTab === "knowledge" ? (
                       <div
                         id="profile-detail-panel-knowledge"
                         role="tabpanel"
                         aria-labelledby="profile-detail-tab-knowledge"
                       >
                         <KnowledgeTab profileId={selectedId} />
+                      </div>
+                    ) : (
+                      <div
+                        id="profile-detail-panel-artifacts"
+                        role="tabpanel"
+                        aria-labelledby="profile-detail-tab-artifacts"
+                      >
+                        <ArtifactsTab profileId={selectedId} />
                       </div>
                     )}
                   </div>

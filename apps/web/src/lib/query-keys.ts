@@ -37,6 +37,9 @@ export const queryKeys = {
   knowledgeBase: {
     profile: (profileId: string) => ["knowledgeBase", profileId] as const,
   },
+  artifacts: {
+    profile: (profileId: string) => ["artifacts", profileId] as const,
+  },
   timezones: {
     catalog: ["timezones", "catalog"] as const,
     settings: ["timezones", "settings"] as const,

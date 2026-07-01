@@ -21,7 +21,7 @@ Repository: https://github.com/ahmadrosid/tinyclaw
 - [Multi Tenancy](https://ahmadrosid.github.io/tinyclaw/multi-tenancy.md): Learn how organizations, roles, and tenant isolation work in TinyClaw.
 - [Profiles](https://ahmadrosid.github.io/tinyclaw/profiles.md): See how TinyClaw profiles define bot behavior, soul files, tools, and model selection.
 - [Agent Prompt](https://ahmadrosid.github.io/tinyclaw/agent-prompt.md): Understand how TinyClaw builds the final system prompt from soul files, tools, and runtime context.
-- [Builtin Tools](https://ahmadrosid.github.io/tinyclaw/builtin-tools.md): Review the builtin tools that TinyClaw profiles can use and how access is controlled.
+- [Builtin Tools](https://ahmadrosid.github.io/tinyclaw/builtin-tools.md): Review the builtin tools that TinyClaw profiles can use, including persistent artifact saving and file access boundaries.
 - [Skills](https://ahmadrosid.github.io/tinyclaw/skills.md): Learn how reusable skills extend TinyClaw profiles with focused workflows.
 - [MCP Servers](https://ahmadrosid.github.io/tinyclaw/mcp.md): Connect external MCP servers to TinyClaw profiles and expose new tools safely.
 - [Telegram](https://ahmadrosid.github.io/tinyclaw/telegram.md): Set up TinyClaw as a Telegram bot with pairing, commands, and group behavior.

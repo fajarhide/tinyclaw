@@ -32,6 +32,7 @@ TinyClaw includes these builtins:
 | `write_file` | Yes | No | |
 | `delete_file` | Yes | No | |
 | `read_file` | Yes | No | |
+| `save_artifact` | Yes | No | Persistent output under `artifacts/` |
 | `search_files` | Yes | No | |
 | `knowledge_base_search` | Yes | No | |
 | `web_search` | Yes | No | |
@@ -50,7 +51,7 @@ Good starting patterns:
 - **Simple chat bot**: no extra tools
 - **Research bot**: `web_search`, `web_fetch`, `knowledge_base_search`
 - **Knowledge bot**: `knowledge_base_search`, `update_profile_memory`
-- **Ops bot**: file tools, `email`
+- **Ops bot**: file tools, `save_artifact`, `email`
 
 ## Tool reference
 
@@ -66,7 +67,7 @@ Write text to a file in the profile workspace.
 
 **Returns:** `{ path, bytesWritten }`
 
-**Scope:** `~/.tinyclaw/profiles/{profileId}/` and `~/.tinyclaw/tools/` (custom JS modules)
+**Scope:** `~/.tinyclaw/orgs/{orgId}/profiles/{profileId}/` and `~/.tinyclaw/tools/` (custom JS modules)
 
 **Availability:** When assigned to the profile.
 
@@ -102,6 +103,29 @@ Read text from a file in the profile workspace.
 
 **Availability:** When assigned to the profile.
 
+### `save_artifact`
+
+Save a persistent output file for the active profile. Use this when the agent wants to keep a report, summary, generated code file, image, PDF, or other work result beyond the current session.
+
+| Parameter | Type | Required | Notes |
+|-----------|------|----------|-------|
+| `filename` | string | Yes | Relative path under the profile's `artifacts/` directory |
+| `content` | string | Yes | Raw text for `text` mode, base64 payload for `base64` mode |
+| `mime_type` | string | Yes | MIME type such as `text/markdown`, `image/png`, or `application/pdf` |
+| `mode` | string | No | `text` or `base64`; default `text` |
+
+**Returns:** `{ filename, path, mimeType, mode, bytesWritten }`
+
+**Behavior:** Creates parent directories as needed and stores files under:
+
+```text
+~/.tinyclaw/orgs/{orgId}/profiles/{profileId}/artifacts/
+```
+
+Use `text` mode for markdown, logs, code snippets, and plain text. Use `base64` mode for binary files such as images and PDFs.
+
+**Availability:** When assigned to the profile.
+
 ### `create_skill`
 
 Save a repeatable procedure as a skill for the active profile and assign it immediately.
@@ -129,7 +153,7 @@ Search text in files under the profile workspace.
 
 **Returns:** `{ query, root, matches, matchCount, truncated }`
 
-**Scope:** `~/.tinyclaw/profiles/{profileId}/` only. Requires `rg` (ripgrep) on PATH.
+**Scope:** `~/.tinyclaw/orgs/{orgId}/profiles/{profileId}/` only. Requires `rg` (ripgrep) on PATH.
 
 **Availability:** When assigned to the profile.
 
@@ -187,7 +211,7 @@ Record a fact, preference, or decision in the profile's `MEMORY.md`.
 
 **Returns:** `{ path, bytesTotal }`
 
-**Behavior:** Appends under a dated `## YYYY-MM-DD` section in `~/.tinyclaw/profiles/{profileId}/MEMORY.md`.
+**Behavior:** Appends under a dated `## YYYY-MM-DD` section in `~/.tinyclaw/orgs/{orgId}/profiles/{profileId}/MEMORY.md`.
 
 **Limits:** 4096 bytes total file size.
 
@@ -265,6 +289,8 @@ File tools (`read_file`, `write_file`, `delete_file`) are scoped to:
 - **Profile workspace:** `~/.tinyclaw/orgs/{orgId}/profiles/{profileId}/` (soul files, knowledge base, etc.)
 - **Custom tools directory:** `~/.tinyclaw/tools/` (follows `TINYCLAW_CONFIG_DIR` if set)
 
+`save_artifact` is more specific: it only writes under `~/.tinyclaw/orgs/{orgId}/profiles/{profileId}/artifacts/`.
+
 Path guards enforce:
 
 - **10 MB** maximum file size for reads and writes
@@ -272,7 +298,7 @@ Path guards enforce:
 - No reads of `config.ini` by basename
 - Blocked special paths (`/dev/`, `/proc/`, `/sys/`)
 
-All ten builtin tool IDs are protected and cannot be deleted from the dashboard.
+All builtin tool IDs are protected and cannot be deleted from the dashboard.
 
 ## Next steps
 

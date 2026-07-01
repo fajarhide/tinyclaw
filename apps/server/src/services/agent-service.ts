@@ -21,6 +21,7 @@ import type {
   CreateToolRequest,
   InitSoulResponse,
   InitUserContextResponse,
+  ListArtifactsResponse,
   ListProfilesResponse,
   ListSkillsResponse,
   ListToolsResponse,
@@ -82,6 +83,7 @@ import {
   DEFAULT_THINKING_EFFORT,
   DEFAULT_THINKING_ENABLED,
   buildThinkingProviderOptions,
+  listArtifacts,
   buildToolExecutionContext,
   composeKnowledgeBaseCatalog,
   composeSoulSystemPrompt,
@@ -91,6 +93,7 @@ import {
   findProviderInstance,
   getActiveProviderInstance,
   getProfileSoulDir,
+  readArtifactFile,
   getResolvedSoulStatus,
   buildUserContextStatus,
   normalizeUserContextContent,
@@ -1813,6 +1816,16 @@ export class AgentService {
     }
 
     await writeSoulFile(getProfileSoulDir(orgId, profileId), key, request.content);
+  }
+
+  async listProfileArtifacts(orgId: string, profileId: string): Promise<ListArtifactsResponse> {
+    await this.requireProfile(orgId, profileId);
+    return listArtifacts(orgId, profileId);
+  }
+
+  async readProfileArtifact(orgId: string, profileId: string, filename: string) {
+    await this.requireProfile(orgId, profileId);
+    return readArtifactFile({ orgId, profileId, filename });
   }
 
   async getUserContext(

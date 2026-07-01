@@ -21,6 +21,7 @@ import type {
   HealthResponse,
   ImageAttachment,
   InitSoulResponse,
+  ListArtifactsResponse,
   InitUserContextResponse,
   ListKnowledgeBaseResponse,
   ListProfilesResponse,
@@ -616,6 +617,12 @@ export class TinyClawClient {
         method: "PUT",
         body: JSON.stringify({ content } satisfies UpdateSoulFileRequest),
       },
+    );
+  }
+
+  async listProfileArtifacts(profileId: string): Promise<ListArtifactsResponse> {
+    return this.request<ListArtifactsResponse>(
+      `/v1/profiles/${encodeURIComponent(profileId)}/artifacts`,
     );
   }
 

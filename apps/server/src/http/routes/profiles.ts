@@ -4,6 +4,7 @@ import type {
   DeleteKnowledgeBaseResponse,
   ImageAttachment,
   InitSoulResponse,
+  ListArtifactsResponse,
   ListKnowledgeBaseResponse,
   ListProfilesResponse,
   ListToolsResponse,
@@ -38,6 +39,9 @@ export function registerProfileRoutes(app: HonoApp, options: ServerOptions): voi
   const contentsQuery = z.object({
     contents: z.enum(["true", "false"]).optional(),
   });
+  const artifactPathQuery = z.object({
+    path: z.string().min(1),
+  });
   const listProfilesSchema = z.object({}).passthrough().openapi("ListProfilesResponse");
   const profileSchema = z.object({}).passthrough().openapi("ProfileResponse");
   const createProfileSchema = z.object({}).passthrough().openapi("CreateProfileRequest");
@@ -46,6 +50,7 @@ export function registerProfileRoutes(app: HonoApp, options: ServerOptions): voi
   const soulStackSchema = z.object({}).passthrough().openapi("SoulStackResponse");
   const initSoulSchema = z.object({}).passthrough().openapi("InitSoulResponse");
   const updateSoulFileSchema = z.object({}).passthrough().openapi("UpdateSoulFileRequest");
+  const listArtifactsSchema = z.object({}).passthrough().openapi("ListArtifactsResponse");
   const listKnowledgeBaseSchema = z.object({}).passthrough().openapi("ListKnowledgeBaseResponse");
   const uploadKnowledgeBaseSchema = z.object({}).passthrough().openapi("UploadKnowledgeBaseRequest");
   const uploadKnowledgeBaseResponseSchema = z.object({}).passthrough().openapi("UploadKnowledgeBaseResponse");
@@ -153,6 +158,30 @@ export function registerProfileRoutes(app: HonoApp, options: ServerOptions): voi
     request: { params: soulFileParam, body: { required: true, content: { "application/json": { schema: updateSoulFileSchema } } } },
     responses: {
       204: { description: "File saved" },
+      500: { description: "Error", content: { "application/json": { schema: errorSchema } } },
+    },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "get",
+    path: "/v1/profiles/{profileId}/artifacts",
+    tags: ["Profiles"],
+    summary: "List artifacts for a profile",
+    operationId: "listProfileArtifacts",
+    request: { params: profileIdParam },
+    responses: {
+      200: { description: "Artifact list", content: { "application/json": { schema: listArtifactsSchema } } },
+      500: { description: "Error", content: { "application/json": { schema: errorSchema } } },
+    },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "get",
+    path: "/v1/profiles/{profileId}/artifacts/content",
+    tags: ["Profiles"],
+    summary: "Download an artifact for a profile",
+    operationId: "getProfileArtifactContent",
+    request: { params: profileIdParam, query: artifactPathQuery },
+    responses: {
+      200: { description: "Artifact bytes", content: { "*/*": { schema: z.string() } } },
       500: { description: "Error", content: { "application/json": { schema: errorSchema } } },
     },
   }));
@@ -292,6 +321,33 @@ export function registerProfileRoutes(app: HonoApp, options: ServerOptions): voi
       body,
     );
     return new Response(null, { status: 204 });
+  });
+
+  app.get("/v1/profiles/:profileId/artifacts", async (c) => {
+    requirePlatformAdminFromContext(c);
+    const orgId = requireActiveOrgIdFromContext(c);
+    const profileId = decodeURIComponent(c.req.param("profileId"));
+    return json<ListArtifactsResponse>(await agent.listProfileArtifacts(orgId, profileId));
+  });
+
+  app.get("/v1/profiles/:profileId/artifacts/content", async (c) => {
+    requirePlatformAdminFromContext(c);
+    const orgId = requireActiveOrgIdFromContext(c);
+    const profileId = decodeURIComponent(c.req.param("profileId"));
+    const artifactPath = c.req.query("path");
+
+    if (!artifactPath) {
+      return json({ error: "path is required" }, 400);
+    }
+
+    const artifact = await agent.readProfileArtifact(orgId, profileId, artifactPath);
+    const downloadName = (artifactPath.split("/").pop() ?? "artifact").replace(/["\\]/g, "_");
+    return new Response(artifact.bytes, {
+      headers: {
+        "Content-Type": artifact.contentType,
+        "Content-Disposition": `attachment; filename="${downloadName}"`,
+      },
+    });
   });
 
   app.get("/v1/profiles/:profileId/knowledge-base", async (c) => {

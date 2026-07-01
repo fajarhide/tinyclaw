@@ -76,7 +76,7 @@ Profiles support two layers of instruction:
 | `systemPrompt` | Quick base instructions stored in the database |
 | Soul files | Richer identity, style, operating rules, and memory on disk |
 
-Soul files, avatars, knowledge-base documents, and profile-scoped skills all live under an org-scoped path:
+Soul files, avatars, knowledge-base documents, artifacts, and profile-scoped skills all live under an org-scoped path:
 
 ```text
 ~/.tinyclaw/orgs/{orgId}/profiles/{profileId}/
@@ -95,6 +95,12 @@ Profile-scoped skills are stored at:
 
 ```text
 ~/.tinyclaw/orgs/{orgId}/profiles/{profileId}/skills/
+```
+
+Artifacts saved by the agent are stored at:
+
+```text
+~/.tinyclaw/orgs/{orgId}/profiles/{profileId}/artifacts/
 ```
 
 If you want richer personality and clearer long-term behavior, use soul files. If you only need a quick setup, the stored `systemPrompt` may be enough.
@@ -123,6 +129,7 @@ Profiles keep their own context on disk under the org-scoped profile directory:
 - **Knowledge base** documents for searchable reference material
 - **Inherited knowledge sources** for shared product references, such as the TinyClaw documentation
 - **`MEMORY.md`** for facts and continuity saved by the agent
+- **Artifacts** for persistent reports, generated files, images, PDFs, and other saved outputs
 
 This data is isolated per org and per profile. Two orgs never read or write the same directory, even if profile ids happen to match.
 

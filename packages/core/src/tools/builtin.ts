@@ -2,6 +2,7 @@ import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import type { ToolContext, ToolDefinition } from "../contract";
+import { saveArtifactFile } from "../artifacts";
 import { getProfileSoulDir } from "../soul/resolve";
 import { getCustomToolsDir, guardFilePath, PathGuardError, type PathGuardOptions } from "./paths";
 import { searchFilesTool } from "./search-files";
@@ -53,10 +54,20 @@ export const createSkillInputSchema = z
   })
   .strict();
 
+export const saveArtifactInputSchema = z
+  .object({
+    filename: requiredTrimmedString("filename"),
+    content: z.string({ error: "content is required." }),
+    mime_type: requiredTrimmedString("mime_type"),
+    mode: z.enum(["text", "base64"]).default("text"),
+  })
+  .strict();
+
 export type WriteFileInput = z.infer<typeof writeFileInputSchema>;
 export type DeleteFileInput = z.infer<typeof deleteFileInputSchema>;
 export type ReadFileInput = z.infer<typeof readFileInputSchema>;
 export type CreateSkillInput = z.infer<typeof createSkillInputSchema>;
+export type SaveArtifactInput = z.infer<typeof saveArtifactInputSchema>;
 
 export interface WriteFileOutput {
   path: string;
@@ -77,6 +88,8 @@ export interface ReadFileOutput {
   totalLines: number;
   truncated: boolean;
 }
+
+export type SaveArtifactOutput = import("../contract").SaveArtifactOutput;
 
 interface FileToolRunOptions {
   workspaceRoot?: string;
@@ -254,10 +267,38 @@ export const createSkillTool: ToolDefinition<CreateSkillInput> = {
   },
 };
 
+export const saveArtifactTool: ToolDefinition<SaveArtifactInput, SaveArtifactOutput> = {
+  name: "save_artifact",
+  description:
+    "Save a persistent artifact for the active profile under artifacts/. Use text mode for markdown, code, and logs. Use base64 mode for images, PDFs, and other binary files.",
+  parameters: jsonSchemaFromZod(saveArtifactInputSchema),
+  run(input, context) {
+    return runSaveArtifact(input, context);
+  },
+};
+
+export async function runSaveArtifact(
+  input: unknown,
+  context: ToolContext,
+): Promise<SaveArtifactOutput> {
+  const parsed = parseToolInput(saveArtifactInputSchema, input);
+  const { orgId, profileId } = requireProfileScope(context);
+
+  return saveArtifactFile({
+    orgId,
+    profileId,
+    filename: parsed.filename,
+    content: parsed.content,
+    mimeType: parsed.mime_type,
+    mode: parsed.mode,
+  });
+}
+
 export const builtinTools: ToolDefinition[] = [
   writeFileTool,
   deleteFileTool,
   readFileTool,
+  saveArtifactTool,
   createSkillTool,
   searchFilesTool,
   knowledgeBaseSearchTool,

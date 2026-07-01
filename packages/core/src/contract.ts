@@ -1170,6 +1170,22 @@ export interface UpdateSoulFileRequest {
   content: string;
 }
 
+export type SaveArtifactMode = "text" | "base64";
+
+export interface ArtifactFile {
+  filename: string;
+  path: string;
+  mimeType: string;
+  sizeBytes: number;
+  updatedAt: string;
+}
+
+export interface ListArtifactsResponse {
+  profileId: string;
+  directory: string;
+  artifacts: ArtifactFile[];
+}
+
 export type KnowledgeBaseDocumentStatus = "ready" | "failed";
 
 export interface KnowledgeBaseDocument {
@@ -1357,4 +1373,12 @@ export interface ToolDefinition<Input = unknown, Output = unknown> {
   description: string;
   parameters?: JsonSchema;
   run(input: Input, context: ToolContext): Promise<Output>;
+}
+
+export interface SaveArtifactOutput {
+  filename: string;
+  path: string;
+  mimeType: string;
+  mode: SaveArtifactMode;
+  bytesWritten: number;
 }

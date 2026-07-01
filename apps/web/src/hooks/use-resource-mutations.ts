@@ -387,6 +387,14 @@ export function useKnowledgeBaseQuery(profileId: string | null) {
   });
 }
 
+export function useArtifactsQuery(profileId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.artifacts.profile(profileId ?? ""),
+    queryFn: () => client.listProfileArtifacts(profileId!),
+    enabled: Boolean(profileId),
+  });
+}
+
 export function useSoulFileQuery(
   profileId: string | null,
   fileKey: string | null,
