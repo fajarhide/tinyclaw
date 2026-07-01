@@ -1,0 +1,172 @@
+# Skills
+
+A **skill** is a reusable instruction bundle you assign to a profile.
+
+Think of it as a saved workflow:
+
+- The profile keeps its main identity in soul files or `systemPrompt`
+- A skill adds a focused procedure for a specific kind of task
+- The agent can match and use that procedure when it is relevant
+
+Use skills when you want the bot to follow the same steps repeatedly without cramming everything into the main prompt.
+
+## Why skills matter
+
+Skills help keep profiles clean.
+
+For example:
+
+- A support bot can have one skill for bug triage
+- A content bot can have one skill for rewriting release notes
+- An ops bot can have one skill for incident summaries
+
+This gives you smaller, clearer building blocks instead of one giant prompt.
+
+## How skills fit with profiles
+
+Skills are assigned per profile, just like tools and MCP servers.
+
+| Layer | What it controls |
+|------|-------------------|
+| Soul / `systemPrompt` | The bot's overall identity and rules |
+| Skills | Repeatable workflows or task-specific instructions |
+| Tools | Actions the bot is allowed to take |
+| MCP servers | Extra external tools |
+
+A profile can have many skills, and the same global skill can be assigned to more than one profile.
+
+## Two kinds of skills
+
+### Global skills
+
+Global skills live in the shared skill library:
+
+```text
+~/.tinyclaw/agent/skills/
+```
+
+These are useful when the same workflow should be reusable across multiple profiles.
+
+### Profile-scoped skills
+
+Profile-scoped skills live inside one org/profile workspace:
+
+```text
+~/.tinyclaw/orgs/{orgId}/profiles/{profileId}/skills/
+```
+
+These are useful when the workflow only makes sense for one specific bot.
+
+## Skill file format
+
+Each skill is stored in its own directory with a `SKILL.md` file.
+
+Minimal example:
+
+```md
+---
+name: weather
+description: Use when the user asks for a weather forecast.
+---
+
+# Skill instructions
+
+1. Ask for the city if missing.
+2. Check the forecast.
+3. Summarize it clearly.
+```
+
+Required frontmatter:
+
+| Field | Required | Meaning |
+|------|----------|---------|
+| `name` | Yes | Lowercase letters, numbers, and hyphens only |
+| `description` | Yes | Short summary of when the skill should be used |
+
+Optional frontmatter:
+
+| Field | Meaning |
+|------|---------|
+| `disable-model-invocation` | Only run on explicit invocation |
+| `include-body-on-match` | Include the full body when the skill auto-matches |
+
+## Skills with tools
+
+A skill can also include a local tool module in the same directory:
+
+- `tool.ts`
+- `tool.js`
+
+When present, the dashboard shows the skill as **includes tool**.
+
+This is useful when the workflow needs both:
+
+- Instructions in `SKILL.md`
+- A small custom tool that the skill can use
+
+## How skills are used at runtime
+
+When a profile starts a chat, TinyClaw appends the assigned skills catalog to the agent prompt.
+
+On each user turn, TinyClaw can also attach matched skill context for the current message.
+
+That means skills are not a separate bot. They are extra behavior layers attached to a profile.
+
+For more detail, see [Agent prompts](/agent-prompt).
+
+## How to create and assign skills
+
+There are two common paths.
+
+### From the dashboard
+
+Platform admins can:
+
+1. Go to **Agent → Profiles**
+2. Open a profile
+3. Use the **Skills** section to add, assign, unassign, or inspect skills
+
+The dashboard also supports a shared skill library through the skills API and sync flow.
+
+### From the agent itself
+
+If a profile has the builtin `create_skill` tool, the bot can create a new profile-scoped skill during chat and assign it immediately.
+
+This is the only builtin tool that new custom profiles receive by default.
+
+## Sync behavior
+
+TinyClaw discovers skills from disk and syncs them into the database.
+
+This is why there is a skills sync step:
+
+- Files on disk are the source material
+- The database stores discovered metadata for the dashboard and API
+
+If you add or change skill folders manually, run skill sync so TinyClaw refreshes what it knows.
+
+## Permissions
+
+Skill management is a platform-admin operation in the dashboard and API.
+
+| Actor | Can manage skills | Can use a profile with skills |
+|------|-------------------|-------------------------------|
+| Platform admin | Yes | Yes |
+| Org admin | No | Yes |
+| Org member | No | Yes |
+| Org viewer | No | No |
+
+Viewers cannot invoke agents, so they cannot trigger skills either.
+
+## When to use a skill vs something else
+
+- Use a **skill** for a repeatable workflow
+- Use the **main profile prompt** for always-on behavior and identity
+- Use a **builtin tool** for a native capability like web search or file access
+- Use an **MCP server** for external tool integrations
+
+## Next steps
+
+- [Profiles](/profiles) — how skills attach to a bot
+- [Builtin tools](/builtin-tools) — the actions a profile can take
+- [MCP servers](/mcp) — external tools assigned to a profile

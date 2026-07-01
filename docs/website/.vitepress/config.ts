@@ -34,6 +34,7 @@ export default withMermaid(
           text: 'Operations',
           items: [
             { text: 'Builtin Tools', link: '/builtin-tools' },
+            { text: 'Skills', link: '/skills' },
             { text: 'MCP Servers', link: '/mcp' },
           ],
         },
