@@ -1,5 +1,9 @@
 import { lookup as dnsLookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import rehypeParse from "rehype-parse";
+import rehypeRemark from "rehype-remark";
+import remarkStringify from "remark-stringify";
+import { unified } from "unified";
 import { z } from "zod";
 import type { JsonSchema, ToolDefinition } from "../contract";
 
@@ -229,13 +233,18 @@ async function assertPublicHostname(hostname: string): Promise<void> {
     throw new Error(`web_fetch failed to resolve hostname ${bare}: no records.`);
   }
 
+  let privateAddress: string | null = null;
+
   for (const record of records) {
-    if (isPrivateIp(record.address)) {
-      throw new Error(
-        `web_fetch blocked: hostname ${bare} resolves to private address ${record.address}.`,
-      );
+    if (!isPrivateIp(record.address)) {
+      return;
     }
+    privateAddress ??= record.address;
   }
+
+  throw new Error(
+    `web_fetch blocked: hostname ${bare} resolves to private address ${privateAddress}.`,
+  );
 }
 
 function parseUrl(rawUrl: string): URL {
@@ -347,22 +356,14 @@ async function readBoundedBody(
   return { body: text, truncated: false };
 }
 
-let turndownService: import("turndown").default | null = null;
-function getTurndownService(): import("turndown").default {
-  if (!turndownService) {
-    // Lazily required so that test stubs can patch global fetch without importing domino.
-    const TurndownService = require("turndown").default ?? require("turndown");
-    turndownService = new TurndownService({
-      headingStyle: "atx",
-      codeBlockStyle: "fenced",
-      bulletListMarker: "-",
-    });
-  }
-  return turndownService;
-}
-
-export function convertHtmlToMarkdown(html: string): string {
-  return getTurndownService().turndown(html);
+export async function convertHtmlToMarkdown(html: string): Promise<string> {
+  return String(
+    await unified()
+      .use(rehypeParse, { fragment: true })
+      .use(rehypeRemark)
+      .use(remarkStringify, { bullet: "-", fences: true })
+      .process(html),
+  );
 }
 
 export const webFetchTool: ToolDefinition<WebFetchInput, WebFetchOutput> = {
@@ -407,7 +408,7 @@ export const webFetchTool: ToolDefinition<WebFetchInput, WebFetchOutput> = {
         !raw && contentTypeIsHtml(contentType) && body.trimStart().startsWith("<");
 
       if (shouldConvert) {
-        content = convertHtmlToMarkdown(body);
+        content = await convertHtmlToMarkdown(body);
       }
 
       return {

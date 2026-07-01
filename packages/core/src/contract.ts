@@ -1182,8 +1182,19 @@ export interface KnowledgeBaseDocument {
   error?: string;
 }
 
+export interface KnowledgeBaseSource {
+  id: string;
+  title: string;
+  url: string;
+  description: string;
+  kind: "url";
+  inherited: boolean;
+  enabled: boolean;
+}
+
 export interface ListKnowledgeBaseResponse {
   documents: KnowledgeBaseDocument[];
+  sources: KnowledgeBaseSource[];
   profileId: string;
 }
 

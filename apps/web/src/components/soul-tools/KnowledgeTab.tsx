@@ -1,5 +1,12 @@
 import type { KnowledgeBaseDocument } from "@tinyclaw/core/contract";
-import { FileTextIcon, RefreshCwIcon, Trash2Icon, UploadIcon } from "lucide-react";
+import {
+  ExternalLinkIcon,
+  FileTextIcon,
+  LinkIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+  UploadIcon,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
@@ -104,6 +111,7 @@ export function KnowledgeTab({ profileId: controlledProfileId }: { profileId?: s
 
   const selectedProfile = profiles.find((profile) => profile.id === profileId) ?? null;
   const documents = knowledgeBase?.documents ?? [];
+  const sources = knowledgeBase?.sources ?? [];
   const readyCount = documents.filter((document) => document.status === "ready").length;
   const loading = knowledgeLoading && !knowledgeBase;
   const refreshing = profilesFetching || knowledgeFetching || soulStatusFetching;
@@ -249,6 +257,50 @@ export function KnowledgeTab({ profileId: controlledProfileId }: { profileId?: s
           </p>
         ) : null}
       </div>
+
+      {sources.length > 0 ? (
+        <div className="mb-4 rounded-md border border-border">
+          <div className="border-b border-border px-4 py-3">
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {sources.length === 1 ? "1 inherited source" : `${sources.length} inherited sources`}
+            </p>
+          </div>
+          <ul className="divide-y divide-border">
+            {sources.map((source) => (
+              <li
+                key={source.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <LinkIcon
+                    className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                    aria-hidden
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{source.title}</p>
+                    <p className="line-clamp-2 text-xs text-muted-foreground">
+                      {source.description}
+                    </p>
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex max-w-full items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      <span className="truncate">{source.url}</span>
+                      <ExternalLinkIcon className="size-3 shrink-0" aria-hidden />
+                    </a>
+                  </div>
+                </div>
+
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  inherited
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="rounded-md border border-border">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">

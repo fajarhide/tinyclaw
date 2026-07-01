@@ -120,9 +120,18 @@ Each profile can optionally select its own model.
 Profiles keep their own context on disk under the org-scoped profile directory:
 
 - **Knowledge base** documents for searchable reference material
+- **Inherited knowledge sources** for shared product references, such as the TinyClaw documentation
 - **`MEMORY.md`** for facts and continuity saved by the agent
 
 This data is isolated per org and per profile. Two orgs never read or write the same directory, even if profile ids happen to match.
+
+Each profile also sees the default TinyClaw documentation source in the Knowledge tab:
+
+```text
+https://ahmadrosid.github.io/tinyclaw/
+```
+
+When a user asks about TinyClaw setup, profiles, tools, orgs, integrations, API, or troubleshooting, the agent can use that inherited source with `web_fetch` or `web_search` before answering detailed product questions.
 
 ## Multi-tenant behavior
 

@@ -257,6 +257,7 @@ describe("profile service knowledge base", () => {
     const listed = await service.listKnowledgeBase(ORG_ID, profileId);
     expect(listed.documents).toHaveLength(1);
     expect(listed.documents[0]?.filename).toBe("notes.txt");
+    expect(listed.sources[0]?.url).toBe("https://ahmadrosid.github.io/tinyclaw/");
 
     const deleted = await service.deleteKnowledgeBaseDocument(
       ORG_ID,

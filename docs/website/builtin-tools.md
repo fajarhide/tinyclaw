@@ -135,7 +135,7 @@ Search text in files under the profile workspace.
 
 ### `knowledge_base_search`
 
-Search uploaded knowledge base documents for relevant facts.
+Search uploaded knowledge base documents for relevant facts. The Knowledge tab can also show inherited URL sources, such as the TinyClaw documentation; use `web_fetch` or `web_search` for those URL sources.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
@@ -148,7 +148,7 @@ Search uploaded knowledge base documents for relevant facts.
 
 **Scope:** Extracted text under `~/.tinyclaw/profiles/{profileId}/data/knowledge-base/extracted/`.
 
-**Availability:** When assigned **and** at least one uploaded document has `status: "ready"`.
+**Availability:** When assigned **and** at least one uploaded document has `status: "ready"`. Inherited URL sources do not require `knowledge_base_search`; they require `web_fetch` or `web_search`.
 
 ### `web_search`
 

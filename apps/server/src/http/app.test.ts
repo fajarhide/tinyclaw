@@ -60,7 +60,7 @@ function createServerOptions() {
       getProfileSoulStack: async (_profileId: string) => ({ stack: ["SOUL.md"] }),
       initProfileSoul: async (_profileId: string) => ({ ok: true }),
       writeProfileSoulFile: async (_profileId: string, _fileKey: string, _body: unknown) => {},
-      listKnowledgeBase: async (_profileId: string) => ({ documents: [] }),
+      listKnowledgeBase: async (_profileId: string) => ({ documents: [], sources: [] }),
       uploadKnowledgeBaseDocument: async (_profileId: string, _doc: unknown) => ({ id: "kb_1" }),
       deleteKnowledgeBaseDocument: async (_profileId: string, _documentId: string) => ({ ok: true }),
       getProfileAvatar: async (_orgId: string, _profileId: string) => ({ bytes: new Uint8Array([1, 2, 3]), mediaType: "image/png" }),

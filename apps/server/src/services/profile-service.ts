@@ -28,6 +28,7 @@ import {
   hasProfileAvatar,
   initSoulDirectory,
   listKnowledgeBaseDocuments,
+  listKnowledgeBaseSources,
   readProfileAvatar,
   resolveSoulStackForProfile,
   saveProfileAvatar,
@@ -390,7 +391,8 @@ export class ProfileService {
   async listKnowledgeBase(orgId: string, profileId: string): Promise<ListKnowledgeBaseResponse> {
     await this.requireProfile(orgId, profileId);
     const documents = await listKnowledgeBaseDocuments(orgId, profileId);
-    return { documents, profileId };
+    const sources = await listKnowledgeBaseSources();
+    return { documents, sources, profileId };
   }
 
   async uploadKnowledgeBaseDocument(

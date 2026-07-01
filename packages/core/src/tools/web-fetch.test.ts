@@ -7,6 +7,15 @@ mock.module("node:dns/promises", () => ({
     if (hostname === "localhost") {
       return Promise.resolve([{ address: "127.0.0.1" }]);
     }
+    if (hostname === "github-pages.test") {
+      return Promise.resolve([
+        { address: "185.199.111.153" },
+        { address: "fd00:aa:bb:2250::b9c7:6f99" },
+      ]);
+    }
+    if (hostname === "private-alias.test") {
+      return Promise.resolve([{ address: "fd00:aa:bb:2250::0a00:0001" }]);
+    }
     // Any other hostname "resolves" to a public example.com address.
     return Promise.resolve([{ address: "93.184.216.34" }]);
   },
@@ -146,6 +155,21 @@ describe("web_fetch SSRF guard", () => {
       /resolves to private address/,
     );
   });
+
+  test("allows hostnames with at least one public address", async () => {
+    stubFetch(async () => htmlResponse("<p>ok</p>"));
+
+    const out = await webFetchTool.run({ url: "https://github-pages.test/" }, CTX);
+
+    expect(out.status).toBe(200);
+    expect(out.content).toContain("ok");
+  });
+
+  test("rejects hostnames with only private addresses", async () => {
+    await expect(webFetchTool.run({ url: "https://private-alias.test/" }, CTX)).rejects.toThrow(
+      /resolves to private address/,
+    );
+  });
 });
 
 describe("web_fetch happy path", () => {
@@ -227,8 +251,8 @@ describe("web_fetch happy path", () => {
 });
 
 describe("convertHtmlToMarkdown", () => {
-  test("converts headings and bold", () => {
-    const md = convertHtmlToMarkdown("<h2>Sub</h2><p>a <strong>b</strong></p>");
+  test("converts headings and bold", async () => {
+    const md = await convertHtmlToMarkdown("<h2>Sub</h2><p>a <strong>b</strong></p>");
     expect(md).toContain("## Sub");
     expect(md).toContain("**b**");
   });
