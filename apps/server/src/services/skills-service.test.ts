@@ -143,6 +143,47 @@ describe("SkillsService", () => {
     expect(matched).toBe("");
   });
 
+  test("can append context only for matched skills", async () => {
+    const db = createInMemoryDatabaseAdapter();
+    const service = new SkillsService(db);
+    await ensureBundledSkillFiles();
+    await service.syncDiscoveredSkills();
+
+    const skill = (await service.listSkills()).skills.find(
+      (entry) => entry.name === "create-profile",
+    );
+
+    expect(skill).toBeDefined();
+
+    await db.assignSkillToProfile(PROFILE_ID, skill!.id);
+
+    const matched = await service.formatMatchedSkillsForPrompt(
+      ORG_ID,
+      PROFILE_ID,
+      "Create a support bot profile",
+      {
+        appendContext: (skills) =>
+          skills.some((entry) => entry.name === "create-profile")
+            ? "# Available Tools\n- create_skill"
+            : "",
+      },
+    );
+
+    expect(matched).toContain("Active Skill: create-profile");
+    expect(matched).toContain("# Available Tools");
+
+    const unrelated = await service.formatMatchedSkillsForPrompt(
+      ORG_ID,
+      PROFILE_ID,
+      "Explain TLS",
+      {
+        appendContext: () => "# Available Tools\n- create_skill",
+      },
+    );
+
+    expect(unrelated).toBe("");
+  });
+
   test("creates profile skills and syncs them to the database", async () => {
     const db = createInMemoryDatabaseAdapter();
     const service = new SkillsService(db);

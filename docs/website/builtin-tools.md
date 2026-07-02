@@ -34,15 +34,15 @@ TinyClaw includes these builtins:
 | `read_file` | Yes | No | |
 | `save_artifact` | Yes | No | Persistent output under `artifacts/` |
 | `search_files` | Yes | No | |
-| `knowledge_base_search` | Yes | No | |
+| `knowledge_base_search` | Yes | Yes | Assigned to new custom profiles by default |
 | `web_search` | Yes | No | |
 | `web_fetch` | Yes | No | |
-| `update_profile_memory` | Yes | No | |
+| `update_profile_memory` | Yes | Yes | Assigned to new custom profiles by default |
 | `archive_profile_memory` | Yes | No | |
 | `email` | Yes | No | Omitted at runtime when mailbox is unconfigured |
-| `create_skill` | Yes | Yes | Only builtin assigned to new custom profiles by default |
+| `create_skill` | Yes | Yes | Assigned to new custom profiles by default |
 
-**New custom profiles** receive only `create_skill` until a platform admin assigns additional tools. System profiles (`default`, `super_bot`) get the full seeded set.
+**New custom profiles** receive `create_skill`, `knowledge_base_search`, and `update_profile_memory` until a platform admin assigns additional tools. System profiles (`default`, `super_bot`) get the full seeded set.
 
 ## Choosing tools for a profile
 

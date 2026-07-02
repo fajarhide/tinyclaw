@@ -2092,6 +2092,18 @@ export class AgentService {
             orgId,
             profileId,
             context.userMessage,
+            {
+              appendContext: async (matched) => {
+                if (
+                  !profile.isSuper ||
+                  !matched.some((skill) => skill.name === "create-profile")
+                ) {
+                  return "";
+                }
+
+                return this.formatProfileAuthoringToolContext();
+              },
+            },
           );
 
           if (skillContext.trim()) {
@@ -2152,6 +2164,27 @@ export class AgentService {
         void this.agentQuestionnaireState.clear(id);
       },
     });
+  }
+
+  private async formatProfileAuthoringToolContext(): Promise<string> {
+    const { tools } = await this.profileService.listTools();
+    const lines = tools
+      .slice()
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map((tool) => {
+        const source = tool.handlerType === "builtin" ? "builtin" : "custom";
+        return `- ${tool.name} (${source}, id: ${tool.id}) - ${tool.description}`;
+      });
+
+    if (lines.length === 0) {
+      return "";
+    }
+
+    return [
+      "# Available Tools for Profile Creation",
+      "Use this current tool inventory to choose a small, relevant starter tool set. Do not assign every tool by default.",
+      ...lines,
+    ].join("\n");
   }
 
   private async resolveProfileSystemPrompt(

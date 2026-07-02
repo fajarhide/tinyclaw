@@ -41,6 +41,40 @@ describe("bundled create-automation skill", () => {
   });
 });
 
+describe("bundled create-profile skill", () => {
+  test("parses bundled markdown", async () => {
+    const content = await readBundledSkillMarkdown("create-profile");
+    const parsed = parseSkillMarkdown(content, "create-profile/SKILL.md");
+
+    expect(parsed.frontmatter.name).toBe("create-profile");
+    expect(parsed.frontmatter.includeBodyOnMatch).toBe(true);
+    expect(parsed.body).toContain("`MEMORY.md` must be empty");
+    expect(parsed.body).toContain("available-tools context");
+  });
+
+  test("description matches profile creation messages", async () => {
+    const content = await readBundledSkillMarkdown("create-profile");
+    const parsed = parseSkillMarkdown(content, "create-profile/SKILL.md");
+    const discovered = {
+      name: parsed.frontmatter.name,
+      description: parsed.frontmatter.description,
+      disableModelInvocation: false,
+      includeBodyOnMatch: true,
+      directory: "/tmp/create-profile",
+      skillFilePath: "/tmp/create-profile/SKILL.md",
+      body: parsed.body,
+      hasTool: false,
+      toolPath: null,
+    };
+
+    expect(
+      matchSkillsForMessage([discovered], "Create a support bot profile for billing").map(
+        (skill) => skill.name,
+      ),
+    ).toEqual(["create-profile"]);
+  });
+});
+
 describe("ensureBundledSkillFiles", () => {
   let configDir: string;
 
@@ -58,6 +92,7 @@ describe("ensureBundledSkillFiles", () => {
     const created = await ensureBundledSkillFiles();
 
     expect(created).toContain("create-automation");
+    expect(created).toContain("create-profile");
 
     const content = await readFile(
       join(configDir, "agent", "skills", "create-automation", "SKILL.md"),
@@ -65,6 +100,13 @@ describe("ensureBundledSkillFiles", () => {
     );
 
     expect(content).toContain("name: create-automation");
+
+    const createProfileContent = await readFile(
+      join(configDir, "agent", "skills", "create-profile", "SKILL.md"),
+      "utf8",
+    );
+
+    expect(createProfileContent).toContain("name: create-profile");
   });
 
   test("does not overwrite existing skill files", async () => {

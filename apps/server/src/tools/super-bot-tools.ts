@@ -1,10 +1,23 @@
 import type { ProfileService } from "../services/profile-service";
-import { emptyObjectSchema, type ToolContext, type ToolDefinition } from "@tinyclaw/core";
+import {
+  emptyObjectSchema,
+  type CreateProfileRequest,
+  type ToolContext,
+  type ToolDefinition,
+} from "@tinyclaw/core";
 import { validateJavascriptToolModule } from "../services/javascript-tool-loader";
 import {
   SuperBotSessionState,
   TOOL_ASSIGNMENT_CONFIRMATION_MESSAGE,
 } from "../services/super-bot-session-state";
+
+const SUPPORTED_SOUL_FILE_NAMES = [
+  "SOUL.md",
+  "STYLE.md",
+  "INSTRUCTIONS.md",
+  "MEMORY.md",
+] as const;
+type SupportedSoulFileName = (typeof SUPPORTED_SOUL_FILE_NAMES)[number];
 
 function requireOrgId(context: ToolContext): string {
   const orgId = context.orgId?.trim();
@@ -71,6 +84,18 @@ export function createSuperBotTools(
             type: "boolean",
             description: "Whether this profile is a super bot.",
           },
+          soulFiles: {
+            type: "object",
+            description:
+              "Optional generated soul file contents for the new profile. Supported keys: SOUL.md, STYLE.md, INSTRUCTIONS.md, MEMORY.md.",
+            properties: {
+              "SOUL.md": { type: "string" },
+              "STYLE.md": { type: "string" },
+              "INSTRUCTIONS.md": { type: "string" },
+              "MEMORY.md": { type: "string" },
+            },
+            additionalProperties: false,
+          },
         },
         required: ["name"],
         additionalProperties: false,
@@ -88,6 +113,7 @@ export function createSuperBotTools(
           systemPrompt: readString(input, "systemPrompt") ?? undefined,
           model: readOptionalString(input, "model"),
           isSuper: readBoolean(input, "isSuper") ?? false,
+          soulFiles: readSoulFiles(input),
         });
       },
     },
@@ -235,6 +261,35 @@ function readObject(input: unknown, key: string): unknown {
   }
 
   return (input as Record<string, unknown>)[key];
+}
+
+function readSoulFiles(input: unknown): CreateProfileRequest["soulFiles"] | undefined {
+  const raw = readObject(input, "soulFiles");
+
+  if (raw === undefined) {
+    return undefined;
+  }
+
+  if (typeof raw !== "object" || raw === null) {
+    throw new Error("soulFiles must be an object.");
+  }
+
+  const allowed = new Set<string>(SUPPORTED_SOUL_FILE_NAMES);
+  const result: NonNullable<CreateProfileRequest["soulFiles"]> = {};
+
+  for (const [key, value] of Object.entries(raw)) {
+    if (!allowed.has(key)) {
+      throw new Error(`Unsupported soul file: ${key}`);
+    }
+
+    if (typeof value !== "string") {
+      throw new Error(`Soul file content must be a string: ${key}`);
+    }
+
+    result[key as SupportedSoulFileName] = value;
+  }
+
+  return result;
 }
 
 function readModulePath(handlerConfig: unknown): string | null {

@@ -112,6 +112,8 @@ On each user turn, TinyClaw can also attach matched skill context for the curren
 
 That means skills are not a separate bot. They are extra behavior layers attached to a profile.
 
+TinyClaw also ships bundled skills for system workflows. The `create-profile` bundled skill is assigned only to Super Bot, so profile-authoring instructions load when Super Bot is asked to create a profile without adding those instructions to ordinary profile prompts.
+
 For more detail, see [Agent prompts](/agent-prompt).
 
 ## How to create and assign skills
@@ -132,7 +134,7 @@ The dashboard also supports a shared skill library through the skills API and sy
 
 If a profile has the builtin `create_skill` tool, the bot can create a new profile-scoped skill during chat and assign it immediately.
 
-This is the only builtin tool that new custom profiles receive by default.
+New custom profiles receive `create_skill`, `knowledge_base_search`, and `update_profile_memory` by default when those builtins are available.
 
 ## Sync behavior
 

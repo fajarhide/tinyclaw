@@ -2,7 +2,12 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
-import type { CreateToolRequest, ProfileResponse, ToolSummary } from "@tinyclaw/core";
+import type {
+  CreateProfileRequest,
+  CreateToolRequest,
+  ProfileResponse,
+  ToolDetail,
+} from "@tinyclaw/core";
 import type { ProfileService } from "../services/profile-service";
 import {
   SuperBotSessionState,
@@ -45,17 +50,20 @@ describe("super bot create_tool", () => {
       "utf8",
     );
 
-    let capturedRequest: CreateToolRequest | null = null;
+    const capturedRequests: CreateToolRequest[] = [];
 
     const createTool = getCreateToolTool({
-      async createTool(request: CreateToolRequest): Promise<ToolSummary> {
-        capturedRequest = request;
+      async createTool(request: CreateToolRequest): Promise<ToolDetail> {
+        capturedRequests.push(request);
 
         return {
           id: "tool_echo",
           name: request.name,
           description: request.description,
           handlerType: request.handlerType ?? "javascript",
+          handlerConfig: request.handlerConfig ?? {},
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
         };
       },
     });
@@ -69,18 +77,19 @@ describe("super bot create_tool", () => {
       { sessionId: SESSION_ID },
     );
 
-    expect(capturedRequest).toEqual({
-      name: "echo",
-      description: "Echo input",
-      handlerType: "javascript",
-      handlerConfig: { modulePath: "echo.js" },
-    });
+    expect(capturedRequests[0]?.name).toBe("echo");
+    expect(capturedRequests[0]?.description).toBe("Echo input");
+    expect(capturedRequests[0]?.handlerType).toBe("javascript");
+    expect(capturedRequests[0]?.handlerConfig).toEqual({ modulePath: "echo.js" });
     expect(result).toEqual({
       tool: {
         id: "tool_echo",
         name: "echo",
         description: "Echo input",
         handlerType: "javascript",
+        handlerConfig: { modulePath: "echo.js" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
       },
     });
   });
@@ -89,19 +98,22 @@ describe("super bot create_tool", () => {
     let createToolCalled = false;
 
     const createTool = getCreateToolTool({
-      async createTool(): Promise<ToolSummary> {
+      async createTool(): Promise<ToolDetail> {
         createToolCalled = true;
         throw new Error("should not be called");
       },
     });
 
     const error = await captureError(
-      createTool.run({
-        name: "bad-tool",
-        description: "Bad tool",
-        handlerType: "custom",
-        handlerConfig: { modulePath: "bad-tool.js" },
-      }),
+      createTool.run(
+        {
+          name: "bad-tool",
+          description: "Bad tool",
+          handlerType: "custom",
+          handlerConfig: { modulePath: "bad-tool.js" },
+        },
+        { sessionId: SESSION_ID },
+      ),
     );
 
     expect(error?.message).toMatch(/only create javascript tools/i);
@@ -117,18 +129,21 @@ describe("super bot create_tool", () => {
     let createToolCalled = false;
 
     const createTool = getCreateToolTool({
-      async createTool(): Promise<ToolSummary> {
+      async createTool(): Promise<ToolDetail> {
         createToolCalled = true;
         throw new Error("should not be called");
       },
     });
 
     const error = await captureError(
-      createTool.run({
-        name: "missing",
-        description: "Missing module",
-        handlerConfig: { modulePath: "missing.js" },
-      }),
+      createTool.run(
+        {
+          name: "missing",
+          description: "Missing module",
+          handlerConfig: { modulePath: "missing.js" },
+        },
+        { sessionId: SESSION_ID },
+      ),
     );
 
     expect(error?.message).toBe("Tool module not found: missing.js");
@@ -247,7 +262,86 @@ describe("super bot assign_tool_to_profile", () => {
   });
 });
 
-function createTestTools(profileService: Pick<ProfileService, "createTool" | "assignTool">) {
+describe("super bot create_profile", () => {
+  test("passes generated soul files to profile creation", async () => {
+    const capturedRequests: CreateProfileRequest[] = [];
+
+    const createProfile = getCreateProfileTool({
+      async createProfile(_orgId: string, request: CreateProfileRequest): Promise<ProfileResponse> {
+        capturedRequests.push(request);
+
+        return {
+          profile: {
+            id: "support-bot",
+            name: request.name,
+            model: request.model ?? null,
+            isSuper: request.isSuper ?? false,
+            toolCount: 0,
+            mcpServerCount: 0,
+            soulActive: true,
+            hasAvatar: false,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+            systemPrompt: request.systemPrompt ?? "",
+            tools: [],
+            mcpServers: [],
+            skills: [],
+          },
+        };
+      },
+    });
+
+    await createProfile.run(
+      {
+        name: "Support Bot",
+        soulFiles: {
+          "SOUL.md": "# Support Bot",
+          "STYLE.md": "# Style",
+          "INSTRUCTIONS.md": "# Instructions",
+        },
+      },
+      { sessionId: SESSION_ID, orgId: ORG_ID },
+    );
+
+    expect(capturedRequests[0]?.id).toBeUndefined();
+    expect(capturedRequests[0]?.name).toBe("Support Bot");
+    expect(capturedRequests[0]?.systemPrompt).toBeUndefined();
+    expect(capturedRequests[0]?.model).toBeUndefined();
+    expect(capturedRequests[0]?.isSuper).toBe(false);
+    expect(capturedRequests[0]?.soulFiles).toEqual({
+      "SOUL.md": "# Support Bot",
+      "STYLE.md": "# Style",
+      "INSTRUCTIONS.md": "# Instructions",
+    });
+  });
+
+  test("rejects unsupported soul file keys", async () => {
+    let createProfileCalled = false;
+    const createProfile = getCreateProfileTool({
+      async createProfile(): Promise<ProfileResponse> {
+        createProfileCalled = true;
+        throw new Error("should not be called");
+      },
+    });
+
+    const error = await captureError(
+      createProfile.run(
+        {
+          name: "Bad Bot",
+          soulFiles: { "../SOUL.md": "# Bad" },
+        },
+        { sessionId: SESSION_ID, orgId: ORG_ID },
+      ),
+    );
+
+    expect(error?.message).toMatch(/unsupported soul file/i);
+    expect(createProfileCalled).toBe(false);
+  });
+});
+
+function createTestTools(
+  profileService: Partial<Pick<ProfileService, "createTool" | "assignTool" | "createProfile">>,
+) {
   const sessionState = new SuperBotSessionState();
   sessionState.beginTurn(SESSION_ID);
   return createSuperBotTools(profileService as ProfileService, sessionState);
@@ -260,6 +354,18 @@ function getCreateToolTool(profileService: Pick<ProfileService, "createTool">) {
 
   if (!tool) {
     throw new Error("create_tool was not registered");
+  }
+
+  return tool;
+}
+
+function getCreateProfileTool(profileService: Pick<ProfileService, "createProfile">) {
+  const tool = createTestTools(profileService).find(
+    (candidate) => candidate.name === "create_profile",
+  );
+
+  if (!tool) {
+    throw new Error("create_profile was not registered");
   }
 
   return tool;

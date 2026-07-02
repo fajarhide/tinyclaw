@@ -34,6 +34,7 @@ import {
   saveProfileAvatar,
   TinyClawApiError,
   uploadKnowledgeBaseDocument as persistKnowledgeBaseDocument,
+  writeSoulFile,
 } from "@tinyclaw/core";
 import { isProtectedToolId } from "@tinyclaw/core/tools/protected";
 import { BUILTIN_TOOL_IDS } from "@tinyclaw/core/tools/protected";
@@ -45,6 +46,17 @@ import { toSkillSummaries } from "./skills-service";
 import { readToolSource } from "./tool-source";
 
 const PROFILE_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
+const BASIC_PROFILE_TOOL_IDS = [
+  BUILTIN_TOOL_IDS.create_skill,
+  BUILTIN_TOOL_IDS.knowledge_base_search,
+  BUILTIN_TOOL_IDS.update_profile_memory,
+] as const;
+const SOUL_FILE_KEY_BY_NAME = {
+  "SOUL.md": "soul",
+  "STYLE.md": "style",
+  "INSTRUCTIONS.md": "instructions",
+  "MEMORY.md": "memory",
+} as const;
 
 function slugifyProfileName(name: string): string {
   return (
@@ -93,6 +105,8 @@ export class ProfileService {
       throw new Error("Profile name is required.");
     }
 
+    validateGeneratedSoulFiles(request.soulFiles);
+
     const profileId = await this.resolveNewProfileId(request.id, name);
     const now = new Date().toISOString();
     const profile: StoredProfileRecord = {
@@ -108,7 +122,9 @@ export class ProfileService {
     };
 
     await this.db.upsertProfile(profile);
-    await initSoulDirectory(getProfileSoulDir(orgId, profile.id));
+    const soulDir = getProfileSoulDir(orgId, profile.id);
+    await initSoulDirectory(soulDir);
+    await writeGeneratedSoulFiles(soulDir, request.soulFiles);
     await this.assignDefaultTools(profile.id);
 
     return this.getProfile(orgId, profile.id);
@@ -459,10 +475,12 @@ export class ProfileService {
   }
 
   private async assignDefaultTools(profileId: string): Promise<void> {
-    const createSkillTool = await this.db.getTool(BUILTIN_TOOL_IDS.create_skill);
+    for (const toolId of BASIC_PROFILE_TOOL_IDS) {
+      const tool = await this.db.getTool(toolId);
 
-    if (createSkillTool) {
-      await this.db.assignToolToProfile(profileId, createSkillTool.id);
+      if (tool) {
+        await this.db.assignToolToProfile(profileId, tool.id);
+      }
     }
   }
 
@@ -554,6 +572,54 @@ function readToolHandlerType(handlerType: string | undefined): "javascript" {
   }
 
   throw new Error('Only JavaScript tools can be created. Use handlerType "javascript".');
+}
+
+async function writeGeneratedSoulFiles(
+  soulDir: string,
+  soulFiles: CreateProfileRequest["soulFiles"] | undefined,
+): Promise<void> {
+  if (soulFiles === undefined) {
+    return;
+  }
+
+  const files = {
+    ...soulFiles,
+    "MEMORY.md": soulFiles["MEMORY.md"] ?? "",
+  };
+
+  for (const [fileName, content] of Object.entries(files)) {
+    if (content === undefined) {
+      continue;
+    }
+
+    if (typeof content !== "string") {
+      throw new Error(`Soul file content must be a string: ${fileName}`);
+    }
+
+    await writeSoulFile(
+      soulDir,
+      SOUL_FILE_KEY_BY_NAME[fileName as keyof typeof SOUL_FILE_KEY_BY_NAME],
+      content,
+    );
+  }
+}
+
+function validateGeneratedSoulFiles(
+  soulFiles: CreateProfileRequest["soulFiles"] | undefined,
+): void {
+  if (soulFiles === undefined) {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(soulFiles)) {
+    if (!(key in SOUL_FILE_KEY_BY_NAME)) {
+      throw new Error(`Unsupported soul file: ${key}`);
+    }
+
+    if (typeof value !== "string") {
+      throw new Error(`Soul file content must be a string: ${key}`);
+    }
+  }
 }
 
 function readJavascriptToolHandlerConfig(

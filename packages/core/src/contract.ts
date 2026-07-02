@@ -1100,6 +1100,12 @@ export interface CreateProfileRequest {
   systemPrompt?: string;
   model?: string | null;
   isSuper?: boolean;
+  soulFiles?: {
+    "SOUL.md"?: string;
+    "STYLE.md"?: string;
+    "INSTRUCTIONS.md"?: string;
+    "MEMORY.md"?: string;
+  };
 }
 
 export interface UpdateProfileRequest {

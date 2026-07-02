@@ -2,8 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
-import { BUILTIN_TOOL_IDS } from "@tinyclaw/core/tools/protected";
-import { createInMemoryDatabaseAdapter } from "@tinyclaw/db";
+import { createInMemoryDatabaseAdapter, ensureBuiltinToolDefinitions } from "@tinyclaw/db";
 import { ProfileService } from "./profile-service";
 
 const originalConfigDir = process.env.TINYCLAW_CONFIG_DIR;
@@ -139,28 +138,77 @@ describe("profile service createProfile", () => {
     );
   });
 
-  test("assigns create_skill when the built-in tool exists", async () => {
+  test("assigns basic tools when the built-in tools exist", async () => {
     tempConfigDir = await mkdtemp(path.join(os.tmpdir(), "tinyclaw-profile-default-tools-"));
     process.env.TINYCLAW_CONFIG_DIR = tempConfigDir;
 
     const db = createInMemoryDatabaseAdapter();
-    const now = new Date().toISOString();
-
-    await db.upsertTool({
-      id: BUILTIN_TOOL_IDS.create_skill,
-      name: "create_skill",
-      description: "Create a skill",
-      handlerType: "builtin",
-      handlerConfig: { name: "create_skill" },
-      createdAt: now,
-      updatedAt: now,
-    });
+    await ensureBuiltinToolDefinitions(db);
 
     const service = new ProfileService(db);
     const created = await service.createProfile(ORG_ID, { name: "Skill Bot" });
     const tools = await db.listToolsForProfile(created.profile.id);
 
     expect(tools.map((tool) => tool.name)).toContain("create_skill");
+    expect(tools.map((tool) => tool.name)).toContain("knowledge_base_search");
+    expect(tools.map((tool) => tool.name)).toContain("update_profile_memory");
+    expect(tools.map((tool) => tool.name)).not.toContain("web_search");
+  });
+
+  test("skips missing basic built-in tools without failing", async () => {
+    tempConfigDir = await mkdtemp(path.join(os.tmpdir(), "tinyclaw-profile-missing-tools-"));
+    process.env.TINYCLAW_CONFIG_DIR = tempConfigDir;
+
+    const db = createInMemoryDatabaseAdapter();
+
+    const service = new ProfileService(db);
+    const created = await service.createProfile(ORG_ID, { name: "No Tools Bot" });
+    const tools = await db.listToolsForProfile(created.profile.id);
+
+    expect(tools).toEqual([]);
+  });
+
+  test("writes generated soul files and keeps memory empty", async () => {
+    tempConfigDir = await mkdtemp(path.join(os.tmpdir(), "tinyclaw-profile-generated-soul-"));
+    process.env.TINYCLAW_CONFIG_DIR = tempConfigDir;
+
+    const service = new ProfileService(createInMemoryDatabaseAdapter());
+    const created = await service.createProfile(ORG_ID, {
+      name: "Support Bot",
+      soulFiles: {
+        "SOUL.md": "# Support Bot\n\nHelps customers.",
+        "STYLE.md": "# Style\n\nClear and kind.",
+        "INSTRUCTIONS.md": "# Instructions\n\nEscalate billing risks.",
+      },
+    });
+    const soulDir = path.join(tempConfigDir, "orgs", ORG_ID, "profiles", created.profile.id);
+
+    await expect(readFile(path.join(soulDir, "SOUL.md"), "utf8")).resolves.toContain(
+      "# Support Bot",
+    );
+    await expect(readFile(path.join(soulDir, "STYLE.md"), "utf8")).resolves.toContain(
+      "Clear and kind",
+    );
+    await expect(readFile(path.join(soulDir, "INSTRUCTIONS.md"), "utf8")).resolves.toContain(
+      "Escalate billing risks",
+    );
+    await expect(readFile(path.join(soulDir, "MEMORY.md"), "utf8")).resolves.toBe("");
+  });
+
+  test("rejects unsupported generated soul file keys", async () => {
+    tempConfigDir = await mkdtemp(path.join(os.tmpdir(), "tinyclaw-profile-bad-soul-"));
+    process.env.TINYCLAW_CONFIG_DIR = tempConfigDir;
+
+    const service = new ProfileService(createInMemoryDatabaseAdapter());
+
+    await expect(
+      service.createProfile(ORG_ID, {
+        name: "Bad Soul Bot",
+        soulFiles: {
+          "../SOUL.md": "# Bad",
+        } as never,
+      }),
+    ).rejects.toThrow(/unsupported soul file/i);
   });
 
   test("stores profile model selection", async () => {
@@ -207,6 +255,9 @@ describe("profile service createProfile", () => {
   });
 
   test("rejects duplicate custom profile ids", async () => {
+    tempConfigDir = await mkdtemp(path.join(os.tmpdir(), "tinyclaw-profile-duplicate-id-"));
+    process.env.TINYCLAW_CONFIG_DIR = tempConfigDir;
+
     const service = new ProfileService(createInMemoryDatabaseAdapter());
 
     await service.createProfile(ORG_ID, { id: "support", name: "Support" });

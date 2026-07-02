@@ -161,13 +161,20 @@ export class SkillsService {
     orgId: string,
     profileId: string,
     userMessage: string,
+    options: {
+      appendContext?: (matched: DiscoveredSkill[]) => string | Promise<string>;
+    } = {},
   ): Promise<string> {
     const assigned = await this.getAssignedDiscoveredSkills(orgId, profileId);
     const matched = matchSkillsForMessage(assigned, userMessage);
     const explicitSkillName = extractExplicitSkillName(userMessage);
-    return composeMatchedSkillsPrompt(matched, {
+    const prompt = composeMatchedSkillsPrompt(matched, {
       explicitInvocation: explicitSkillName !== null,
     });
+    const extraContext =
+      matched.length > 0 ? await options.appendContext?.(matched) : "";
+
+    return [prompt, extraContext?.trim()].filter(Boolean).join("\n\n");
   }
 
   async loadToolsForProfile(orgId: string, profileId: string): Promise<ToolDefinition[]> {

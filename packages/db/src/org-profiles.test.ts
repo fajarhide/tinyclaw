@@ -5,9 +5,26 @@ import { SUPER_BOT_SYSTEM_PROMPT } from "./constants";
 import { ensureBuiltinToolDefinitions } from "./seed";
 import {
   ensureOrgSuperBotProfiles,
+  ensureBundledSkillsAssigned,
   seedOrgDefaultProfile,
   seedOrgSuperBotProfile,
 } from "./org-profiles";
+
+async function upsertSkill(db: ReturnType<typeof createInMemoryDatabaseAdapter>, name: string) {
+  const now = new Date().toISOString();
+
+  await db.upsertSkill({
+    id: `skill_${name}`,
+    name,
+    description: `${name} skill`,
+    sourcePath: `/tmp/skills/${name}`,
+    hasTool: false,
+    disableModelInvocation: false,
+    enabled: true,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
 
 describe("seedOrgDefaultProfile", () => {
   test("creates one default profile per org", async () => {
@@ -45,6 +62,18 @@ describe("seedOrgDefaultProfile", () => {
 
     expect(second.id).toBe(first.id);
     expect(await db.listProfilesForOrg("org_a")).toHaveLength(1);
+  });
+
+  test("assigns default bundled skills but not super bot skills", async () => {
+    const db = createInMemoryDatabaseAdapter();
+    await upsertSkill(db, "create-automation");
+    await upsertSkill(db, "create-profile");
+
+    const profile = await seedOrgDefaultProfile(db, "org_a");
+    const skillNames = (await db.listSkillsForProfile(profile.id)).map((skill) => skill.name);
+
+    expect(skillNames).toContain("create-automation");
+    expect(skillNames).not.toContain("create-profile");
   });
 });
 
@@ -85,6 +114,18 @@ describe("seedOrgSuperBotProfile", () => {
     expect(toolIds).toContain(BASH_TOOL_ID);
   });
 
+  test("assigns super bot bundled skills", async () => {
+    const db = createInMemoryDatabaseAdapter();
+    await upsertSkill(db, "create-automation");
+    await upsertSkill(db, "create-profile");
+
+    const profile = await seedOrgSuperBotProfile(db, "org_a");
+    const skillNames = (await db.listSkillsForProfile(profile.id)).map((skill) => skill.name);
+
+    expect(skillNames).toContain("create-automation");
+    expect(skillNames).toContain("create-profile");
+  });
+
   test("is idempotent for the same org", async () => {
     const db = createInMemoryDatabaseAdapter();
     const first = await seedOrgSuperBotProfile(db, "org_a");
@@ -105,6 +146,34 @@ describe("seedOrgSuperBotProfile", () => {
 
     const toolIds = (await db.listToolsForProfile(profile.id)).map((tool) => tool.id);
     expect(toolIds).toContain(BUILTIN_TOOL_IDS.archive_profile_memory);
+  });
+
+  test("backfills super bot bundled skills on existing super bot", async () => {
+    const db = createInMemoryDatabaseAdapter();
+
+    const profile = await seedOrgSuperBotProfile(db, "org_a");
+    await upsertSkill(db, "create-profile");
+
+    await seedOrgSuperBotProfile(db, "org_a");
+
+    const skillNames = (await db.listSkillsForProfile(profile.id)).map((skill) => skill.name);
+    expect(skillNames).toContain("create-profile");
+  });
+});
+
+describe("ensureBundledSkillsAssigned", () => {
+  test("does not assign super bot-only skills to ordinary profiles", async () => {
+    const db = createInMemoryDatabaseAdapter();
+    await upsertSkill(db, "create-automation");
+    await upsertSkill(db, "create-profile");
+
+    const profile = await seedOrgDefaultProfile(db, "org_a");
+
+    await ensureBundledSkillsAssigned(db);
+
+    const skillNames = (await db.listSkillsForProfile(profile.id)).map((skill) => skill.name);
+    expect(skillNames).toContain("create-automation");
+    expect(skillNames).not.toContain("create-profile");
   });
 });
 
