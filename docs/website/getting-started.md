@@ -108,7 +108,7 @@ WhatsApp supports direct-chat setup through the linked-device flow with QR or pa
 
 If you want to use TinyClaw in Telegram groups:
 
-1. Link your Telegram account to the bot in a private chat first.
+1. Link each Telegram user in a private chat, or add their numeric user ID under **Integrations → Telegram → Allowed users**.
 2. In `@BotFather`, disable **Group Privacy** for the bot if you want `@mentions` to work reliably.
 3. If you changed Group Privacy, remove the bot from the group and add it back so Telegram applies the new setting.
 

@@ -96,7 +96,41 @@ TinyClaw also supports allowlisting Telegram user IDs directly.
 
 This is useful when you want to pre-authorize specific users without the one-time pairing flow.
 
-You can configure allowed Telegram user IDs in the Telegram settings file or through environment-based config.
+To add users from the dashboard:
+
+1. Open **Integrations → Telegram**
+2. In **Allowed users**, click **Manage**
+3. Paste a numeric Telegram user ID and click **Add**
+
+To paste raw Telegram update JSON instead:
+
+1. Open **Integrations → Telegram**
+2. In **Allowed users**, click **Manage**
+3. Click **Import JSON**
+4. Paste the raw Telegram update JSON
+5. Click **Add user**
+
+Use the Telegram user's `from.id`, not their `@username`.
+When you paste raw JSON, TinyClaw reads `message.from.id` and shows the username when it is present.
+
+For example, in this Telegram update payload:
+
+```json
+{
+  "from": {
+    "id": 213193924,
+    "username": "ahmadrosid"
+  }
+}
+```
+
+The allowed user ID is:
+
+```text
+213193924
+```
+
+You can also configure allowed users through `TELEGRAM_ALLOWED_USER_IDS` for environment-based deployments.
 
 ## Private chat behavior
 
@@ -191,7 +225,7 @@ Important values include:
 - default Telegram profile
 - pairing code
 - paired user IDs
-- allowed user IDs
+- allowed user IDs from the dashboard allowlist
 
 Environment-based setup is also supported. The main env var is:
 
