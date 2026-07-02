@@ -20,6 +20,7 @@ import {
   cookieHeaderFromSetCookies,
   cookieValue,
   extractSetCookies,
+  loginUserSession,
   setupFreshInstallSession,
 } from "./test-session-helpers";
 import { setupTestConfigDir } from "../test-config-dir";
@@ -461,6 +462,64 @@ describe("createHonoApp", () => {
     });
   });
 
+  test("requires platform admin to control messaging workers", async () => {
+    const options = createServerOptions();
+    const calls: string[] = [];
+    options.workerManager.startWorker = async (name: string) => {
+      calls.push(`start:${name}`);
+    };
+    options.workerManager.stopWorker = async (name: string) => {
+      calls.push(`stop:${name}`);
+    };
+    const app = createHonoApp(options);
+    const platformSession = await setupFreshInstallSession(app, options.databaseAdapter);
+    const now = new Date().toISOString();
+
+    await options.databaseAdapter.createUser({
+      id: "user_org_admin_worker",
+      email: "org-admin-worker@example.com",
+      passwordHash: await options.authService.hashPassword("password123"),
+      createdAt: now,
+      updatedAt: now,
+    });
+    await options.databaseAdapter.upsertOrgMember({
+      orgId: platformSession.orgId!,
+      userId: "user_org_admin_worker",
+      role: "admin",
+      createdAt: now,
+    });
+
+    const orgAdminSession = await loginUserSession(
+      app,
+      "org-admin-worker@example.com",
+      "password123",
+      platformSession.orgId,
+    );
+    const denied = await app.fetch(
+      new Request("http://localhost:4310/v1/workers/whatsapp/start", {
+        method: "POST",
+        headers: orgAdminSession.headers({
+          "X-CSRF-Token": orgAdminSession.csrfToken,
+        }),
+      }),
+    );
+
+    expect(denied.status).toBe(403);
+    expect(calls).toEqual([]);
+
+    const allowed = await app.fetch(
+      new Request("http://localhost:4310/v1/workers/telegram/stop", {
+        method: "POST",
+        headers: platformSession.headers({
+          "X-CSRF-Token": platformSession.csrfToken,
+        }),
+      }),
+    );
+
+    expect(allowed.status).toBe(200);
+    expect(calls).toEqual(["stop:telegram"]);
+  });
+
   test("serves model catalog through Hono routes", async () => {
     const options = createServerOptions();
     const app = createHonoApp(options);
@@ -789,7 +848,7 @@ describe("createHonoApp", () => {
       const session = await setupFreshInstallSession(app, options.databaseAdapter, "viewer@example.com", "viewer");
 
       const response = await app.fetch(
-        new Request("http://localhost:4310/v1/workers/whatsapp/start", {
+        new Request("http://localhost:4310/v1/workers/automation/start", {
           method: "POST",
           headers: session.headers({
             "X-CSRF-Token": session.csrfToken,

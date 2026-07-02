@@ -19,6 +19,7 @@ import { Link } from "react-router-dom";
 import type { LlmUsageStatus, SystemStatusResponse } from "@tinyclaw/core/contract";
 import { Button } from "@/components/ui/button";
 import { WorkerActionBar } from "@/components/WorkerActionBar";
+import { useAuth } from "@/context/auth-context";
 import { useRefreshSystemStatus, useSystemStatusQuery } from "@/hooks/use-system-status";
 import { formatError } from "@/lib/client";
 import { PAGE_PATHS } from "@/lib/navigation";
@@ -34,8 +35,10 @@ type StatusTone = "ok" | "warn" | "bad";
 
 export function StatusPage() {
   const { data: status, error, isLoading } = useSystemStatusQuery();
+  const { user } = useAuth();
   const refreshSystemStatus = useRefreshSystemStatus();
   const errorMessage = error ? formatError(error) : null;
+  const canManageWorkers = user?.isPlatformAdmin === true;
 
   return (
     <div className="min-w-0 space-y-6">
@@ -77,7 +80,7 @@ export function StatusPage() {
         <StatusSkeleton />
       ) : status ? (
         <>
-          <StatusDashboard status={status} />
+          <StatusDashboard status={status} canManageWorkers={canManageWorkers} />
           <LlmUsageSection usage={status.llmUsage} />
         </>
       ) : null}
@@ -85,7 +88,13 @@ export function StatusPage() {
   );
 }
 
-function StatusDashboard({ status }: { status: SystemStatusResponse }) {
+function StatusDashboard({
+  status,
+  canManageWorkers,
+}: {
+  status: SystemStatusResponse;
+  canManageWorkers: boolean;
+}) {
   const summary = useMemo(() => deriveSummary(status), [status]);
   const services = useMemo(() => buildServiceColumns(status), [status]);
   const { automationWorker, telegramWorker, whatsappWorker } = status;
@@ -115,6 +124,7 @@ function StatusDashboard({ status }: { status: SystemStatusResponse }) {
                 tone={service.tone}
                 worker={automationWorker}
                 workerName="automation"
+                canManage={canManageWorkers}
               />
             );
           }
@@ -129,6 +139,7 @@ function StatusDashboard({ status }: { status: SystemStatusResponse }) {
                 tone={service.tone}
                 worker={telegramWorker}
                 workerName="telegram"
+                canManage={canManageWorkers}
               />
             );
           }
@@ -143,6 +154,7 @@ function StatusDashboard({ status }: { status: SystemStatusResponse }) {
                 tone={service.tone}
                 worker={whatsappWorker}
                 workerName="whatsapp"
+                canManage={canManageWorkers}
                 footerLink={
                   whatsappWorker.configured &&
                   whatsappWorker.running &&
@@ -583,6 +595,7 @@ function WorkerServiceColumn({
   tone,
   worker,
   workerName,
+  canManage,
   footerLink,
 }: {
   icon: LucideIcon;
@@ -591,6 +604,7 @@ function WorkerServiceColumn({
   tone: ServiceStatusTone;
   worker: Pick<SystemStatusResponse["automationWorker"], "running" | "process">;
   workerName: string;
+  canManage: boolean;
   footerLink?: { label: string; to: string };
 }) {
   return (
@@ -619,12 +633,14 @@ function WorkerServiceColumn({
           </p>
         </div>
       </div>
-      <WorkerActionBar
-        className="border-t border-border px-5 py-2"
-        running={worker.running}
-        pm2Managed={worker.process?.managed ?? false}
-        workerName={workerName}
-      />
+      {canManage ? (
+        <WorkerActionBar
+          className="border-t border-border px-5 py-2"
+          running={worker.running}
+          pm2Managed={worker.process?.managed ?? false}
+          workerName={workerName}
+        />
+      ) : null}
       {footerLink ? (
         <div className="border-t border-border px-5 py-2">
           <Link

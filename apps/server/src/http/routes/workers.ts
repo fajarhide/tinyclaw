@@ -2,7 +2,10 @@ import { createRoute, z } from "@hono/zod-openapi";
 import type { HonoApp } from "../types";
 import type { ServerOptions } from "../context";
 import { errorResponse, json } from "../shared";
-import { requireNotViewerFromContext } from "../org-guards";
+import {
+  requireNotViewerFromContext,
+  requirePlatformAdminFromContext,
+} from "../org-guards";
 import type { WorkerLogsResponse } from "@tinyclaw/core";
 
 export function registerWorkerRoutes(app: HonoApp, options: ServerOptions): void {
@@ -65,9 +68,13 @@ export function registerWorkerRoutes(app: HonoApp, options: ServerOptions): void
   }));
 
   app.post("/v1/workers/:name/:action{start|stop|restart}", async (c) => {
-    requireNotViewerFromContext(c);
     const name = decodeURIComponent(c.req.param("name"));
     const action = c.req.param("action");
+    if (name === "telegram" || name === "whatsapp") {
+      requirePlatformAdminFromContext(c);
+    } else {
+      requireNotViewerFromContext(c);
+    }
 
     if (!workerManager.isValidWorker(name)) {
       return errorResponse(`Unknown worker: ${name}`, 400);
