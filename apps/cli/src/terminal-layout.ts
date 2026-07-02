@@ -63,6 +63,8 @@ export function getTerminalColumns(): number {
   return process.stdout.columns ?? 80;
 }
 
+const TRANSCRIPT_HORIZONTAL_PADDING = 1;
+
 function wrapPlainTextToLines(text: string, width: number): string[] {
   const normalized = text.replace(/\r\n?/g, "\n");
   const logicalLines = normalized.split("\n");
@@ -78,6 +80,15 @@ function wrapPlainTextToLines(text: string, width: number): string[] {
   }
 
   return wrappedLines.length > 0 ? wrappedLines : [""];
+}
+
+function padTranscriptLine(text: string): string {
+  return `${" ".repeat(TRANSCRIPT_HORIZONTAL_PADDING)}${text}${" ".repeat(TRANSCRIPT_HORIZONTAL_PADDING)}`;
+}
+
+function wrapPaddedTranscriptLines(text: string, width: number): string[] {
+  const contentWidth = Math.max(1, width - TRANSCRIPT_HORIZONTAL_PADDING * 2);
+  return wrapPlainTextToLines(text, contentWidth).map((line) => padTranscriptLine(line));
 }
 
 export class TerminalLayout {
@@ -314,7 +325,7 @@ export class TerminalLayout {
       return;
     }
 
-    const lines = wrapPlainTextToLines(this.streamBuffer, getTerminalColumns());
+    const lines = wrapPaddedTranscriptLines(this.streamBuffer, getTerminalColumns());
     for (const line of lines) {
       this.messages.appendLine(line);
     }
@@ -326,7 +337,7 @@ export class TerminalLayout {
       return [];
     }
 
-    return wrapPlainTextToLines(this.streamBuffer, getTerminalColumns()).map((line) =>
+    return wrapPaddedTranscriptLines(this.streamBuffer, getTerminalColumns()).map((line) =>
       plainLine(line),
     );
   }

@@ -108,7 +108,24 @@ describe("formatPendingDisplayLines", () => {
 });
 
 describe("VirtualMessageList", () => {
-  test("adds a blank line between message blocks", () => {
+  test("adds a blank line before conversational message blocks", () => {
+    const messages = new VirtualMessageList();
+
+    messages.beginMessage("output");
+    messages.appendLine("first");
+    messages.sealMessage();
+    messages.beginMessage("assistant");
+    messages.appendLine("second");
+    messages.sealMessage();
+
+    expect(messages.getLines(0, messages.totalLines(20), 20).map(styledLineText)).toEqual([
+      " first ",
+      "",
+      " second ",
+    ]);
+  });
+
+  test("keeps output entries compact without blank separators", () => {
     const messages = new VirtualMessageList();
 
     messages.beginMessage("output");
@@ -120,7 +137,6 @@ describe("VirtualMessageList", () => {
 
     expect(messages.getLines(0, messages.totalLines(20), 20).map(styledLineText)).toEqual([
       " first ",
-      "",
       " second ",
     ]);
   });
@@ -350,6 +366,35 @@ describe("TerminalLayout frame pipeline", () => {
       ?.topRow ?? 8;
 
     expect(afterResetTop).toBeLessThanOrEqual(grownTop);
+  });
+
+  test("pads streaming lines on both sides before the message is sealed", () => {
+    captureStdout();
+    setTerminalSize(20, 12);
+    const layout = new TerminalLayout(null);
+
+    Object.assign(layout as Record<string, unknown>, {
+      enabled: true,
+      anchored: true,
+      anchorRow: 8,
+      viewportTopRow: 8,
+    });
+
+    layout.setReservedRows(1, [plainLine("> ")]);
+    layout.beginMessage("assistant");
+    layout.writeScroll("1234567890 1234567890 1234567890");
+
+    const frame = (layout as Record<string, unknown>).previousFrame as { lines: Array<{ segments: Array<{ text: string }> }> } | null;
+    const transcriptLines =
+      frame?.lines
+        .map((line) => line.segments.map((segment) => segment.text).join(""))
+        .filter((line) => line.includes("1234567890")) ?? [];
+
+    expect(transcriptLines.length).toBeGreaterThan(0);
+    for (const line of transcriptLines) {
+      expect(line.startsWith(" ")).toBe(true);
+      expect(line.endsWith(" ")).toBe(true);
+    }
   });
 
   test("grows viewport one line at a time", () => {

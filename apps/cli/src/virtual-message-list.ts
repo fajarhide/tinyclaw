@@ -128,7 +128,11 @@ export class VirtualMessageList {
     for (let i = startFrom; i < this.messages.length; i++) {
       let lines = this.wrappedCache.get(i);
       if (!lines) {
-        lines = this.formatMessageLines(this.messages[i].text, width, i > 0);
+        lines = this.formatMessageLines(
+          this.messages[i].text,
+          width,
+          this.shouldInsertLeadingGap(i, this.messages[i].kind),
+        );
         this.wrappedCache.set(i, lines);
       }
       this.offsets.push(this.offsets[this.offsets.length - 1] + lines.length);
@@ -181,7 +185,11 @@ export class VirtualMessageList {
       return [];
     }
 
-    return this.formatMessageLines(this.currentText.join("\n"), width, this.messages.length > 0);
+    return this.formatMessageLines(
+      this.currentText.join("\n"),
+      width,
+      this.shouldInsertLeadingGap(this.messages.length, this.currentKind),
+    );
   }
 
   // ── Line resolution (lazy) ────────────────────────────────────────
@@ -210,7 +218,11 @@ export class VirtualMessageList {
 
       let lines = this.wrappedCache.get(i);
       if (!lines) {
-        lines = this.formatMessageLines(this.messages[i].text, width, i > 0);
+        lines = this.formatMessageLines(
+          this.messages[i].text,
+          width,
+          this.shouldInsertLeadingGap(i, this.messages[i].kind),
+        );
         this.wrappedCache.set(i, lines);
       }
 
@@ -309,7 +321,11 @@ export class VirtualMessageList {
     }
     const cached = this.wrappedCache.get(index);
     if (cached) return cached;
-    const lines = this.formatMessageLines(this.messages[index].text, width, index > 0);
+    const lines = this.formatMessageLines(
+      this.messages[index].text,
+      width,
+      this.shouldInsertLeadingGap(index, this.messages[index].kind),
+    );
     this.wrappedCache.set(index, lines);
     return lines;
   }
