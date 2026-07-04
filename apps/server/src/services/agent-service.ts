@@ -398,6 +398,8 @@ export class AgentService {
       id: WORKSPACE_SETTINGS_ID,
       visionModel: model,
       transcriptionModel: existing?.transcriptionModel ?? this.userConfig?.transcriptionModel ?? null,
+      codingAgentHarnesses: existing?.codingAgentHarnesses ?? [],
+      selectedCodingAgentHarness: existing?.selectedCodingAgentHarness ?? null,
       updatedAt: new Date().toISOString(),
     });
 
@@ -447,6 +449,8 @@ export class AgentService {
       id: WORKSPACE_SETTINGS_ID,
       visionModel: existing?.visionModel ?? this.userConfig?.visionModel ?? null,
       transcriptionModel: model,
+      codingAgentHarnesses: existing?.codingAgentHarnesses ?? [],
+      selectedCodingAgentHarness: existing?.selectedCodingAgentHarness ?? null,
       updatedAt: new Date().toISOString(),
     });
 
@@ -532,6 +536,8 @@ export class AgentService {
       id: WORKSPACE_SETTINGS_ID,
       visionModel: this.userConfig?.visionModel ?? null,
       transcriptionModel: legacyModel,
+      codingAgentHarnesses: stored?.codingAgentHarnesses ?? [],
+      selectedCodingAgentHarness: stored?.selectedCodingAgentHarness ?? null,
       updatedAt: new Date().toISOString(),
     });
 
@@ -577,6 +583,8 @@ export class AgentService {
       id: WORKSPACE_SETTINGS_ID,
       visionModel: legacyVisionModel,
       transcriptionModel: legacyTranscriptionModel,
+      codingAgentHarnesses: stored?.codingAgentHarnesses ?? [],
+      selectedCodingAgentHarness: stored?.selectedCodingAgentHarness ?? null,
       updatedAt: new Date().toISOString(),
     });
 
@@ -1983,7 +1991,7 @@ export class AgentService {
     options: { includeAutomationTools?: boolean; includeTodoTools?: boolean } = {},
   ): Promise<ToolDefinition[]> {
     const storedTools = await this.db.listToolsForProfile(profile.id);
-    const tools = await resolveProfileStoredTools(storedTools);
+    const tools = await resolveProfileStoredTools(storedTools, this.db);
     const includeAutomationTools = options.includeAutomationTools ?? true;
     const includeTodoTools = options.includeTodoTools ?? true;
 

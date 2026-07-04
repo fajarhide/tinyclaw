@@ -176,6 +176,8 @@ interface WorkspaceSettingsRow {
   id: string;
   vision_model: string | null;
   transcription_model: string | null;
+  coding_agent_harnesses: string;
+  selected_coding_agent_harness: string | null;
   updated_at: string;
 }
 
@@ -669,11 +671,20 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
     "SELECT * FROM workspace_settings WHERE id = ?",
   );
   const upsertWorkspaceSettingsStmt = db.prepare(`
-    INSERT INTO workspace_settings (id, vision_model, transcription_model, updated_at)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO workspace_settings (
+      id,
+      vision_model,
+      transcription_model,
+      coding_agent_harnesses,
+      selected_coding_agent_harness,
+      updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       vision_model = excluded.vision_model,
       transcription_model = excluded.transcription_model,
+      coding_agent_harnesses = excluded.coding_agent_harnesses,
+      selected_coding_agent_harness = excluded.selected_coding_agent_harness,
       updated_at = excluded.updated_at
   `);
   const listNotificationDestinationsForOrgStmt = db.prepare(`
@@ -1513,6 +1524,8 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
         record.id,
         record.visionModel,
         record.transcriptionModel,
+        JSON.stringify(record.codingAgentHarnesses),
+        record.selectedCodingAgentHarness,
         record.updatedAt,
       );
     },
@@ -1971,8 +1984,62 @@ function toWorkspaceSettingsRecord(row: WorkspaceSettingsRow): StoredWorkspaceSe
     id: row.id,
     visionModel: row.vision_model?.trim() || null,
     transcriptionModel: row.transcription_model?.trim() || null,
+    codingAgentHarnesses: parseCodingAgentHarnesses(row.coding_agent_harnesses),
+    selectedCodingAgentHarness: row.selected_coding_agent_harness?.trim() || null,
     updatedAt: row.updated_at,
   };
+}
+
+function parseCodingAgentHarnesses(
+  raw: string | null | undefined,
+): StoredWorkspaceSettingsRecord["codingAgentHarnesses"] {
+  if (!raw?.trim()) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.flatMap((item) => {
+      if (typeof item !== "object" || item === null) {
+        return [];
+      }
+
+      const harness = item as Record<string, unknown>;
+      const id = typeof harness.id === "string" ? harness.id.trim() : "";
+      const kind = typeof harness.kind === "string" ? harness.kind.trim() : "";
+      const name = typeof harness.name === "string" ? harness.name.trim() : "";
+      const command = typeof harness.command === "string" ? harness.command.trim() : "";
+      const args = Array.isArray(harness.args)
+        ? harness.args.filter((value): value is string => typeof value === "string")
+        : [];
+
+      if (!id || !name || !command) {
+        return [];
+      }
+
+      if (kind !== "codex" && kind !== "claude_code" && kind !== "opencode") {
+        return [];
+      }
+
+      return [
+        {
+          id,
+          kind,
+          name,
+          command,
+          args,
+          enabled: harness.enabled !== false,
+        },
+      ];
+    });
+  } catch {
+    return [];
+  }
 }
 
 function toNotificationDestinationRecord(

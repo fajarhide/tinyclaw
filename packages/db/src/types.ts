@@ -159,8 +159,21 @@ export interface StoredWorkspaceSettingsRecord {
   id: string;
   visionModel: string | null;
   transcriptionModel: string | null;
+  codingAgentHarnesses: StoredCodingAgentHarnessRecord[];
+  selectedCodingAgentHarness: string | null;
   updatedAt: string;
   orgId?: string | null;
+}
+
+export type StoredCodingAgentHarnessKind = "codex" | "claude_code" | "opencode";
+
+export interface StoredCodingAgentHarnessRecord {
+  id: string;
+  kind: StoredCodingAgentHarnessKind;
+  name: string;
+  command: string;
+  args: string[];
+  enabled: boolean;
 }
 
 export interface StoredNotificationDestinationRecord {

@@ -646,6 +646,9 @@ function migrateWorkspaceSettingsTable(db: Database): void {
     CREATE TABLE IF NOT EXISTS workspace_settings (
       id TEXT PRIMARY KEY NOT NULL,
       vision_model TEXT,
+      transcription_model TEXT,
+      coding_agent_harnesses TEXT NOT NULL DEFAULT '[]',
+      selected_coding_agent_harness TEXT,
       updated_at TEXT NOT NULL
     );
   `);
@@ -658,6 +661,18 @@ function migrateWorkspaceSettingsTable(db: Database): void {
   if (!columnNames.has("transcription_model")) {
     db.exec(`
       ALTER TABLE workspace_settings ADD COLUMN transcription_model TEXT;
+    `);
+  }
+
+  if (!columnNames.has("coding_agent_harnesses")) {
+    db.exec(`
+      ALTER TABLE workspace_settings ADD COLUMN coding_agent_harnesses TEXT NOT NULL DEFAULT '[]';
+    `);
+  }
+
+  if (!columnNames.has("selected_coding_agent_harness")) {
+    db.exec(`
+      ALTER TABLE workspace_settings ADD COLUMN selected_coding_agent_harness TEXT;
     `);
   }
 }

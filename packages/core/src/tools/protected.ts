@@ -14,10 +14,12 @@ export const BUILTIN_TOOL_IDS = {
 } as const;
 
 export const BASH_TOOL_ID = "tool_bash";
+export const DELEGATE_CODING_TASK_TOOL_ID = "tool_delegate_coding_task";
 
 export const PROTECTED_TOOL_IDS = new Set<string>([
   ...Object.values(BUILTIN_TOOL_IDS),
   BASH_TOOL_ID,
+  DELEGATE_CODING_TASK_TOOL_ID,
 ]);
 
 export function isProtectedToolId(toolId: string): boolean {

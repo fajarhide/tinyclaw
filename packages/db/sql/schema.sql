@@ -317,5 +317,7 @@ CREATE TABLE IF NOT EXISTS workspace_settings (
   id TEXT PRIMARY KEY NOT NULL,
   vision_model TEXT,
   transcription_model TEXT,
+  coding_agent_harnesses TEXT NOT NULL DEFAULT '[]',
+  selected_coding_agent_harness TEXT,
   updated_at TEXT NOT NULL
 );

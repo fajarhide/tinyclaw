@@ -705,11 +705,25 @@ export function createInMemoryDatabaseAdapter(): DatabaseAdapter {
     },
 
     async getWorkspaceSettings() {
-      return workspaceSettings;
+      return workspaceSettings
+        ? {
+            ...workspaceSettings,
+            codingAgentHarnesses: workspaceSettings.codingAgentHarnesses.map((harness) => ({
+              ...harness,
+              args: [...harness.args],
+            })),
+          }
+        : null;
     },
 
     async upsertWorkspaceSettings(record) {
-      workspaceSettings = record;
+      workspaceSettings = {
+        ...record,
+        codingAgentHarnesses: record.codingAgentHarnesses.map((harness) => ({
+          ...harness,
+          args: [...harness.args],
+        })),
+      };
     },
 
     async listNotificationDestinationsForOrg(orgId) {

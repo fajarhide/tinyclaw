@@ -1,8 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { BUILTIN_TOOL_IDS } from "@tinyclaw/core/tools/protected";
+import { BUILTIN_TOOL_IDS, DELEGATE_CODING_TASK_TOOL_ID } from "@tinyclaw/core/tools/protected";
 import { PREINSTALLED_MCP_SERVER_IDS } from "@tinyclaw/core/mcp/preinstalled";
 import { createInMemoryDatabaseAdapter } from "./adapters/in-memory";
-import { ensureBuiltinToolDefinitions, ensurePreinstalledMcpServers, removeUnsupportedTools, seedDatabase } from "./seed";
+import {
+  ensureBuiltinToolDefinitions,
+  ensurePreinstalledMcpServers,
+  ensureServerToolDefinitions,
+  removeUnsupportedTools,
+  seedDatabase,
+} from "./seed";
 
 describe("seed cleanup", () => {
   test("removes unsupported tool handler types", async () => {
@@ -69,6 +75,14 @@ describe("seed built-in tools", () => {
 
     expect(await db.getTool(BUILTIN_TOOL_IDS.edit_file)).not.toBeNull();
     expect(await db.getTool(BUILTIN_TOOL_IDS.archive_profile_memory)).not.toBeNull();
+  });
+
+  test("ensureServerToolDefinitions registers delegate coding task", async () => {
+    const db = createInMemoryDatabaseAdapter();
+
+    await ensureServerToolDefinitions(db);
+
+    expect(await db.getTool(DELEGATE_CODING_TASK_TOOL_ID)).not.toBeNull();
   });
 });
 

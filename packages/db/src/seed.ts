@@ -1,6 +1,6 @@
 import { builtinTools } from "@tinyclaw/core";
 import { preinstalledMcpServers } from "@tinyclaw/core/mcp/preinstalled";
-import { BUILTIN_TOOL_IDS } from "@tinyclaw/core/tools/protected";
+import { BUILTIN_TOOL_IDS, DELEGATE_CODING_TASK_TOOL_ID } from "@tinyclaw/core/tools/protected";
 import { ensureLocalClientAccess } from "./local-client";
 import { ensureOrgSuperBotProfiles } from "./org-profiles";
 import type { DatabaseAdapter } from "./types";
@@ -12,6 +12,7 @@ export async function seedDatabase(db: DatabaseAdapter): Promise<void> {
   await removeLegacyBuiltinTools(db);
   await removeUnsupportedTools(db);
   await ensureBuiltinToolDefinitions(db);
+  await ensureServerToolDefinitions(db);
   await ensurePreinstalledMcpServers(db);
   await ensureLocalClientAccess(db);
   await ensureOrgSuperBotProfiles(db);
@@ -73,6 +74,22 @@ export async function ensureBuiltinToolDefinitions(db: DatabaseAdapter): Promise
       updatedAt: now,
     });
   }
+}
+
+export async function ensureServerToolDefinitions(db: DatabaseAdapter): Promise<void> {
+  const now = new Date().toISOString();
+  const existing = await db.getTool(DELEGATE_CODING_TASK_TOOL_ID);
+
+  await db.upsertTool({
+    id: DELEGATE_CODING_TASK_TOOL_ID,
+    name: "delegate_coding_task",
+    description:
+      "Delegate a coding task to an installed headless coding agent like Codex, Claude Code, or OpenCode.",
+    handlerType: "bash",
+    handlerConfig: {},
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  });
 }
 
 export async function ensurePreinstalledMcpServers(db: DatabaseAdapter): Promise<void> {

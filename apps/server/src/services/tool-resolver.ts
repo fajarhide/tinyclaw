@@ -1,11 +1,10 @@
-import type { StoredToolRecord } from "@tinyclaw/db";
+import type { DatabaseAdapter, StoredToolRecord } from "@tinyclaw/db";
 import { builtinTools, type ToolDefinition } from "@tinyclaw/core";
 import { isEmailConfigComplete, loadEmailConfig } from "@tinyclaw/core/email-config";
 import { emailTool } from "@tinyclaw/core/tools/email";
 import { bashTool } from "../tools/bash";
+import { createDelegateCodingTaskTool } from "../tools/delegate-coding-task";
 import { loadJavascriptTool } from "./javascript-tool-loader";
-
-const SERVER_TOOLS = new Map<string, ToolDefinition>([[bashTool.name, bashTool]]);
 
 export function omitUnavailableBuiltinTools(
   tools: ToolDefinition[],
@@ -20,9 +19,10 @@ export function omitUnavailableBuiltinTools(
 
 export async function resolveProfileStoredTools(
   records: StoredToolRecord[],
+  db?: DatabaseAdapter,
   builtinOverrides: ToolDefinition[] = [],
 ): Promise<ToolDefinition[]> {
-  const tools = await resolveToolsFromStorage(records, builtinOverrides);
+  const tools = await resolveToolsFromStorage(records, db, builtinOverrides);
   return omitUnavailableBuiltinTools(
     tools,
     isEmailConfigComplete(await loadEmailConfig()),
@@ -31,15 +31,17 @@ export async function resolveProfileStoredTools(
 
 export async function resolveToolsFromStorage(
   records: StoredToolRecord[],
+  db?: DatabaseAdapter,
   builtinOverrides: ToolDefinition[] = [],
 ): Promise<ToolDefinition[]> {
   const builtinMap = new Map(
     [...builtinTools, ...builtinOverrides].map((tool) => [tool.name, tool]),
   );
+  const serverTools = buildServerTools(db);
   const resolved: ToolDefinition[] = [];
 
   for (const record of records) {
-    const tool = await resolveStoredTool(record, builtinMap);
+    const tool = await resolveStoredTool(record, builtinMap, serverTools);
 
     if (tool) {
       resolved.push(tool);
@@ -52,13 +54,14 @@ export async function resolveToolsFromStorage(
 async function resolveStoredTool(
   record: StoredToolRecord,
   builtinMap: Map<string, ToolDefinition>,
+  serverTools: Map<string, ToolDefinition>,
 ): Promise<ToolDefinition | null> {
   if (record.handlerType === "builtin") {
     return builtinMap.get(record.name) ?? null;
   }
 
   if (record.handlerType === "bash") {
-    return SERVER_TOOLS.get(record.name) ?? null;
+    return serverTools.get(record.name) ?? null;
   }
 
   if (record.handlerType === "javascript") {
@@ -66,4 +69,15 @@ async function resolveStoredTool(
   }
 
   return null;
+}
+
+function buildServerTools(db?: DatabaseAdapter): Map<string, ToolDefinition> {
+  const tools = new Map<string, ToolDefinition>([[bashTool.name, bashTool]]);
+
+  if (db) {
+    const delegateCodingTaskTool = createDelegateCodingTaskTool(db);
+    tools.set(delegateCodingTaskTool.name, delegateCodingTaskTool);
+  }
+
+  return tools;
 }
