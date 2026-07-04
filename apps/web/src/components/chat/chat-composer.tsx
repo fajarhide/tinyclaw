@@ -5,11 +5,12 @@ import type {
   AgentTodo,
   ProviderModelOption,
   ProfileSummary,
+  SkillSummary,
 } from "@tinyclaw/core/contract";
 import type { ChatStatus } from "ai";
 import type { FileUIPart } from "ai";
 import { ArrowUpIcon, FileTextIcon, PlusIcon, WifiOffIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import {
   PromptInput,
@@ -25,6 +26,7 @@ import {
   PromptInputTextarea,
   PromptInputTools,
   usePromptInputAttachments,
+  usePromptInputController,
 } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,6 +58,8 @@ import { AgentTodoPanel } from "@/components/chat/AgentTodoPanel";
 import { AgentQuestionnairePanel } from "@/components/chat/AgentQuestionnairePanel";
 import { TextAttachmentPreview } from "@/components/chat/text-attachment-preview";
 import { ImageAttachmentPreview } from "@/components/chat/image-attachment-preview";
+import { ChatSkillPicker } from "@/components/chat/chat-skill-picker";
+import { ChatSkillTokenOverlay } from "@/components/chat/chat-skill-token-overlay";
 import { cn } from "@/lib/utils";
 import {
   isPastedTextDocument,
@@ -65,6 +69,12 @@ import {
   encodeModelSelection,
   modelSelectContentMaxHeightClass,
 } from "@/lib/models";
+import {
+  filterSkillsForSlashQuery,
+  findActiveSkillSlashRange,
+  replaceSlashRangeWithSkillInvocation,
+  type SkillSlashRange,
+} from "@/lib/chat-composer-skills";
 
 interface ChatComposerBaseProps {
   chatStatus: ChatStatus;
@@ -103,6 +113,7 @@ interface ChatComposerFullProps extends ChatComposerBaseProps {
   profileModelId?: string | null;
   currentModelSelection: string | null;
   primarySupportsVision?: boolean;
+  availableSkills?: SkillSummary[];
   onModelChange: (selection: string) => void;
   renderModelLabel: (selection: string | null) => string | null;
 }
@@ -130,6 +141,7 @@ export function ChatComposer(props: ChatComposerProps) {
   const hasTodos = hasActiveAgentTodos(todos);
   const hasQuestionnaire = Boolean(questionnaire && questionnaire.questions.length > 0);
   const shellClass = isMinimal ? composerShellCompactClass : composerShellClass;
+  const availableSkills = isMinimal ? [] : (props.availableSkills ?? []);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const displayError = error ?? attachmentError;
 
@@ -179,6 +191,7 @@ export function ChatComposer(props: ChatComposerProps) {
               prepareFiles={prepareChatUploadFiles}
               onError={(attachmentErr) => setAttachmentError(attachmentErr.message)}
               className={shellClass}
+              inputGroupClassName="overflow-visible"
               onSubmit={({ text, files }) => {
                 setAttachmentError(null);
                 onSubmit(text.trim(), files);
@@ -186,10 +199,11 @@ export function ChatComposer(props: ChatComposerProps) {
             >
               <ChatAttachmentHeader primarySupportsVision={props.primarySupportsVision} />
               <PromptInputBody>
-                <PromptInputTextarea
+                <ChatComposerTextarea
                   className="min-h-11 max-h-36 px-1 py-1.5 text-base leading-relaxed placeholder:text-muted-foreground sm:min-h-10 sm:text-sm"
                   placeholder={placeholder}
                   disabled={disabled}
+                  availableSkills={availableSkills}
                   longPasteWordThreshold={LONG_PASTE_WORD_THRESHOLD}
                 />
               </PromptInputBody>
@@ -225,6 +239,7 @@ export function ChatComposer(props: ChatComposerProps) {
             : (attachmentErr) => setAttachmentError(attachmentErr.message)
         }
         className={shellClass}
+        inputGroupClassName="overflow-visible"
         onSubmit={({ text, files }) => {
           setAttachmentError(null);
           onSubmit(text.trim(), files);
@@ -234,7 +249,7 @@ export function ChatComposer(props: ChatComposerProps) {
           <ChatAttachmentHeader primarySupportsVision={props.primarySupportsVision} />
         ) : null}
         <PromptInputBody>
-          <PromptInputTextarea
+          <ChatComposerTextarea
             className={
               isMinimal
                 ? "min-h-10 max-h-32 px-1 py-1.5 text-sm leading-relaxed placeholder:text-muted-foreground"
@@ -242,6 +257,7 @@ export function ChatComposer(props: ChatComposerProps) {
             }
             placeholder={placeholder}
             disabled={disabled}
+            availableSkills={availableSkills}
             longPasteWordThreshold={isMinimal ? undefined : LONG_PASTE_WORD_THRESHOLD}
           />
         </PromptInputBody>
@@ -281,6 +297,142 @@ export function ChatComposer(props: ChatComposerProps) {
         </PromptInputFooter>
       </PromptInput>
       )}
+    </div>
+  );
+}
+
+function ChatComposerTextarea({
+  availableSkills,
+  disabled,
+  className,
+  placeholder,
+  longPasteWordThreshold,
+}: {
+  availableSkills: SkillSummary[];
+  disabled: boolean;
+  className: string;
+  placeholder: string;
+  longPasteWordThreshold?: number;
+}) {
+  const controller = usePromptInputController();
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [slashRange, setSlashRange] = useState<SkillSlashRange | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const suggestions = useMemo(
+    () =>
+      slashRange
+        ? filterSkillsForSlashQuery(availableSkills, slashRange.query)
+        : [],
+    [availableSkills, slashRange],
+  );
+  const pickerOpen = Boolean(slashRange && availableSkills.length > 0 && !disabled);
+
+  useEffect(() => {
+    setSlashRange(null);
+    setActiveIndex(0);
+  }, [availableSkills]);
+
+  useEffect(() => {
+    if (activeIndex >= suggestions.length) {
+      setActiveIndex(Math.max(0, suggestions.length - 1));
+    }
+  }, [activeIndex, suggestions.length]);
+
+  const updateSlashRange = useCallback((value: string, cursorIndex: number) => {
+    setSlashRange(findActiveSkillSlashRange(value, cursorIndex));
+    setActiveIndex(0);
+  }, []);
+
+  const selectSkill = useCallback(
+    (skill: SkillSummary) => {
+      const textarea = textareaRef.current;
+      const value = controller.textInput.value;
+      const cursorIndex = textarea?.selectionStart ?? value.length;
+      const activeRange = slashRange ?? findActiveSkillSlashRange(value, cursorIndex);
+
+      if (!activeRange) {
+        return;
+      }
+
+      const next = replaceSlashRangeWithSkillInvocation(value, activeRange, skill);
+      controller.textInput.setInput(next.value);
+      setSlashRange(null);
+      setActiveIndex(0);
+
+      requestAnimationFrame(() => {
+        textareaRef.current?.setSelectionRange(next.cursorIndex, next.cursorIndex);
+        textareaRef.current?.focus();
+      });
+    },
+    [controller.textInput, slashRange],
+  );
+
+  return (
+    <div className="relative min-w-0 flex-1">
+      <ChatSkillTokenOverlay
+        value={controller.textInput.value}
+        skills={availableSkills}
+        className={className}
+      />
+      {pickerOpen ? (
+        <ChatSkillPicker
+          skills={suggestions}
+          activeIndex={activeIndex}
+          onSelect={selectSkill}
+        />
+      ) : null}
+      <PromptInputTextarea
+        ref={textareaRef}
+        className={className}
+        placeholder={placeholder}
+        disabled={disabled}
+        longPasteWordThreshold={longPasteWordThreshold}
+        onChange={(event) => {
+          updateSlashRange(
+            event.currentTarget.value,
+            event.currentTarget.selectionStart,
+          );
+        }}
+        onKeyDown={(event) => {
+          if (!pickerOpen) {
+            return;
+          }
+
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setActiveIndex((current) =>
+              suggestions.length === 0 ? 0 : (current + 1) % suggestions.length,
+            );
+            return;
+          }
+
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setActiveIndex((current) =>
+              suggestions.length === 0
+                ? 0
+                : (current - 1 + suggestions.length) % suggestions.length,
+            );
+            return;
+          }
+
+          if (event.key === "Escape") {
+            event.preventDefault();
+            setSlashRange(null);
+            setActiveIndex(0);
+            return;
+          }
+
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            const skill = suggestions[activeIndex];
+            if (skill) {
+              selectSkill(skill);
+            }
+          }
+        }}
+      />
     </div>
   );
 }

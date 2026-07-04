@@ -13,6 +13,7 @@ import type { RemoteChatSession } from "@tinyclaw/client";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { useAppContext } from "@/context/app-context";
+import { useProfileQuery } from "@/hooks/use-app-queries";
 import { useBranchSessionMutation, useUpdateProfileMutation } from "@/hooks/use-resource-mutations";
 import {
   filePartsToDisplayDocuments,
@@ -105,11 +106,13 @@ export function ChatPage() {
   const showOfflineHint = health != null && !health.providerConfigured;
   const branchSessionMutation = useBranchSessionMutation();
   const updateProfileMutation = useUpdateProfileMutation();
+  const activeProfileQuery = useProfileQuery(profileId || null);
 
   const activeProfile = useMemo(
     () => profiles.find((profile) => profile.id === profileId),
     [profiles, profileId],
   );
+  const availableSkills = activeProfileQuery.data?.skills ?? [];
 
   const providerModelGroups = useMemo(
     () => groupModelsByProvider(models?.models ?? []),
@@ -605,6 +608,7 @@ export function ChatPage() {
         profileId={profileId}
         profiles={profiles}
         activeProfile={activeProfile}
+        availableSkills={availableSkills}
         onProfileSwitch={handleProfileSwitch}
         showOfflineHint={showOfflineHint}
         providerConfigured={health?.providerConfigured}

@@ -493,6 +493,7 @@ export type PromptInputProps = Omit<
   // bytes
   maxFileSize?: number;
   prepareFiles?: (files: File[]) => File[] | Promise<File[]>;
+  inputGroupClassName?: string;
   onError?: (err: {
     code: "max_files" | "max_file_size" | "accept";
     message: string;
@@ -512,6 +513,7 @@ export const PromptInput = ({
   maxFiles,
   maxFileSize,
   prepareFiles,
+  inputGroupClassName,
   onError,
   onSubmit,
   children,
@@ -954,7 +956,9 @@ export const PromptInput = ({
         ref={formRef}
         {...props}
       >
-        <InputGroup className="overflow-hidden">{children}</InputGroup>
+        <InputGroup className={cn("overflow-hidden", inputGroupClassName)}>
+          {children}
+        </InputGroup>
       </form>
     </>
   );

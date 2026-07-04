@@ -1,7 +1,8 @@
 import { hasActiveAgentQuestionnaire } from "@tinyclaw/core/agent-questionnaire";
 import type { AgentQuestionAnswer, AgentQuestionnaire } from "@tinyclaw/core/contract";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import type { KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ export function AgentQuestionnairePanel({
 }: AgentQuestionnairePanelProps) {
   const [answers, setAnswers] = useState<Record<string, DraftAnswerState>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const activeQuestionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!questionnaire) {
@@ -75,6 +77,38 @@ export function AgentQuestionnairePanel({
     });
   }, [answers, questionnaire]);
 
+  const activeQuestionId = hasActiveAgentQuestionnaire(questionnaire)
+    ? questionnaire?.questions[currentQuestionIndex]?.id
+    : null;
+
+  useEffect(() => {
+    if (!activeQuestionId) {
+      return;
+    }
+
+    const focusTarget = window.requestAnimationFrame(() => {
+      const activeQuestionElement = activeQuestionRef.current;
+
+      if (!activeQuestionElement) {
+        return;
+      }
+
+      const input = activeQuestionElement.querySelector<HTMLInputElement>(
+        "input:not(:disabled)",
+      );
+      const selectedOption = activeQuestionElement.querySelector<HTMLButtonElement>(
+        "button[data-question-option='true'][data-selected='true']:not(:disabled)",
+      );
+      const firstOption = activeQuestionElement.querySelector<HTMLButtonElement>(
+        "button[data-question-option='true']:not(:disabled)",
+      );
+
+      (input ?? selectedOption ?? firstOption)?.focus();
+    });
+
+    return () => window.cancelAnimationFrame(focusTarget);
+  }, [activeQuestionId]);
+
   if (!hasActiveAgentQuestionnaire(questionnaire)) {
     return null;
   }
@@ -92,6 +126,79 @@ export function AgentQuestionnairePanel({
   const canGoNext = currentQuestionIndex < activeQuestionnaire.questions.length - 1;
   const activeAnswer = resolvedAnswers[currentQuestionIndex]?.answer.trim() ?? "";
   const canSubmit = resolvedAnswers.some((answer) => answer.answer.trim().length > 0);
+  const canContinue = canGoNext ? activeAnswer.length > 0 : canSubmit;
+
+  function handleContinue(): void {
+    if (disabled || !canContinue) {
+      return;
+    }
+
+    if (canGoNext) {
+      setCurrentQuestionIndex((current) => current + 1);
+      return;
+    }
+
+    onSubmit(resolvedAnswers);
+  }
+
+  function selectChoice(choiceIndex: number): void {
+    const choice = activeQuestion.choices[choiceIndex];
+
+    if (!choice) {
+      return;
+    }
+
+    setAnswers((current) => ({
+      ...current,
+      [activeQuestion.id]: {
+        ...activeState,
+        selectedChoiceId: choice.id,
+        selectedChoiceLabel: choice.label,
+      },
+    }));
+  }
+
+  function selectChoiceByOffset(offset: number): void {
+    if (disabled || activeQuestion.choices.length === 0) {
+      return;
+    }
+
+    const selectedIndex = activeQuestion.choices.findIndex(
+      (choice) => choice.id === activeState.selectedChoiceId,
+    );
+    const nextIndex =
+      selectedIndex === -1
+        ? offset > 0
+          ? 0
+          : activeQuestion.choices.length - 1
+        : (selectedIndex + offset + activeQuestion.choices.length) %
+          activeQuestion.choices.length;
+
+    selectChoice(nextIndex);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (event.metaKey || event.ctrlKey || event.altKey) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      selectChoiceByOffset(1);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      selectChoiceByOffset(-1);
+      return;
+    }
+
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handleContinue();
+    }
+  }
 
   function handleSkip(): void {
     if (canGoNext) {
@@ -140,8 +247,8 @@ export function AgentQuestionnairePanel({
             </Button>
           </div>
         </div>
-        <div className="space-y-4 px-3 py-3">
-          <section key={activeQuestion.id} className="space-y-2.5">
+        <div className="space-y-4 px-3 py-3" onKeyDown={handleKeyDown}>
+          <section ref={activeQuestionRef} key={activeQuestion.id} className="space-y-2.5">
             <p className="text-sm font-medium text-foreground">
               {currentQuestionIndex + 1}. {activeQuestion.prompt}
             </p>
@@ -155,6 +262,8 @@ export function AgentQuestionnairePanel({
                       <div key={choice.id} className="flex items-center gap-2.5 py-0.5">
                         <button
                           type="button"
+                          data-question-option="true"
+                          data-selected={selected}
                           disabled={disabled}
                           onClick={() =>
                             setAnswers((current) => ({
@@ -225,6 +334,8 @@ export function AgentQuestionnairePanel({
                     <button
                       key={choice.id}
                       type="button"
+                      data-question-option="true"
+                      data-selected={selected}
                       disabled={disabled}
                       onClick={() =>
                         setAnswers((current) => ({
@@ -302,12 +413,8 @@ export function AgentQuestionnairePanel({
             </button>
             <Button
               type="button"
-              disabled={disabled || (canGoNext ? activeAnswer.length === 0 : !canSubmit)}
-              onClick={() =>
-                canGoNext
-                  ? setCurrentQuestionIndex((current) => current + 1)
-                  : onSubmit(resolvedAnswers)
-              }
+              disabled={disabled || !canContinue}
+              onClick={handleContinue}
             >
               {canGoNext ? "Continue" : "Submit"}
             </Button>

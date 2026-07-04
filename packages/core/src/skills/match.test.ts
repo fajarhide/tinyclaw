@@ -35,6 +35,14 @@ describe("matchSkillsForMessage", () => {
     expect(matched.map((skill) => skill.name)).toEqual(["deploy"]);
   });
 
+  test("matches inserted explicit-only composer invocation", () => {
+    const matched = matchSkillsForMessage(
+      [weatherSkill, privateSkill],
+      "/skill deploy ",
+    );
+    expect(matched.map((skill) => skill.name)).toEqual(["deploy"]);
+  });
+
   test("skips explicit-only skills without invocation", () => {
     const matched = matchSkillsForMessage(
       [privateSkill],
