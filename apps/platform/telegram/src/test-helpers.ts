@@ -309,7 +309,7 @@ export function createMockClient(
 
   const profiles = options.profiles ?? [{ id: "default", model: null }];
   const orgs = options.orgs ?? createDefaultTestOrgs();
-  let activeOrgId = orgs[0]?.id ?? null;
+  let activeOrgId: string | null = orgs[0]?.id ?? null;
 
   const client = {
     createSession: async (_channel: string, input?: { profileId?: string }) => {
