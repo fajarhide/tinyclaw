@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { CheckCircle2Icon, CopyIcon, KeyRoundIcon, LaptopMinimalCheckIcon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  CopyIcon,
+  DownloadIcon,
+  KeyRoundIcon,
+  LaptopMinimalCheckIcon,
+} from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,6 +21,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   codingHarnessSettingsQueryOptions,
   useCodingHarnessSettings,
+  useInstallCodingHarness,
   useSaveCodingHarnessSettings,
   useVerifyCodingHarness,
 } from "@/hooks/use-coding-harness-settings";
@@ -32,9 +39,12 @@ export function CodingHarnessSettingsPanel({
   const { data: settings, isLoading, error } = useCodingHarnessSettings(enabled);
   const saveMutation = useSaveCodingHarnessSettings();
   const verifyMutation = useVerifyCodingHarness();
+  const installMutation = useInstallCodingHarness();
   const [selectedHarnessId, setSelectedHarnessId] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [installingId, setInstallingId] = useState<string | null>(null);
+  const [installProgress, setInstallProgress] = useState<string | null>(null);
 
   useEffect(() => {
     if (!settings) {
@@ -159,6 +169,41 @@ export function CodingHarnessSettingsPanel({
   async function copyInstallCommand(command: string) {
     await navigator.clipboard.writeText(command);
     setHint("Install command copied.");
+  }
+
+  function handleInstall(harnessId: string, name: string) {
+    setHint(null);
+    setFormError(null);
+    setInstallingId(harnessId);
+    setInstallProgress(null);
+
+    installMutation.mutate(
+      {
+        harnessId,
+        onProgress: (message) => {
+          setInstallProgress(message);
+        },
+      },
+      {
+        onSuccess: (status) => {
+          setInstallingId(null);
+          setInstallProgress(null);
+          if (status.installed) {
+            setHint(`${name} installed successfully.`);
+          } else {
+            setFormError(
+              status.statusMessage ??
+                `${name} did not finish installing. Check the command output.`,
+            );
+          }
+        },
+        onError: (installError) => {
+          setInstallingId(null);
+          setInstallProgress(null);
+          setFormError(formatError(installError));
+        },
+      },
+    );
   }
 
   if (isLoading) {
@@ -311,22 +356,45 @@ export function CodingHarnessSettingsPanel({
                 </div>
 
                 {!harness.installed ? (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <code className="rounded-md border border-border bg-background px-2 py-1 text-xs">
-                      {harness.installCommand}
-                    </code>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void copyInstallCommand(harness.installCommand);
-                      }}
-                    >
-                      <CopyIcon className="size-3.5" />
-                      Copy install
-                    </Button>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <code className="rounded-md border border-border bg-background px-2 py-1 text-xs">
+                        {harness.installCommand}
+                      </code>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void copyInstallCommand(harness.installCommand);
+                        }}
+                      >
+                        <CopyIcon className="size-3.5" />
+                        Copy install
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleInstall(harness.id, harness.name);
+                        }}
+                        disabled={installingId === harness.id}
+                      >
+                        {installingId === harness.id ? (
+                          <Spinner className="size-3.5" />
+                        ) : (
+                          <DownloadIcon className="size-3.5" />
+                        )}
+                        {installingId === harness.id ? "Installing…" : "Install"}
+                      </Button>
+                    </div>
+                    {installingId === harness.id && installProgress ? (
+                      <p className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                        {installProgress}
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
               </button>

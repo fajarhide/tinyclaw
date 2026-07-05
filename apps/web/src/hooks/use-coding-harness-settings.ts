@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import type {
+  CodingHarnessInstallRequest,
   UpdateCodingHarnessSettingsRequest,
   VerifyCodingHarnessRequest,
 } from "@tinyclaw/core/contract";
@@ -40,6 +41,26 @@ export function useVerifyCodingHarness() {
 
   return useMutation({
     mutationFn: (request: VerifyCodingHarnessRequest) => client.verifyCodingHarness(request),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.codingHarnesses.settings,
+      });
+    },
+  });
+}
+
+export function useInstallCodingHarness() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (
+      request: CodingHarnessInstallRequest & {
+        onProgress?: (message: string) => void;
+      },
+    ) => {
+      const { onProgress, ...rest } = request;
+      return client.installCodingHarness(rest, { onProgress });
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.codingHarnesses.settings,
