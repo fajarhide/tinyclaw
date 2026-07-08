@@ -51,6 +51,7 @@ describe("ensureLocalClientAccess", () => {
     await ensureLocalClientAccess(db);
 
     expect(await db.countUsers()).toBe(1);
+    expect(await db.countHumanUsers()).toBe(0);
   });
 
   test("creates the local client user with a non-placeholder password hash", async () => {
@@ -78,6 +79,7 @@ describe("ensureLocalClientAccess", () => {
     await ensureLocalClientAccess(db);
 
     expect(await db.countUsers()).toBe(1);
+    expect(await db.countHumanUsers()).toBe(0);
     expect((await db.getUserById(LOCAL_CLIENT_USER_ID))?.email).toBe(
       "local-client@tinyclaw.internal",
     );

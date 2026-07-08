@@ -79,12 +79,12 @@ export function registerSystemRoutes(app: HonoApp, options: ServerOptions): void
   });
 
   app.openapi(healthRoute, async (c) => {
-    const userCount = (await databaseAdapter?.countUsers()) ?? 0;
+    const humanUserCount = (await databaseAdapter?.countHumanUsers()) ?? 0;
     return c.json({
       ok: true,
       apiVersion: NAKAMA_API_VERSION,
       providerConfigured: agent.providerConfigured,
-      userConfigured: userCount > 0,
+      userConfigured: humanUserCount > 0,
     }, 200);
   });
 

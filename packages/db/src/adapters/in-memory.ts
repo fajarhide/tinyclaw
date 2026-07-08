@@ -1,4 +1,5 @@
 import { getUserMessageText, type MessageContentPart } from "@nakama/core";
+import { LOCAL_CLIENT_USER_ID } from "@nakama/core/local-auth";
 import { LLM_USAGE_STATS_ID, WORKSPACE_SETTINGS_ID } from "../constants";
 import type {
   DatabaseAdapter,
@@ -127,6 +128,10 @@ export function createInMemoryDatabaseAdapter(): DatabaseAdapter {
 
     async countUsers() {
       return usersById.size;
+    },
+
+    async countHumanUsers() {
+      return [...usersById.values()].filter((user) => user.id !== LOCAL_CLIENT_USER_ID).length;
     },
 
     async createBrowserSession(record) {

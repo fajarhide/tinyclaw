@@ -312,6 +312,8 @@ export interface DatabaseAdapter {
   getUserContext(orgId: string, userId: string): Promise<string | null>;
   setUserContext(orgId: string, userId: string, content: string, updatedAt: string): Promise<void>;
   countUsers(): Promise<number>;
+  /** Users excluding the auto-created CLI bearer-auth identity. */
+  countHumanUsers(): Promise<number>;
 
   createBrowserSession(record: StoredBrowserSessionRecord): Promise<void>;
   getBrowserSessionBySessionTokenHash(

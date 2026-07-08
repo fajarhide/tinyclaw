@@ -50,6 +50,7 @@ function createMockApp(webDistDir: string | null) {
     orgService: {} as any,
     databaseAdapter: {
       countUsers: async () => 1,
+      countHumanUsers: async () => 1,
       getUserByEmail: async () => null,
     } as any,
     webDistDir,

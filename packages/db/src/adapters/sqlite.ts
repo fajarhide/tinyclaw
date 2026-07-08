@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
 import type { AgentQuestionnaire, ChatMessage } from "@nakama/core";
 import { getUserMessageText } from "@nakama/core";
+import { LOCAL_CLIENT_USER_ID } from "@nakama/core/local-auth";
 import { ensureDatabaseDirectory, resolveDatabasePath } from "../database-url";
 import { migrateDatabase } from "../migrate";
 import { LLM_USAGE_STATS_ID, WORKSPACE_SETTINGS_ID } from "../constants";
@@ -753,6 +754,9 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
     WHERE org_id = ? AND user_id = ?
   `);
   const countUsersStmt = db.prepare("SELECT COUNT(*) as count FROM users");
+  const countHumanUsersStmt = db.prepare(
+    "SELECT COUNT(*) as count FROM users WHERE id != ?",
+  );
 
   const createBrowserSessionStmt = db.prepare(`
     INSERT INTO browser_sessions (
@@ -920,6 +924,11 @@ function createSqliteDatabaseAdapter(db: Database): DatabaseAdapter {
 
     async countUsers() {
       const row = countUsersStmt.get() as { count: number };
+      return row.count;
+    },
+
+    async countHumanUsers() {
+      const row = countHumanUsersStmt.get(LOCAL_CLIENT_USER_ID) as { count: number };
       return row.count;
     },
 

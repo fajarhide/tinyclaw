@@ -364,7 +364,38 @@ describe("createHonoApp", () => {
     await expect(response.json()).resolves.toMatchObject({
       ok: true,
       providerConfigured: true,
+      userConfigured: false,
     });
+  });
+
+  test("reports userConfigured when only the local CLI client exists", async () => {
+    const options = createServerOptions();
+    await seedLocalClientUser(options.databaseAdapter);
+    const app = createHonoApp(options);
+
+    const response = await app.fetch(new Request("http://localhost:4310/health"));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      userConfigured: false,
+    });
+  });
+
+  test("allows setup when only the local CLI client exists", async () => {
+    const options = createServerOptions();
+    await seedLocalClientUser(options.databaseAdapter);
+    const app = createHonoApp(options);
+
+    const response = await app.fetch(
+      new Request("http://localhost:4310/v1/auth/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildSetupAuthBody()),
+      }),
+    );
+
+    expect(response.status).toBe(201);
   });
 
   test("serves task chat capability probe without auth", async () => {
