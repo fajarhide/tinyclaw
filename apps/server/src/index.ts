@@ -82,31 +82,6 @@ agent.setMcpClientManager(mcpClientManager);
 agent.setMcpService(mcpService);
 agent.setSkillsService(skillsService);
 
-try {
-  await mcpService.connectEnabledServers();
-} catch (error) {
-  console.warn("Could not connect MCP servers:", error);
-}
-
-try {
-  await ensureBundledSkillFiles();
-} catch (error) {
-  console.warn("Could not install bundled skills:", error);
-}
-
-try {
-  await skillsService.syncDiscoveredSkills();
-  await ensureBundledSkillsAssigned(database.adapter);
-} catch (error) {
-  console.warn("Could not sync skills:", error);
-}
-
-try {
-  await agent.ensureSoulScaffolded();
-} catch (error) {
-  console.warn("Could not scaffold soul templates:", error);
-}
-
 const automationService = new AutomationService(database.adapter, {
   getUserTimezone: () => agent.getUserTimezone(),
   canSendEmail: (profileId, _orgId) =>
@@ -175,6 +150,13 @@ if (server.port !== requestedPort) {
 console.log(`Nakama server listening on ${serverUrl}`);
 console.log(`Nakama database ready at ${config.databaseUrl}`);
 
+void initializeOptionalServices({
+  mcpService,
+  skillsService,
+  agent,
+  database,
+});
+
 try {
   await workerManager.recoverDesiredWorkers();
 } catch (error) {
@@ -201,6 +183,38 @@ function parsePort(value: string | undefined): number {
   }
 
   return port;
+}
+
+async function initializeOptionalServices(options: {
+  mcpService: McpService;
+  skillsService: SkillsService;
+  agent: AgentService;
+  database: Database;
+}): Promise<void> {
+  try {
+    await options.mcpService.connectEnabledServers();
+  } catch (error) {
+    console.warn("Could not connect MCP servers:", error);
+  }
+
+  try {
+    await ensureBundledSkillFiles();
+  } catch (error) {
+    console.warn("Could not install bundled skills:", error);
+  }
+
+  try {
+    await options.skillsService.syncDiscoveredSkills();
+    await ensureBundledSkillsAssigned(options.database.adapter);
+  } catch (error) {
+    console.warn("Could not sync skills:", error);
+  }
+
+  try {
+    await options.agent.ensureSoulScaffolded();
+  } catch (error) {
+    console.warn("Could not scaffold soul templates:", error);
+  }
 }
 
 function startServer(options: {
