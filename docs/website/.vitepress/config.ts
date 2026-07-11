@@ -3,15 +3,15 @@ import path from 'node:path'
 import { defineConfig } from 'vitepress'
 
 const SITE_NAME = 'Nakama'
-const SITE_TAGLINE = "Every agent has a role. Together, they're your nakama."
-const SITE_DESCRIPTION = 'An open-source platform for building teams of AI agents.'
+const SITE_TAGLINE = 'AI agents that work with your team.'
+const SITE_DESCRIPTION = 'Nakama is AI agents that work with your team — self-hosted, multi-tenant, and open source.'
 const SITE_URL = 'https://ahmadrosid.github.io/nakama'
 const AUTHOR_NAME = 'Ahmad Rosid'
 const AUTHOR_ROLE = 'Creator and maintainer of Nakama'
 const OG_IMAGE_URL = `${SITE_URL}/nakama-demo.png`
 
 const pageDescriptions: Record<string, string> = {
-  'index.md': 'An open-source platform for building teams of AI agents with profiles, tools, channels, and multi-tenant workspaces.',
+  'index.md': 'Nakama is AI agents that work with your team — with profiles, tools, channels, and multi-tenant workspaces.',
   'getting-started.md': 'Install Nakama with Bun or Docker, run the server, and complete first-time setup.',
   'overview.md': 'Understand the Nakama mental model: organizations, profiles, tools, and channels.',
   'multi-tenancy.md': 'Learn how organizations, roles, and tenant isolation work in Nakama.',
@@ -86,7 +86,7 @@ function buildLlmsTxt(pages: string[]) {
     '',
     `> ${SITE_DESCRIPTION} ${SITE_TAGLINE}`,
     '',
-    `${SITE_NAME} is an open-source, self-hosted platform for building teams of AI agents. Each profile is an agent with its own role, soul, tools, and memory. Organizations, skills, MCP servers, and channels like web, CLI, Telegram, and WhatsApp let you run your nakama from one deployment.`,
+    `${SITE_NAME} is AI agents that work with your team. Each profile is an agent with its own role, soul, tools, and memory. Organizations, skills, MCP servers, and channels like web, CLI, Telegram, and WhatsApp let you run your nakama from one deployment.`,
     '',
     `Maintainer: ${AUTHOR_NAME} (${AUTHOR_ROLE})`,
     `Website: ${SITE_URL}/`,
