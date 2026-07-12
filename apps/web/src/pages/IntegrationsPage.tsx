@@ -119,7 +119,7 @@ export function IntegrationsPage() {
         <p className="type-body max-w-2xl">
           {isOrgAdmin
             ? "Manage bridge access, coding agents, Composio SaaS connections, Telegram setup, notification webhooks, and WhatsApp linking from one place."
-            : "Connect your personal Composio accounts for org-enabled SaaS toolkits."}
+            : "View org-enabled SaaS toolkits and connection status. Connect accounts from chat."}
         </p>
       </header>
 

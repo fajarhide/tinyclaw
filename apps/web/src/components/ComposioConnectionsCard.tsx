@@ -17,12 +17,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/context/auth-context";
 import {
   useComposioSettings,
   useComposioToolkits,
-  useConnectComposioToolkit,
   useDisableComposioToolkit,
   useDisconnectComposioToolkit,
   useEnableComposioToolkit,
@@ -120,10 +118,8 @@ interface ComposioToolkitRowProps {
   row: ToolkitRowModel;
   isOrgAdmin: boolean;
   busy: boolean;
-  isConnecting: boolean;
   onEnable: (slug: string) => void;
   onDisable: (slug: string) => void;
-  onConnect: (slug: string) => void;
   onSync: (slug: string) => void;
   onDisconnect: (slug: string) => void;
 }
@@ -132,10 +128,8 @@ function ComposioToolkitRow({
   row,
   isOrgAdmin,
   busy,
-  isConnecting,
   onEnable,
   onDisable,
-  onConnect,
   onSync,
   onDisconnect,
 }: ComposioToolkitRowProps) {
@@ -176,17 +170,6 @@ function ComposioToolkitRow({
         {isOrgAdmin && !orgEnabled ? (
           <Button type="button" size="sm" disabled={busy} onClick={() => onEnable(catalog.slug)}>
             Enable
-          </Button>
-        ) : null}
-
-        {orgEnabled && userStatus !== "connected" && userStatus !== "oauth_in_progress" ? (
-          <Button
-            type="button"
-            size="sm"
-            disabled={busy}
-            onClick={() => onConnect(catalog.slug)}
-          >
-            {isConnecting ? <Spinner className="size-3.5" /> : "Connect your account"}
           </Button>
         ) : null}
 
@@ -231,10 +214,8 @@ interface ComposioToolkitListProps {
   busy: boolean;
   onEnable: (slug: string) => void;
   onDisable: (slug: string) => void;
-  onConnect: (slug: string) => void;
   onSync: (slug: string) => void;
   onDisconnect: (slug: string) => void;
-  connectingSlug: string | null;
 }
 
 function ComposioToolkitList({
@@ -243,10 +224,8 @@ function ComposioToolkitList({
   busy,
   onEnable,
   onDisable,
-  onConnect,
   onSync,
   onDisconnect,
-  connectingSlug,
 }: ComposioToolkitListProps) {
   const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(CATALOG_PAGE_SIZE);
@@ -308,8 +287,8 @@ function ComposioToolkitList({
           <p className="text-sm font-medium text-foreground">SaaS toolkits</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {isOrgAdmin
-              ? "Enable an app for your org, then connect your personal account with OAuth."
-              : "Connect your own account for each org-enabled app. Chat uses your credentials, not a shared org login."}
+              ? "Enable an app for your org. Members connect their own accounts from chat when they need a toolkit."
+              : "Ask your agent in chat to connect org-enabled apps. Chat uses your credentials, not a shared org login."}
           </p>
         </div>
 
@@ -363,10 +342,8 @@ function ComposioToolkitList({
                   row={row}
                   isOrgAdmin={isOrgAdmin}
                   busy={busy}
-                  isConnecting={connectingSlug === row.catalog.slug}
                   onEnable={onEnable}
                   onDisable={onDisable}
-                  onConnect={onConnect}
                   onSync={onSync}
                   onDisconnect={onDisconnect}
                 />
@@ -434,14 +411,12 @@ export function ComposioConnectionsCard() {
   const toolkitsQuery = useComposioToolkits();
   const enableMutation = useEnableComposioToolkit();
   const disableMutation = useDisableComposioToolkit();
-  const connectMutation = useConnectComposioToolkit();
   const disconnectMutation = useDisconnectComposioToolkit();
   const syncMutation = useSyncComposioToolkit();
 
   const busy =
     enableMutation.isPending ||
     disableMutation.isPending ||
-    connectMutation.isPending ||
     disconnectMutation.isPending ||
     syncMutation.isPending;
 
@@ -473,7 +448,7 @@ export function ComposioConnectionsCard() {
           </p>
           <p>
             {isOrgAdmin
-              ? "Once the key is saved above, you can enable toolkits and connect your own accounts here."
+              ? "Once the key is saved above, you can enable toolkits here. Members connect from chat."
               : "Ask an org admin to save the Composio project API key on Integrations."}
           </p>
         </CardContent>
@@ -511,12 +486,8 @@ export function ComposioConnectionsCard() {
           busy={busy}
           onEnable={(slug) => enableMutation.mutate(slug)}
           onDisable={(slug) => disableMutation.mutate(slug)}
-          onConnect={(slug) => connectMutation.mutate(slug)}
           onSync={(slug) => syncMutation.mutate(slug)}
           onDisconnect={(slug) => disconnectMutation.mutate(slug)}
-          connectingSlug={
-            connectMutation.isPending ? (connectMutation.variables ?? null) : null
-          }
         />
       </CardContent>
     </Card>

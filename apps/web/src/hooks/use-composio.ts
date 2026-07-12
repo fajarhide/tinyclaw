@@ -1,7 +1,6 @@
 import type { UpdateProfileComposioToolkitsRequest, UpdateComposioSettingsRequest } from "@nakama/core/contract";
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { client, formatError } from "@/lib/client";
-import { toast } from "@/lib/toast";
+import { client } from "@/lib/client";
 import { queryKeys } from "@/lib/query-keys";
 
 export const composioSettingsQueryOptions = queryOptions({
@@ -53,29 +52,6 @@ export function useDisableComposioToolkit() {
 
   return useMutation({
     mutationFn: (toolkitSlug: string) => client.disableComposioToolkit(toolkitSlug),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.composio.toolkits });
-    },
-  });
-}
-
-export function useConnectComposioToolkit() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (toolkitSlug: string) => {
-      const response = await client.connectComposioToolkit(toolkitSlug);
-
-      if (!response.redirectUrl) {
-        throw new Error("Composio did not return an OAuth redirect URL.");
-      }
-
-      window.location.assign(response.redirectUrl);
-      return response;
-    },
-    onError: (error) => {
-      toast(formatError(error));
-    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.composio.toolkits });
     },
