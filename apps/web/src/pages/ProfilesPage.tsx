@@ -84,7 +84,6 @@ import {
 } from "@/lib/models";
 
 const sectionClass = "rounded-md border border-border bg-card";
-const identityBoxClass = "p-3";
 const profilesTagline = "Separate prompt, tools, and knowledge for each bot.";
 const profileTextSaveDelayMs = 1000;
 const profileModelSaveDelayMs = 400;
@@ -929,20 +928,6 @@ export function ProfilesPage() {
                 <PlusIcon className="size-4" aria-hidden />
                 New
               </Button>
-
-              {selectedId && detail && !detail.isSuper ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={busy}
-                  className="shrink-0 text-destructive hover:text-destructive"
-                  onClick={() => openDeleteDialog(selectedId)}
-                >
-                  <Trash2Icon className="size-4" aria-hidden />
-                  Delete
-                </Button>
-              ) : null}
             </div>
 
             {profiles.length > 0 ? (
@@ -956,8 +941,8 @@ export function ProfilesPage() {
             ) : null}
           </div>
 
-          <div className="grid gap-0 lg:grid-cols-[240px_minmax(0,1fr)]">
-            <aside className="hidden border-b border-border p-4 lg:block lg:border-r lg:border-b-0">
+          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+            <aside className="hidden shrink-0 border-b border-border p-4 lg:block lg:w-56 lg:border-r lg:border-b-0">
               <div className="mb-4 space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="type-section-title">Profiles</h2>
@@ -998,7 +983,7 @@ export function ProfilesPage() {
                   onAction={() => setSearchQuery("")}
                 />
               ) : (
-                <div className="max-h-[min(40vh,320px)] space-y-2 overflow-y-auto pr-1 lg:max-h-none">
+                <nav aria-label="Profiles" className="flex flex-col gap-1">
                   {filteredProfiles.map((profile) => (
                     <ProfileScopeButton
                       key={profile.id}
@@ -1006,12 +991,9 @@ export function ProfilesPage() {
                       active={selectedId === profile.id}
                       disabled={busy}
                       onClick={() => handleSelectProfile(profile.id)}
-                      onDelete={
-                        profile.isSuper ? undefined : () => openDeleteDialog(profile.id)
-                      }
                     />
                   ))}
-                </div>
+                </nav>
               )}
 
             </aside>
@@ -1035,43 +1017,59 @@ export function ProfilesPage() {
                 </div>
               ) : (
                 <>
-                  <div
-                    role="tablist"
-                    aria-label="Profile settings"
-                    className="flex shrink-0 border-b border-border px-4 sm:px-5"
-                  >
-                    <ProfileDetailTabButton
-                      id="profile-detail-tab-profile"
-                      active={detailTab === "profile"}
-                      controls="profile-detail-panel-profile"
-                      onSelect={() => setDetailTab("profile")}
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 sm:px-5">
+                    <div
+                      role="tablist"
+                      aria-label="Profile settings"
+                      className="flex min-w-0 flex-1"
                     >
-                      Config
-                    </ProfileDetailTabButton>
-                    <ProfileDetailTabButton
-                      id="profile-detail-tab-prompt"
-                      active={detailTab === "prompt"}
-                      controls="profile-detail-panel-prompt"
-                      onSelect={() => setDetailTab("prompt")}
-                    >
-                      Prompt
-                    </ProfileDetailTabButton>
-                    <ProfileDetailTabButton
-                      id="profile-detail-tab-knowledge"
-                      active={detailTab === "knowledge"}
-                      controls="profile-detail-panel-knowledge"
-                      onSelect={() => setDetailTab("knowledge")}
-                    >
-                      Knowledge
-                    </ProfileDetailTabButton>
-                    <ProfileDetailTabButton
-                      id="profile-detail-tab-artifacts"
-                      active={detailTab === "artifacts"}
-                      controls="profile-detail-panel-artifacts"
-                      onSelect={() => setDetailTab("artifacts")}
-                    >
-                      Artifacts
-                    </ProfileDetailTabButton>
+                      <ProfileDetailTabButton
+                        id="profile-detail-tab-profile"
+                        active={detailTab === "profile"}
+                        controls="profile-detail-panel-profile"
+                        onSelect={() => setDetailTab("profile")}
+                      >
+                        Config
+                      </ProfileDetailTabButton>
+                      <ProfileDetailTabButton
+                        id="profile-detail-tab-prompt"
+                        active={detailTab === "prompt"}
+                        controls="profile-detail-panel-prompt"
+                        onSelect={() => setDetailTab("prompt")}
+                      >
+                        Prompt
+                      </ProfileDetailTabButton>
+                      <ProfileDetailTabButton
+                        id="profile-detail-tab-knowledge"
+                        active={detailTab === "knowledge"}
+                        controls="profile-detail-panel-knowledge"
+                        onSelect={() => setDetailTab("knowledge")}
+                      >
+                        Knowledge
+                      </ProfileDetailTabButton>
+                      <ProfileDetailTabButton
+                        id="profile-detail-tab-artifacts"
+                        active={detailTab === "artifacts"}
+                        controls="profile-detail-panel-artifacts"
+                        onSelect={() => setDetailTab("artifacts")}
+                      >
+                        Artifacts
+                      </ProfileDetailTabButton>
+                    </div>
+
+                    {!detail.isSuper ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={busy}
+                        className="shrink-0 text-destructive hover:text-destructive"
+                        onClick={() => openDeleteDialog(selectedId)}
+                      >
+                        <Trash2Icon className="size-4" aria-hidden />
+                        Delete
+                      </Button>
+                    ) : null}
                   </div>
 
                   <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
@@ -1081,8 +1079,7 @@ export function ProfilesPage() {
                         role="tabpanel"
                         aria-labelledby="profile-detail-tab-profile"
                       >
-                  <div className="mb-3">
-                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <div className="mb-3 rounded-md border border-border p-3 sm:p-4">
                     <input
                       ref={avatarInputRef}
                       type="file"
@@ -1091,17 +1088,22 @@ export function ProfilesPage() {
                       disabled={busy}
                       onChange={(event) => void handleAvatarSelected(event)}
                     />
-                    <div className={cn(identityBoxClass, "flex min-w-0 items-start gap-4")}>
-                      <EditableProfileAvatar
-                        profile={detail}
-                        size="lg"
-                        disabled={busy || uploadAvatarMutation.isPending}
-                        uploading={uploadAvatarMutation.isPending}
-                        onPick={() => avatarInputRef.current?.click()}
-                      />
-                      <div className="flex min-w-0 flex-1 flex-col gap-2">
-                        <div className="min-w-0">
-                          <label htmlFor="profile-name" className="mb-1 block text-xs font-medium text-muted-foreground">
+
+                    <div className="flex min-w-0 flex-col gap-3">
+                      <div className="flex min-w-0 flex-wrap items-end gap-3 sm:flex-nowrap">
+                        <EditableProfileAvatar
+                          profile={detail}
+                          size="ml"
+                          disabled={busy || uploadAvatarMutation.isPending}
+                          uploading={uploadAvatarMutation.isPending}
+                          onPick={() => avatarInputRef.current?.click()}
+                        />
+
+                        <div className="min-w-0 flex-1">
+                          <label
+                            htmlFor="profile-name"
+                            className="mb-1 block text-xs font-medium text-muted-foreground"
+                          >
                             Name
                           </label>
                           <Input
@@ -1112,75 +1114,82 @@ export function ProfilesPage() {
                             onChange={(event) => handleEditNameChange(event.target.value)}
                             onBlur={() => void flushSave()}
                           />
-                          <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
-                            {detail.isSuper ? (
-                              <span className="scope-badge bg-muted text-muted-foreground">super</span>
-                            ) : null}
-                            <ProfileSaveIndicator
-                              inline
-                              saveStatus={saveStatus}
-                              nameMissing={isDirty && !editName.trim()}
-                            />
-                          </div>
                         </div>
-                        <ExpandableTextarea
-                          label="System prompt"
-                          htmlFor="profile-prompt"
-                          dialogDescription="Instructions sent to the model at the start of each chat."
-                          value={editPrompt}
-                          disabled={busy}
-                          onChange={(event) => handleEditPromptChange(event.target.value)}
-                          onSave={flushSave}
-                          containerClassName="flex min-h-0 flex-1 flex-col gap-1.5"
-                          previewClassName="min-h-16 flex-1"
-                        />
+
+                        <div className="w-full min-w-0 sm:w-auto sm:min-w-[12rem] sm:max-w-[14rem]">
+                          <Field label="Model" htmlFor="profile-model">
+                            <Select
+                              value={modelSelectionValue}
+                              disabled={busy || providerModelGroups.length === 0}
+                              onValueChange={(value) => {
+                                if (!value) {
+                                  return;
+                                }
+
+                                handleEditModelChange(String(value));
+                              }}
+                            >
+                              <SelectTrigger id="profile-model" className="w-full">
+                                <SelectValue placeholder="Select model">
+                                  {profileModelLabel(editModel, providerModelGroups)}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent className={modelSelectContentMaxHeightClass}>
+                                {extractModelId(editModel) && !modelInCatalog ? (
+                                  <SelectItem
+                                    value={encodeModelSelection(
+                                      "__unknown__",
+                                      extractModelId(editModel)!,
+                                    )}
+                                  >
+                                    {extractModelId(editModel)}
+                                  </SelectItem>
+                                ) : null}
+                                {providerModelGroups.flatMap((group) =>
+                                  group.models.map((model) => (
+                                    <SelectItem
+                                      key={`${group.providerId}:${model.id}`}
+                                      value={encodeModelSelection(group.providerId, model.id)}
+                                    >
+                                      {group.providerLabel}: {model.name}
+                                    </SelectItem>
+                                  )),
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className={cn(identityBoxClass, "flex min-w-0 flex-col gap-4")}>
-                      <Field label="Model" htmlFor="profile-model">
-                        <Select
-                          value={modelSelectionValue}
-                          disabled={busy || providerModelGroups.length === 0}
-                          onValueChange={(value) => {
-                            if (!value) {
-                              return;
-                            }
+                      {(detail.isSuper ||
+                        saveStatus !== "idle" ||
+                        (isDirty && !editName.trim())) && (
+                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+                          {detail.isSuper ? (
+                            <span className="scope-badge bg-muted text-muted-foreground">super</span>
+                          ) : null}
+                          <ProfileSaveIndicator
+                            inline
+                            leadingSeparator={detail.isSuper}
+                            saveStatus={saveStatus}
+                            nameMissing={isDirty && !editName.trim()}
+                          />
+                        </div>
+                      )}
 
-                            handleEditModelChange(String(value));
-                          }}
-                        >
-                          <SelectTrigger id="profile-model" className="w-full">
-                            <SelectValue placeholder="Select model">
-                              {profileModelLabel(editModel, providerModelGroups)}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent className={modelSelectContentMaxHeightClass}>
-                            {extractModelId(editModel) && !modelInCatalog ? (
-                              <SelectItem
-                                value={encodeModelSelection("__unknown__", extractModelId(editModel)!)}
-                              >
-                                {extractModelId(editModel)}
-                              </SelectItem>
-                            ) : null}
-                            {providerModelGroups.flatMap((group) =>
-                              group.models.map((model) => (
-                                <SelectItem
-                                  key={`${group.providerId}:${model.id}`}
-                                  value={encodeModelSelection(group.providerId, model.id)}
-                                >
-                                  {group.providerLabel}: {model.name}
-                                </SelectItem>
-                              )),
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </Field>
+                      <ExpandableTextarea
+                        label="System prompt"
+                        htmlFor="profile-prompt"
+                        dialogDescription="Instructions sent to the model at the start of each chat."
+                        value={editPrompt}
+                        disabled={busy}
+                        onChange={(event) => handleEditPromptChange(event.target.value)}
+                        onSave={flushSave}
+                      />
                     </div>
                   </div>
-                  </div>
 
-                    <div className="border-t border-border pt-5">
+                    <div className="pt-5">
                       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <h3 className="type-section-title">Tools</h3>
@@ -1657,10 +1666,12 @@ function ProfileSaveIndicator({
   saveStatus,
   nameMissing,
   inline = false,
+  leadingSeparator = true,
 }: {
   saveStatus: ProfileSaveStatus;
   nameMissing: boolean;
   inline?: boolean;
+  leadingSeparator?: boolean;
 }) {
   let content: ReactNode = null;
 
@@ -1688,7 +1699,7 @@ function ProfileSaveIndicator({
   if (inline) {
     return (
       <>
-        <span aria-hidden>·</span>
+        {leadingSeparator ? <span aria-hidden>·</span> : null}
         <span role="status">{content}</span>
       </>
     );
@@ -1708,7 +1719,7 @@ function EditableProfileAvatar({
   disabled: boolean;
   uploading: boolean;
   onPick: () => void;
-  size?: "xs" | "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "ml" | "lg";
 }) {
   const overlayIconClass = size === "lg" ? "size-5" : "size-4";
 
@@ -1732,55 +1743,60 @@ function EditableProfileAvatar({
   );
 }
 
+function profileSidebarDescription(profile: ProfileSummary): string {
+  if (profile.isSuper) {
+    return "Super bot";
+  }
+
+  const parts: string[] = [];
+
+  if (profile.toolCount > 0) {
+    parts.push(`${profile.toolCount} tool${profile.toolCount === 1 ? "" : "s"}`);
+  }
+
+  if (profile.mcpServerCount > 0) {
+    parts.push(`${profile.mcpServerCount} MCP`);
+  }
+
+  if (parts.length > 0) {
+    return parts.join(" · ");
+  }
+
+  return profile.isDefault ? "Default profile" : profile.id;
+}
+
 function ProfileScopeButton({
   profile,
   active,
   disabled,
   onClick,
-  onDelete,
 }: {
   profile: ProfileSummary;
   active: boolean;
   disabled: boolean;
   onClick: () => void;
-  onDelete?: () => void;
 }) {
   return (
-    <div
-      data-active={active || undefined}
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
       className={cn(
-        "scope-item group flex items-center gap-2",
+        "flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-colors disabled:cursor-not-allowed",
         disabled && "opacity-50",
+        active
+          ? "bg-primary/10 text-foreground"
+          : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
       )}
     >
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onClick}
-        className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-not-allowed"
-      >
-        <ProfileAvatar profile={profile} size="sm" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">{profile.name}</p>
-        </div>
-      </button>
-      {onDelete ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          disabled={disabled}
-          className="shrink-0 text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
-          aria-label={`Delete ${profile.name}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onDelete();
-          }}
-        >
-          <Trash2Icon className="size-4" aria-hidden />
-        </Button>
-      ) : null}
-    </div>
+      <ProfileAvatar profile={profile} size="sm" />
+      <span className="min-w-0 space-y-0.5">
+        <span className="block truncate text-sm font-medium leading-tight">{profile.name}</span>
+        <span className="block truncate text-xs leading-snug text-muted-foreground">
+          {profileSidebarDescription(profile)}
+        </span>
+      </span>
+    </button>
   );
 }
 

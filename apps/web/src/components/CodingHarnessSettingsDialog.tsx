@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -57,51 +57,6 @@ export function CodingHarnessSettingsPanel({
     setHint(null);
     setFormError(null);
   }, [settings]);
-
-  const selectedHarness =
-    settings?.harnesses.find((harness) => harness.id === selectedHarnessId) ?? null;
-
-  const summary = useMemo(() => {
-    if (!selectedHarness) {
-      return {
-        tone: "warn" as const,
-        label: "Pick an agent",
-      };
-    }
-
-    if (!selectedHarness.installed) {
-      return {
-        tone: "warn" as const,
-        label: `Install ${selectedHarness.name}`,
-      };
-    }
-
-    if (verifyMutation.isPending) {
-      return {
-        tone: "neutral" as const,
-        label: "Checking readiness",
-      };
-    }
-
-    if (selectedHarness.ready) {
-      return {
-        tone: "ok" as const,
-        label: `${selectedHarness.name} is ready`,
-      };
-    }
-
-    if (selectedHarness.nextStep === "login") {
-      return {
-        tone: "warn" as const,
-        label: `Login required for ${selectedHarness.name}`,
-      };
-    }
-
-    return {
-      tone: "warn" as const,
-      label: "Run readiness check",
-    };
-  }, [selectedHarness, verifyMutation.isPending]);
 
   function selectHarness(harnessId: string) {
     setSelectedHarnessId(harnessId);
@@ -247,30 +202,16 @@ export function CodingHarnessSettingsPanel({
               Nakama can hand off coding tasks to a CLI agent on this server.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={cn(
-                "rounded-full border px-2.5 py-1 text-xs font-medium",
-                summary.tone === "ok"
-                  ? "border-primary/25 bg-primary/10 text-primary"
-                  : summary.tone === "neutral"
-                    ? "border-border bg-muted text-muted-foreground"
-                    : "border-accent-500/25 bg-accent-500/10 text-accent-500",
-              )}
+          {!embedded ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              render={<Link to="/integrations?section=coding-agents" />}
             >
-              {summary.label}
-            </span>
-            {!embedded ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                render={<Link to="/integrations?section=coding-agents" />}
-              >
-                Open in Integrations
-              </Button>
-            ) : null}
-          </div>
+              Open in Integrations
+            </Button>
+          ) : null}
         </div>
 
         {formError ? (
@@ -294,9 +235,13 @@ export function CodingHarnessSettingsPanel({
                 key={harness.id}
                 className={cn(
                   "overflow-hidden rounded-lg border transition-colors",
+                  expanded && "divide-y",
                   selected
-                    ? "border-primary/20 bg-primary/[0.06]"
-                    : "border-border bg-background",
+                    ? cn(
+                        "border-primary/35 bg-primary/[0.06]",
+                        expanded && "divide-primary/25",
+                      )
+                    : cn("border-border bg-background", expanded && "divide-border"),
                 )}
               >
                 <div className="flex items-start gap-3 px-4 py-3.5">
@@ -371,7 +316,9 @@ export function CodingHarnessSettingsPanel({
                 </div>
 
                 {expanded ? (
-                  <div className="border-t border-border/60 px-4 py-3">
+                  <div
+                    className={cn("px-4 py-3", selected ? "bg-primary/[0.04]" : "bg-muted/20")}
+                  >
                     <p className="text-sm text-muted-foreground">
                       {!harness.installed
                         ? harness.installHint
@@ -466,7 +413,6 @@ function CodingHarnessSettingsSkeleton({ embedded = false }: { embedded?: boolea
             <div className="skeleton-shimmer h-5 w-28 rounded" />
             <div className="skeleton-shimmer h-4 w-full max-w-sm rounded" />
           </div>
-          <div className="skeleton-shimmer h-7 w-32 rounded-full" />
         </div>
 
         <div className="space-y-3">

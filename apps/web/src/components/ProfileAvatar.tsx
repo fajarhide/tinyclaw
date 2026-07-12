@@ -8,6 +8,7 @@ const sizeClasses = {
   xs: "size-5 text-[10px]",
   sm: "size-7 text-xs",
   md: "size-9 text-sm",
+  ml: "size-11 text-base",
   lg: "size-16 text-xl",
 } as const;
 
@@ -36,7 +37,7 @@ export function ProfileAvatar({
         src={avatarUrl}
         alt=""
         className={cn(
-          "shrink-0 rounded-2xl object-cover",
+          "shrink-0 rounded-full object-cover",
           sizeClasses[size],
           className,
         )}
@@ -48,7 +49,7 @@ export function ProfileAvatar({
     <span
       aria-hidden
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-2xl bg-muted font-medium text-foreground",
+        "inline-flex shrink-0 items-center justify-center rounded-full bg-muted font-medium text-foreground",
         sizeClasses[size],
         className,
       )}
