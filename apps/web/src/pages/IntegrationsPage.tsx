@@ -107,11 +107,11 @@ export function IntegrationsPage() {
         </p>
       </header>
 
-      <div className="grid gap-6 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] md:items-start">
-        <aside className="rounded-lg border border-border bg-card p-2 md:sticky md:top-6">
+      <div className="grid gap-8 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] md:items-start">
+        <aside className="md:sticky md:top-6">
           <nav
             aria-label="Integration settings"
-            className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] md:flex-col md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden"
+            className="flex gap-1 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] md:flex-col md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden"
           >
             {INTEGRATION_SECTIONS.map((item) => (
               <SidebarButton
@@ -188,25 +188,20 @@ function SidebarButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-[11rem] shrink-0 items-start gap-3 rounded-lg border px-3 py-3 text-left transition-colors md:w-full md:shrink",
+        "flex w-[11rem] shrink-0 items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-colors md:w-full md:shrink",
         active
-          ? "border-primary/20 bg-primary/10 text-foreground"
-          : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground",
+          ? "bg-primary/10 text-foreground"
+          : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
       )}
     >
-      <span
-        className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-lg border",
-          active
-            ? "border-primary/20 bg-background text-primary"
-            : "border-border bg-background text-muted-foreground",
-        )}
-      >
-        <Icon className="size-4" strokeWidth={1.75} aria-hidden />
-      </span>
+      <Icon
+        className={cn("size-4 shrink-0", active ? "text-primary" : "text-muted-foreground")}
+        strokeWidth={1.75}
+        aria-hidden
+      />
       <span className="min-w-0 space-y-0.5">
-        <span className="block text-sm font-medium">{label}</span>
-        <span className="block text-xs text-muted-foreground">{description}</span>
+        <span className="block text-sm font-medium leading-tight">{label}</span>
+        <span className="block text-xs leading-snug text-muted-foreground">{description}</span>
       </span>
     </button>
   );

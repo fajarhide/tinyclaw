@@ -261,12 +261,12 @@ export function CodingHarnessSettingsPanel({
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-medium",
+                "rounded-full border px-2.5 py-1 text-xs font-medium",
                 summary.tone === "ok"
-                  ? "bg-primary/10 text-primary"
+                  ? "border-primary/25 bg-primary/10 text-primary"
                   : summary.tone === "neutral"
-                    ? "bg-muted text-muted-foreground"
-                    : "bg-accent-500/10 text-accent-500",
+                    ? "border-border bg-muted text-muted-foreground"
+                    : "border-accent-500/25 bg-accent-500/10 text-accent-500",
               )}
             >
               {summary.label}
@@ -295,7 +295,7 @@ export function CodingHarnessSettingsPanel({
           </p>
         ) : null}
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {settings.harnesses.map((harness) => {
             const selected = selectedHarnessId === harness.id;
             const expanded = expandedHarnessId === harness.id;
@@ -305,25 +305,25 @@ export function CodingHarnessSettingsPanel({
                 key={harness.id}
                 className={cn(
                   "overflow-hidden rounded-lg border transition-colors",
-                  selected ? "border-primary/25 bg-primary/[0.03]" : "border-border bg-card",
+                  selected
+                    ? "border-primary/20 bg-primary/[0.06]"
+                    : "border-border bg-background",
                 )}
               >
-                <div className="flex items-start gap-3 p-4">
+                <div className="flex items-start gap-3 px-4 py-3.5">
                   <button
                     type="button"
                     className="flex min-w-0 flex-1 items-start gap-3 text-left"
                     onClick={() => selectHarness(harness.id)}
                   >
-                    <span
+                    <BotIcon
                       className={cn(
-                        "flex size-10 shrink-0 items-center justify-center rounded-lg border",
-                        selected
-                          ? "border-primary/20 bg-primary/10 text-primary"
-                          : "border-border bg-background text-muted-foreground",
+                        "mt-0.5 size-4 shrink-0",
+                        selected ? "text-primary" : "text-muted-foreground",
                       )}
-                    >
-                      <BotIcon className="size-4" strokeWidth={1.75} aria-hidden />
-                    </span>
+                      strokeWidth={1.75}
+                      aria-hidden
+                    />
 
                     <span className="min-w-0 flex-1 space-y-2">
                       <span className="flex flex-wrap items-center gap-2">
@@ -335,21 +335,21 @@ export function CodingHarnessSettingsPanel({
                         ) : null}
                       </span>
 
-                      <span className="flex flex-wrap gap-2 text-xs">
+                      <span className="flex flex-wrap gap-1.5 text-xs">
                         <StatusChip
                           icon={<LaptopMinimalCheckIcon className="size-3.5" />}
-                          tone={harness.installed ? "ok" : "warn"}
+                          variant={harness.installed ? "solid-ok" : "solid-warn"}
                           label={harness.installed ? "Installed" : "Not installed"}
                         />
                         <StatusChip
                           icon={<KeyRoundIcon className="size-3.5" />}
-                          tone={
+                          variant={
                             !harness.installed
                               ? "muted"
                               : harness.authenticated === true
                                 ? "ok"
                                 : harness.authenticated === false
-                                  ? "warn"
+                                  ? "solid-warn"
                                   : "muted"
                           }
                           label={
@@ -364,23 +364,23 @@ export function CodingHarnessSettingsPanel({
                         />
                         <StatusChip
                           icon={<CheckIcon className="size-3.5" />}
-                          tone={harness.ready ? "ok" : "muted"}
+                          variant={harness.ready ? "ok" : "muted"}
                           label={harness.ready ? "Ready" : "Not ready yet"}
                         />
                       </span>
                     </span>
                   </button>
 
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2 pt-0.5">
                     {selected ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                         <CheckIcon className="size-3.5" aria-hidden />
                         Selected
                       </span>
                     ) : null}
                     <button
                       type="button"
-                      className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                       aria-expanded={expanded}
                       aria-label={expanded ? `Collapse ${harness.name}` : `Expand ${harness.name}`}
                       onClick={() => toggleExpanded(harness.id)}
@@ -395,7 +395,7 @@ export function CodingHarnessSettingsPanel({
                 </div>
 
                 {expanded ? (
-                  <div className="border-t border-border/70 px-4 py-3 pl-[4.25rem]">
+                  <div className="border-t border-border/60 px-4 py-3 pl-11">
                     <p className="text-sm text-muted-foreground">
                       {!harness.installed
                         ? harness.installHint
@@ -479,22 +479,21 @@ export function CodingHarnessSettingsPanel({
 
 function StatusChip({
   icon,
-  tone,
+  variant,
   label,
 }: {
   icon: ReactNode;
-  tone: "ok" | "warn" | "muted";
+  variant: "solid-ok" | "ok" | "solid-warn" | "muted";
   label: string;
 }) {
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2 py-0.5",
-        tone === "ok"
-          ? "bg-primary/10 text-primary"
-          : tone === "warn"
-            ? "bg-accent-500/10 text-accent-500"
-            : "bg-muted text-muted-foreground",
+        variant === "solid-ok" && "bg-primary text-primary-foreground",
+        variant === "ok" && "border border-primary/20 bg-primary/5 text-primary",
+        variant === "solid-warn" && "bg-accent-500/15 text-accent-600 dark:text-accent-400",
+        variant === "muted" && "bg-muted/80 text-muted-foreground",
       )}
     >
       {icon}
