@@ -252,11 +252,11 @@ export function NotificationDestinationsCard() {
         </div>
 
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          <label className="space-y-1">
+          <label className="flex flex-col gap-3">
             <span className="text-xs text-muted-foreground">Name</span>
             <Input value={name} onChange={(event) => setName(event.target.value)} />
           </label>
-          <label className="space-y-1">
+          <label className="flex flex-col gap-3">
             <span className="text-xs text-muted-foreground">Telegram topic link</span>
             <Input
               value={topicLink}
@@ -347,7 +347,7 @@ export function NotificationDestinationsCard() {
                 {editingId === destination.id ? (
                   <div className="rounded-lg border border-border bg-muted/20 p-3">
                     <div className="flex flex-col gap-3 md:flex-row md:items-end">
-                      <label className="flex-1 space-y-1">
+                      <label className="flex flex-1 flex-col gap-3">
                         <span className="text-xs text-muted-foreground">
                           Telegram topic ID
                         </span>

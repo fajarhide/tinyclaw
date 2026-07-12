@@ -31,6 +31,7 @@ import {
   useDiscordSettings,
 } from "@/hooks/use-discord-settings";
 import { formatError } from "@/lib/client";
+import { DISCORD_DEVELOPER_PORTAL_URL, DISCORD_SETUP_GUIDE_URL } from "@/lib/integration-docs";
 import { cn } from "@/lib/utils";
 
 interface DiscordSettingsCardProps {
@@ -42,19 +43,28 @@ interface DiscordSettingsCardProps {
 function SettingsRow({
   label,
   description,
+  layout = "inline",
   children,
 }: {
   label: string;
-  description?: string;
+  description?: ReactNode;
+  layout?: "inline" | "stacked";
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+    <div
+      className={cn(
+        "px-4 py-3",
+        layout === "stacked"
+          ? "flex flex-col gap-3"
+          : "flex flex-wrap items-center justify-between gap-3",
+      )}
+    >
       <div className="min-w-0 space-y-0.5">
         <p className="text-sm font-medium text-foreground">{label}</p>
         {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
       </div>
-      {children}
+      {layout === "stacked" ? <div className="w-full min-w-0">{children}</div> : children}
     </div>
   );
 }
@@ -229,8 +239,34 @@ export function DiscordSettingsCard({
         </div>
       ) : null}
 
-      <SettingsRow label="Bot token" description="From Discord Developer Portal">
-        <InputGroup className="w-full min-w-[12rem] sm:w-[16rem]">
+      <SettingsRow
+        layout="stacked"
+        label="Bot token"
+        description={
+          <>
+            Create a bot in the{" "}
+            <a
+              href={DISCORD_DEVELOPER_PORTAL_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Discord Developer Portal
+            </a>
+            . Follow the{" "}
+            <a
+              href={DISCORD_SETUP_GUIDE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              setup guide
+            </a>{" "}
+            for token, intents, and invite steps.
+          </>
+        }
+      >
+        <InputGroup className="w-full">
           <InputGroupInput
             id="discord-bot-token"
             type={showBotToken ? "text" : "password"}

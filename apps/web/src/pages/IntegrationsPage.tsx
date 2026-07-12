@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BellRingIcon,
   BotIcon,
+  ExternalLinkIcon,
   HashIcon,
   KeyRoundIcon,
   MessageCircleMoreIcon,
@@ -21,6 +22,7 @@ import { LocalAuthTokenCard } from "@/components/LocalAuthTokenCard";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
+import { DISCORD_SETUP_GUIDE_URL } from "@/lib/integration-docs";
 
 const INTEGRATION_SECTIONS = [
   {
@@ -123,15 +125,6 @@ export function IntegrationsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="type-page-title">Integrations</h1>
-        <p className="type-body max-w-2xl">
-          {isOrgAdmin
-            ? "Manage bridge access, coding agents, Composio SaaS connections, Telegram and Discord setup, notification webhooks, and WhatsApp linking from one place."
-            : "View org-enabled SaaS toolkits and connection status. Connect accounts from chat."}
-        </p>
-      </header>
-
       <div className="grid gap-8 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] md:items-start">
         <aside className="md:sticky md:top-6">
           <nav
@@ -153,10 +146,7 @@ export function IntegrationsPage() {
 
         <section className="min-w-0">
           {section === "token" ? (
-            <IntegrationSection
-              title="Local token"
-              description="This token is shared by local tools and message bridges running on this machine."
-            >
+            <IntegrationSection>
               <LocalAuthTokenCard />
             </IntegrationSection>
           ) : null}
@@ -171,37 +161,28 @@ export function IntegrationsPage() {
           ) : null}
 
           {section === "telegram" ? (
-            <IntegrationSection
-              title="Telegram"
-              description="Connect your Telegram bot, choose the target profile, and finish pairing."
-            >
+            <IntegrationSection>
               <TelegramSettingsCard />
             </IntegrationSection>
           ) : null}
 
           {section === "discord" ? (
             <IntegrationSection
-              title="Discord"
-              description="Connect your Discord bot, choose the target profile, and finish DM pairing."
+              docsHref={DISCORD_SETUP_GUIDE_URL}
+              docsLabel="Discord setup guide"
             >
               <DiscordSettingsCard />
             </IntegrationSection>
           ) : null}
 
           {section === "notifications" ? (
-            <IntegrationSection
-              title="Notification destinations"
-              description="Create Telegram webhook destinations for alerts and lightweight notifications."
-            >
+            <IntegrationSection>
               <NotificationDestinationsCard />
             </IntegrationSection>
           ) : null}
 
           {section === "whatsapp" ? (
-            <IntegrationSection
-              title="WhatsApp"
-              description="Enable the bridge, choose a profile, then link a device with QR or pairing code."
-            >
+            <IntegrationSection>
               <WhatsAppSettingsCard />
             </IntegrationSection>
           ) : null}
@@ -249,21 +230,28 @@ function SidebarButton({
 }
 
 function IntegrationSection({
-  title,
-  description,
+  docsHref,
+  docsLabel = "Setup guide",
   children,
 }: {
-  title: string;
-  description: string;
+  docsHref?: string;
+  docsLabel?: string;
   children: ReactNode;
 }) {
   return (
     <div className="space-y-4">
-      <div className="space-y-1 px-1">
-        <h2 className="type-section-title text-base">{title}</h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
       {children}
+      {docsHref ? (
+        <a
+          href={docsHref}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 px-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ExternalLinkIcon className="size-3.5 shrink-0" aria-hidden />
+          <span>{docsLabel}</span>
+        </a>
+      ) : null}
     </div>
   );
 }
