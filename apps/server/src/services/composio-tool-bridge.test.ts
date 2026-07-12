@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildComposioConnectTools,
   buildComposioToolDefinitions,
   composioConnectionKey,
   namespacedComposioToolName,
+  resolveComposioCallbackBaseUrl,
 } from "./composio-tool-bridge";
 import type { ComposioService } from "./composio-service";
 import { McpClientManager } from "./mcp-client-manager";
@@ -108,5 +110,73 @@ describe("composio-tool-bridge", () => {
     );
 
     expect(tools).toEqual([]);
+  });
+
+  test("exposes connect tool when assigned toolkit is not connected", async () => {
+    const composioService = {
+      isAvailable: async () => true,
+      async getAssignedToolkitRecords() {
+        return [
+          {
+            orgToolkit: {
+              id: "ctk_1",
+              orgId: "org_1",
+              toolkitSlug: "gmail",
+              displayName: "Gmail",
+              status: "enabled",
+              cachedTools: [
+                {
+                  slug: "GMAIL_SEND_EMAIL",
+                  name: "Send Email",
+                  description: "Send",
+                  inputSchema: { type: "object", properties: {} },
+                },
+              ],
+              lastError: null,
+              createdAt: "2026-01-01T00:00:00.000Z",
+              updatedAt: "2026-01-01T00:00:00.000Z",
+            },
+            userConnection: null,
+            allowedActions: null,
+          },
+        ];
+      },
+      async connectToolkit() {
+        return { redirectUrl: "https://oauth.example.com/authorize" };
+      },
+    } as unknown as ComposioService;
+
+    const tools = await buildComposioConnectTools(
+      "org_1",
+      "usr_1",
+      "profile_1",
+      composioService,
+      "http://localhost:3003",
+    );
+
+    expect(tools).toHaveLength(1);
+    expect(tools[0]?.name).toBe("composio__connect_account");
+
+    const result = await tools[0]?.run({ toolkit_slug: "gmail" }, {});
+    expect(result).toMatchObject({
+      toolkitSlug: "gmail",
+      displayName: "Gmail",
+      redirectUrl: "https://oauth.example.com/authorize",
+    });
+  });
+
+  test("resolveComposioCallbackBaseUrl prefers NAKAMA_WEB_PUBLIC_URL", () => {
+    const previous = process.env.NAKAMA_WEB_PUBLIC_URL;
+    process.env.NAKAMA_WEB_PUBLIC_URL = "https://app.example.com/";
+
+    try {
+      expect(resolveComposioCallbackBaseUrl()).toBe("https://app.example.com");
+    } finally {
+      if (previous === undefined) {
+        delete process.env.NAKAMA_WEB_PUBLIC_URL;
+      } else {
+        process.env.NAKAMA_WEB_PUBLIC_URL = previous;
+      }
+    }
   });
 });

@@ -586,7 +586,7 @@ export class ComposioService {
       "Assigned SaaS toolkits for this profile (your personal connections):",
       ...lines,
       "",
-      "Use assigned Composio tools for external SaaS actions. If your connection is missing, open Integrations → Composio to connect — never self-authorize OAuth in chat.",
+      "Use assigned Composio tools for external SaaS actions. If your connection is missing, call `composio__connect_account` with the toolkit slug and send the user the OAuth link from the tool result.",
     ].join("\n");
   }
 

@@ -28,10 +28,117 @@ function toJsonSchema(inputSchema: Record<string, unknown> | undefined) {
 
 function notConnectedError(toolkitSlug: string): ComposioToolErrorResult {
   return {
-    error: `Composio toolkit "${toolkitSlug}" is not connected for your account. Connect it on Integrations → Composio.`,
+    error: `Composio toolkit "${toolkitSlug}" is not connected for your account. Call composio__connect_account with toolkit_slug "${toolkitSlug}" to generate an OAuth link for the user.`,
     code: "COMPOSIO_NOT_CONNECTED",
     toolkitSlug,
   };
+}
+
+/** Base URL the user's browser can reach for OAuth callback (web app origin, not API port). */
+export function resolveComposioCallbackBaseUrl(): string {
+  const configured =
+    process.env.NAKAMA_WEB_PUBLIC_URL?.trim() || process.env.NAKAMA_PUBLIC_URL?.trim();
+  if (configured) {
+    return configured.replace(/\/$/, "");
+  }
+
+  const webPort = process.env.NAKAMA_WEB_PORT?.trim() || "3003";
+  return `http://127.0.0.1:${webPort}`;
+}
+
+interface ComposioConnectAccountInput {
+  toolkit_slug: string;
+}
+
+export async function buildComposioConnectTools(
+  orgId: string,
+  userId: string,
+  profileId: string,
+  composioService: ComposioService,
+  callbackBaseUrl: string,
+): Promise<ToolDefinition[]> {
+  if (!userId) {
+    return [];
+  }
+
+  if (!(await composioService.isAvailable())) {
+    return [];
+  }
+
+  const assigned = await composioService.getAssignedToolkitRecords(orgId, userId, profileId);
+  const needsConnection = assigned.filter(
+    ({ orgToolkit, userConnection }) =>
+      orgToolkit.status === "enabled" && userConnection?.status !== "connected",
+  );
+
+  if (needsConnection.length === 0) {
+    return [];
+  }
+
+  const allowedSlugs = needsConnection.map(({ orgToolkit }) => orgToolkit.toolkitSlug);
+  const slugList = allowedSlugs.join(", ");
+
+  return [
+    {
+      name: "composio__connect_account",
+      description: `Generate an OAuth link so the user can connect their personal account for an assigned Composio toolkit. Use when the user asks for Gmail, Slack, etc. but their connection is missing. Allowed toolkits: ${slugList}.`,
+      parameters: {
+        type: "object",
+        properties: {
+          toolkit_slug: {
+            type: "string",
+            description: `Toolkit slug to connect. One of: ${slugList}`,
+          },
+        },
+        required: ["toolkit_slug"],
+      },
+      async run(input) {
+        const toolkitSlug =
+          typeof input === "object" &&
+          input &&
+          typeof (input as ComposioConnectAccountInput).toolkit_slug === "string"
+            ? (input as ComposioConnectAccountInput).toolkit_slug.toLowerCase()
+            : null;
+
+        if (!toolkitSlug || !allowedSlugs.includes(toolkitSlug)) {
+          return {
+            error: `Invalid toolkit_slug. Use one of: ${slugList}`,
+            code: "COMPOSIO_POLICY",
+          } satisfies ComposioToolErrorResult;
+        }
+
+        try {
+          const { redirectUrl } = await composioService.connectToolkit(
+            orgId,
+            userId,
+            toolkitSlug,
+            callbackBaseUrl,
+          );
+
+          const displayName =
+            needsConnection.find(({ orgToolkit }) => orgToolkit.toolkitSlug === toolkitSlug)
+              ?.orgToolkit.displayName ?? toolkitSlug;
+
+          return {
+            toolkitSlug,
+            displayName,
+            redirectUrl,
+            message: `Share this link with the user so they can connect ${displayName}: ${redirectUrl}`,
+            instructions:
+              "Reply with the link as clickable markdown. Tell the user to authorize, then return to chat and ask again.",
+          };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+
+          return {
+            error: message,
+            code: "COMPOSIO_TRANSIENT",
+            toolkitSlug,
+          } satisfies ComposioToolErrorResult;
+        }
+      },
+    },
+  ];
 }
 
 export async function buildComposioToolDefinitions(

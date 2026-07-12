@@ -207,7 +207,11 @@ import {
 } from "./session-persistence";
 import type { TaskRunner } from "./task-runner";
 import { buildMcpToolDefinitions } from "./mcp-tool-bridge";
-import { buildComposioToolDefinitions } from "./composio-tool-bridge";
+import {
+  buildComposioConnectTools,
+  buildComposioToolDefinitions,
+  resolveComposioCallbackBaseUrl,
+} from "./composio-tool-bridge";
 import type { ComposioService } from "./composio-service";
 import type { McpClientManager } from "./mcp-client-manager";
 import type { McpService } from "./mcp-service";
@@ -2168,8 +2172,17 @@ export class AgentService {
         throw new Error("Profile organization is missing.");
       }
 
+      const callbackBaseUrl = resolveComposioCallbackBaseUrl();
+
       resolved = [
         ...resolved,
+        ...(await buildComposioConnectTools(
+          orgId,
+          options.userId,
+          profile.id,
+          this.composioService,
+          callbackBaseUrl,
+        )),
         ...(await buildComposioToolDefinitions(
           orgId,
           options.userId,
