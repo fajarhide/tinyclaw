@@ -233,53 +233,23 @@ export async function resolveCodingAgentHarness(
   preferredKind?: StoredCodingAgentHarnessKind | null,
 ): Promise<CodingAgentHarnessStatus> {
   const settings = await loadCodingAgentWorkspaceSettings(db);
-  const enabled = settings.harnesses.filter((harness) => harness.enabled);
+  const statuses = await listCodingAgentHarnessStatuses(db);
+  const enabled = statuses.filter((harness) => harness.enabled);
+  const readyHarnesses = enabled.filter((harness) => harness.ready);
 
-  if (!preferredKind && !settings.selectedHarnessId) {
-    const statuses = await listCodingAgentHarnessStatuses(db);
-    const readyHarnesses = statuses.filter((harness) => harness.enabled && harness.ready);
-
-    if (readyHarnesses.length === 1) {
-      return readyHarnesses[0]!;
+  const notReadyError = (harness: CodingAgentHarnessStatus): Error => {
+    if (!harness.installed) {
+      return new Error(`${harness.name} is selected but not installed.`);
     }
-  }
 
-  const candidates: StoredCodingAgentHarnessRecord[] = [];
+    const message =
+      harness.statusMessage ??
+      (harness.nextStep === "login"
+        ? authenticationHelpForHarness(harness.kind)
+        : `${harness.name} is not ready.`);
 
-  if (preferredKind) {
-    const preferred = enabled.find((harness) => harness.kind === preferredKind);
-
-    if (preferred) {
-      candidates.push(preferred);
-    }
-  } else if (settings.selectedHarnessId) {
-    const selected = enabled.find((harness) => harness.id === settings.selectedHarnessId);
-
-    if (selected) {
-      candidates.push(selected);
-    }
-  }
-
-  for (const harness of enabled) {
-    if (!candidates.includes(harness)) {
-      candidates.push(harness);
-    }
-  }
-
-  for (const candidate of candidates) {
-    const runtime = await getHarnessRuntimeStatus(candidate.command);
-
-    if (runtime.installed) {
-      return {
-        ...candidate,
-        ...runtime,
-        authenticated: null,
-        ready: true,
-        nextStep: null,
-        statusMessage: null,
-      };
-    }
-  }
+    return new Error(message);
+  };
 
   if (preferredKind) {
     const preferred = enabled.find((harness) => harness.kind === preferredKind);
@@ -288,7 +258,38 @@ export async function resolveCodingAgentHarness(
       throw new Error(`Configured coding agent '${preferredKind}' is unavailable.`);
     }
 
-    throw new Error(`${preferred.name} is selected but not installed.`);
+    if (preferred.ready) {
+      return preferred;
+    }
+
+    throw notReadyError(preferred);
+  }
+
+  if (!settings.selectedHarnessId) {
+    if (readyHarnesses.length === 1) {
+      return readyHarnesses[0]!;
+    }
+  } else {
+    const selected = enabled.find((harness) => harness.id === settings.selectedHarnessId);
+
+    if (selected?.ready) {
+      return selected;
+    }
+  }
+
+  const fallbackReady = readyHarnesses[0];
+
+  if (fallbackReady) {
+    return fallbackReady;
+  }
+
+  const selected = settings.selectedHarnessId
+    ? enabled.find((harness) => harness.id === settings.selectedHarnessId)
+    : undefined;
+  const installed = selected?.installed ? selected : enabled.find((harness) => harness.installed);
+
+  if (installed) {
+    throw notReadyError(installed);
   }
 
   throw new Error(

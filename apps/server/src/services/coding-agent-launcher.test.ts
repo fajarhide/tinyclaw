@@ -88,10 +88,26 @@ describe("coding-agent launcher", () => {
       transcriptionModel: null,
       codingAgentHarnesses: [
         {
+          id: "coding-harness-codex",
+          kind: "codex",
+          name: "Codex",
+          command: "__missing_codex__",
+          args: [],
+          enabled: true,
+        },
+        {
           id: "coding-harness-claude-code",
           kind: "claude_code",
           name: "Claude Code",
           command: "echo",
+          args: [],
+          enabled: true,
+        },
+        {
+          id: "coding-harness-opencode",
+          kind: "opencode",
+          name: "OpenCode",
+          command: "__missing_opencode__",
           args: [],
           enabled: true,
         },

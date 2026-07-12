@@ -32,8 +32,18 @@ export function getToolExecutionEnv(): NodeJS.ProcessEnv {
 
   const home = homedir();
   const { binDir, globalDir } = getBunGlobalPaths(home);
-  const extras = [binDir, path.join(home, ".local", "bin"), "/usr/local/bin"];
   const pathKey = process.platform === "win32" ? "Path" : "PATH";
+
+  if (process.env.NAKAMA_DISABLE_FIX_PATH === "1") {
+    return {
+      ...process.env,
+      BUN_INSTALL_BIN: process.env.BUN_INSTALL_BIN ?? binDir,
+      BUN_INSTALL_GLOBAL_DIR: process.env.BUN_INSTALL_GLOBAL_DIR ?? globalDir,
+      [pathKey]: process.env[pathKey] ?? "",
+    };
+  }
+
+  const extras = [binDir, path.join(home, ".local", "bin"), "/usr/local/bin"];
   const current = process.env[pathKey] ?? "";
   const prefix = extras.join(path.delimiter);
 
