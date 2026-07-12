@@ -42,23 +42,20 @@ export function createInteractionMessenger(
   editReply: (content: string) => Promise<unknown>,
   deferred: boolean,
 ): DiscordMessenger {
-  let useFollowUp = deferred;
+  let answered = false;
 
   return {
     async send(text: string) {
       const chunks = splitDiscordMessage(text);
 
-      for (let index = 0; index < chunks.length; index++) {
-        const chunk = chunks[index]!;
-
-        if (index === 0 && !useFollowUp) {
-          await reply(chunk);
-          useFollowUp = true;
-          continue;
-        }
-
-        if (index === 0 && deferred) {
-          await editReply(chunk);
+      for (const chunk of chunks) {
+        if (!answered) {
+          if (deferred) {
+            await editReply(chunk);
+          } else {
+            await reply(chunk);
+          }
+          answered = true;
           continue;
         }
 

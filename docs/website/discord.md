@@ -20,21 +20,38 @@ With Discord enabled, users can:
 
 Discord currently supports **text messages only**. Attachments and voice are not forwarded to the agent.
 
-## Step 1: Get a bot token
+## Step 1: Create the bot in Discord
 
-In the [Discord Developer Portal](https://discord.com/developers/applications), create an application, then:
+In the [Discord Developer Portal](https://discord.com/developers/applications), create an application, then configure it on two separate pages:
 
 | Value | Portal location | For Nakama? |
 | --- | --- | --- |
 | **Bot token** | **Bot** | Yes — paste in **Integrations → Discord** |
+| **Message Content Intent** | **Bot → Privileged Gateway Intents** | Yes — turn the toggle **on** |
+| OAuth2 permissions | **OAuth2 → URL Generator** | Yes — invite the bot to your server |
 | Application ID, Public Key | General Information | No |
 
-1. Open **Bot** (not General Information) → **Add Bot** if needed → **Reset Token** → **Copy**
-2. Enable **Message Content Intent** under Privileged Gateway Intents
-3. Open **OAuth2 → URL Generator** — scopes: `bot`, `applications.commands`; permissions: at least Send Messages and Read Message History
-4. Open the invite URL and add the bot to your server
+### 1a. Bot tab — token and intent
 
-Keep the token secret. If you change intents later, re-invite the bot.
+1. Open **Bot** (not General Information) → **Add Bot** if needed → **Reset Token** → **Copy**
+2. Scroll to **Privileged Gateway Intents** and turn **Message Content Intent** **on**
+
+This toggle is required. Without it, the bridge worker logs `Used disallowed intents` and cannot connect. There is no API for this — you must flip the toggle in the Developer Portal.
+
+### 1b. OAuth2 — invite the bot to a server
+
+1. Open **OAuth2 → URL Generator**
+2. Under **Scopes**, check `bot` and `applications.commands`
+3. Under **Bot Permissions**, check:
+   - **View Channels**
+   - **Send Messages**
+   - **Read Message History**
+   - **Send Messages in Threads** (recommended if you use threads)
+4. Copy the generated URL, open it, pick a server, and approve
+
+You can also use the **Invite bot to server** link on **Integrations → Discord** after saving your token — Nakama generates an invite with the right permissions.
+
+Keep the token secret. If you enable Message Content Intent after the bot is already in a server, generate a fresh invite and add the bot again.
 
 ## Step 2: Save in Nakama
 
@@ -165,6 +182,20 @@ Override the config root with `NAKAMA_CONFIG_DIR` when needed.
 
 ## Troubleshooting
 
+### Bridge worker logs `Used disallowed intents`
+
+The Discord bridge cannot start because **Message Content Intent** is off for this bot.
+
+**Fix:**
+
+1. [Discord Developer Portal](https://discord.com/developers/applications) → your app → **Bot**
+2. Under **Privileged Gateway Intents**, turn **Message Content Intent** **on**
+3. Save, then restart the Discord bridge worker in **Integrations → Discord**
+
+If the bot was already in your server before you enabled the intent, generate a fresh invite (Step 1b) and add the bot again.
+
+This is not something Nakama can enable for you — Discord only exposes this as a portal toggle, not an API setting.
+
 ### The bot does not answer at all
 
 Check these first:
@@ -178,14 +209,14 @@ Check these first:
 
 Usually one of these is true:
 
-- **Message Content Intent** is not enabled in the Discord Developer Portal
-- the bot was invited before Message Content Intent was enabled
+- **Message Content Intent** is off — turn the toggle on under **Bot → Privileged Gateway Intents** (see Step 1a)
+- the bot was invited before Message Content Intent was enabled — re-invite with a fresh URL (Step 1b)
 - the message was not a slash command, reply, or direct `@mention`
 - the user has not completed DM pairing yet
 
 ### Mentions do not work in servers
 
-1. Re-invite the bot after enabling **Message Content Intent** (see Step 1)
+1. Turn **Message Content Intent** on (Step 1a), then re-invite the bot (Step 1b)
 2. Make sure only one Discord bridge worker is running
 3. `@mention` the bot or reply to one of its messages
 

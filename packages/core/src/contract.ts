@@ -771,6 +771,7 @@ export interface DiscordSettingsResponse {
   pairedUserIds: string[];
   allowedUserIds: string[];
   profileId: string;
+  inviteUrl: string | null;
 }
 
 export interface UpdateDiscordSettingsRequest {

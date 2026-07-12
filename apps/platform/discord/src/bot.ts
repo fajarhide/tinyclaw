@@ -7,6 +7,10 @@ import {
 } from "discord.js";
 import type { DiscordBridgeConfig } from "./config";
 import { createChatHandler, type ChatHandlerDeps } from "./chat-handler";
+import {
+  getDiscordErrorCode,
+  isIgnorableInteractionError,
+} from "./interaction-errors";
 import { registerSlashCommands } from "./slash-commands";
 
 export async function createBot(
@@ -53,18 +57,34 @@ export async function createBot(
       return;
     }
 
+    // Acknowledge immediately — Discord expires interactions after ~3s.
+    // Any work (locks, API calls) must happen after this.
+    try {
+      await interaction.deferReply();
+    } catch (error) {
+      if (isIgnorableInteractionError(error)) {
+        console.warn(
+          `Skipped stale /${interaction.commandName} interaction (${getDiscordErrorCode(error)}).`,
+        );
+        return;
+      }
+
+      console.error("Failed to acknowledge slash command:", error);
+      return;
+    }
+
     try {
       await handler.handleSlashCommand(interaction);
     } catch (error) {
-      console.error("Slash command error:", error);
-
-      if (interaction.deferred || interaction.replied) {
-        await interaction.editReply({ content: "Something went wrong." }).catch(() => {});
-      } else {
-        await interaction
-          .reply({ content: "Something went wrong.", ephemeral: true })
-          .catch(() => {});
+      if (isIgnorableInteractionError(error)) {
+        console.warn(
+          `Slash command /${interaction.commandName} interaction expired (${getDiscordErrorCode(error)}).`,
+        );
+        return;
       }
+
+      console.error("Slash command error:", error);
+      await interaction.editReply({ content: "Something went wrong." }).catch(() => {});
     }
   });
 

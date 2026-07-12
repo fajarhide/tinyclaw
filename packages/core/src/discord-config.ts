@@ -22,6 +22,7 @@ export interface DiscordSettingsPublic {
   pairedUserIds: string[];
   allowedUserIds: string[];
   profileId: string;
+  inviteUrl: string | null;
 }
 
 export interface UpdateDiscordSettingsInput {
@@ -36,6 +37,79 @@ export function getDiscordConfigDir(): string {
 
 export function getDiscordConfigPath(): string {
   return join(getDiscordConfigDir(), "config.ini");
+}
+
+const DISCORD_API_BASE_URL = "https://discord.com/api/v10";
+const DISCORD_INVITE_PERMISSIONS = 68608;
+const DISCORD_INVITE_SCOPES = "bot applications.commands";
+
+const discordApplicationIdCache = new Map<string, string>();
+
+export function buildDiscordInviteUrl(applicationId: string): string {
+  const params = new URLSearchParams({
+    client_id: applicationId,
+    permissions: String(DISCORD_INVITE_PERMISSIONS),
+    scope: DISCORD_INVITE_SCOPES,
+  });
+
+  return `https://discord.com/oauth2/authorize?${params.toString()}`;
+}
+
+function clearDiscordApplicationIdCache(botToken: string): void {
+  discordApplicationIdCache.delete(botToken.trim());
+}
+
+export async function resolveDiscordApplicationId(botToken: string): Promise<string | null> {
+  const token = botToken.trim();
+
+  if (!token) {
+    return null;
+  }
+
+  const cached = discordApplicationIdCache.get(token);
+
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const response = await fetch(`${DISCORD_API_BASE_URL}/oauth2/applications/@me`, {
+      headers: { Authorization: `Bot ${token}` },
+      signal: AbortSignal.timeout(5_000),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as { id?: string };
+    const applicationId = payload.id?.trim();
+
+    if (!applicationId || !SNOWFLAKE_PATTERN.test(applicationId)) {
+      return null;
+    }
+
+    discordApplicationIdCache.set(token, applicationId);
+    return applicationId;
+  } catch {
+    return null;
+  }
+}
+
+async function withDiscordInviteUrl(
+  settings: DiscordSettingsPublic,
+  botToken: string | null,
+): Promise<DiscordSettingsPublic> {
+  if (!settings.configured || !botToken?.trim()) {
+    return settings;
+  }
+
+  const applicationId = await resolveDiscordApplicationId(botToken);
+
+  return {
+    ...settings,
+    inviteUrl: applicationId ? buildDiscordInviteUrl(applicationId) : null,
+  };
 }
 
 export function maskBotToken(token: string): string | null {
@@ -125,6 +199,7 @@ export function toDiscordSettingsPublic(file: DiscordConfigFile | null): Discord
       pairedUserIds: [],
       allowedUserIds: [],
       profileId: DEFAULT_DISCORD_PROFILE_ID,
+      inviteUrl: null,
     };
   }
 
@@ -135,11 +210,14 @@ export function toDiscordSettingsPublic(file: DiscordConfigFile | null): Discord
     pairedUserIds: file.pairedUserIds,
     allowedUserIds: file.allowedUserIds,
     profileId: file.profileId,
+    inviteUrl: null,
   };
 }
 
 export async function loadDiscordSettingsPublic(): Promise<DiscordSettingsPublic> {
-  return toDiscordSettingsPublic(await loadDiscordConfigFile());
+  const file = await loadDiscordConfigFile();
+  const base = toDiscordSettingsPublic(file);
+  return withDiscordInviteUrl(base, file?.botToken ?? null);
 }
 
 async function writeDiscordConfigFile(config: DiscordConfigFile): Promise<void> {
@@ -228,8 +306,13 @@ export async function saveDiscordConfig(
 ): Promise<DiscordSettingsPublic> {
   const existing = await loadDiscordConfigFile();
   const next = buildSavedDiscordConfig(input, existing);
+
+  if (existing?.botToken.trim() && existing.botToken.trim() !== next.botToken.trim()) {
+    clearDiscordApplicationIdCache(existing.botToken);
+  }
+
   await writeDiscordConfigFile(next);
-  return toDiscordSettingsPublic(next);
+  return withDiscordInviteUrl(toDiscordSettingsPublic(next), next.botToken);
 }
 
 export async function regenerateDiscordHandshake(): Promise<DiscordSettingsPublic> {
@@ -245,7 +328,7 @@ export async function regenerateDiscordHandshake(): Promise<DiscordSettingsPubli
   };
 
   await writeDiscordConfigFile(next);
-  return toDiscordSettingsPublic(next);
+  return withDiscordInviteUrl(toDiscordSettingsPublic(next), next.botToken);
 }
 
 export async function verifyAndPairDiscordUser(

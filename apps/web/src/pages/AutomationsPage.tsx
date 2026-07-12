@@ -1626,7 +1626,7 @@ function MetaStat({
   tone: "default" | "attention";
 }) {
   return (
-    <div className="rounded-md bg-background/75 px-3 py-3">
+    <div className="rounded-md border border-border/60 px-3 py-3">
       <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
       <p
         className={cn(

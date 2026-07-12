@@ -3,16 +3,87 @@ import * as os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import {
+  buildDiscordInviteUrl,
   generateHandshakeCode,
   isDiscordUserAuthorized,
   loadDiscordConfigFile,
+  loadDiscordSettingsPublic,
   maskBotToken,
   normalizeHandshakeInput,
   parseAllowedUserIds,
+  resolveDiscordApplicationId,
   resolveDiscordConfigFromSources,
   saveDiscordConfig,
   verifyAndPairDiscordUser,
 } from "./discord-config";
+
+describe("buildDiscordInviteUrl", () => {
+  test("builds an oauth invite link with bot scopes and permissions", () => {
+    expect(buildDiscordInviteUrl("1525937133096013954")).toBe(
+      "https://discord.com/oauth2/authorize?client_id=1525937133096013954&permissions=68608&scope=bot+applications.commands",
+    );
+  });
+});
+
+describe("resolveDiscordApplicationId", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  test("returns the application id from Discord", async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ id: "1525937133096013954" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })) as typeof fetch;
+
+    await expect(resolveDiscordApplicationId("test-token")).resolves.toBe("1525937133096013954");
+    await expect(resolveDiscordApplicationId("test-token")).resolves.toBe("1525937133096013954");
+  });
+
+  test("returns null when Discord rejects the token", async () => {
+    globalThis.fetch = (async () => new Response(null, { status: 401 })) as typeof fetch;
+
+    await expect(resolveDiscordApplicationId("bad-token")).resolves.toBeNull();
+  });
+});
+
+describe("loadDiscordSettingsPublic", () => {
+  let tempHome = "";
+  let homedirSpy: ReturnType<typeof spyOn<typeof os, "homedir">> | null = null;
+  const originalFetch = globalThis.fetch;
+
+  afterEach(async () => {
+    globalThis.fetch = originalFetch;
+    homedirSpy?.mockRestore();
+    homedirSpy = null;
+
+    if (tempHome) {
+      await rm(tempHome, { recursive: true, force: true });
+      tempHome = "";
+    }
+  });
+
+  test("includes an invite URL when Discord returns the application id", async () => {
+    tempHome = await mkdtemp(path.join(os.tmpdir(), "nakama-core-discord-home-"));
+    homedirSpy = spyOn(os, "homedir").mockReturnValue(tempHome);
+    await writeDiscordConfig(tempHome, { botToken: "discord-bot-token" });
+
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ id: "1525937133096013954" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })) as typeof fetch;
+
+    const settings = await loadDiscordSettingsPublic();
+
+    expect(settings.inviteUrl).toBe(
+      "https://discord.com/oauth2/authorize?client_id=1525937133096013954&permissions=68608&scope=bot+applications.commands",
+    );
+  });
+});
 
 describe("parseAllowedUserIds", () => {
   test("parses comma-separated snowflake ids", () => {

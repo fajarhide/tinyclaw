@@ -27,6 +27,7 @@ import {
 import type { DiscordAuthStore } from "./auth-store";
 import type { DiscordBridgeConfig } from "./config";
 import { formatError, HELP_TEXT, splitDiscordMessage } from "./format";
+import { isIgnorableInteractionError } from "./interaction-errors";
 import {
   explainGuildMessageHandling,
   isDiscordGuildMessage,
@@ -174,6 +175,9 @@ export function createChatHandler(deps: ChatHandlerDeps) {
   }
 
   async function handleSlashCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+    // Caller (bot.ts) already deferred — do not wait on withChatLock here.
+    // Agent replies hold that lock for a long time and would leave commands stuck.
+
     const userId = interaction.user.id;
     const channelId = interaction.channelId;
     const isGuild = !interaction.channel?.isDMBased();
@@ -183,24 +187,15 @@ export function createChatHandler(deps: ChatHandlerDeps) {
         ? `g:${interaction.channel.parentId ?? channelId}:t:${interaction.channel.id}`
         : channelId
       : channelId;
-    const isThread = interaction.channel?.isThread() ?? false;
-
-    const needsDefer = ["stop", "clear", "compact", "new", "status"].includes(
-      interaction.commandName,
-    );
-
-    if (needsDefer) {
-      await interaction.deferReply();
-    }
 
     const messenger = createInteractionMessenger(
       (content) => interaction.reply({ content: content.slice(0, 2000) }),
       (content) => interaction.followUp({ content: content.slice(0, 2000) }),
       (content) => interaction.editReply({ content: content.slice(0, 2000) }),
-      needsDefer,
+      true,
     );
 
-    await withChatLock(conversationKey, async () => {
+    try {
       await authStore.reload();
 
       if (!authStore.isAuthorized(userId)) {
@@ -220,27 +215,30 @@ export function createChatHandler(deps: ChatHandlerDeps) {
         return;
       }
 
+      if (interaction.commandName === "stop") {
+        if (!stopActiveStream(conversationKey)) {
+          await messenger.send("Nothing to stop.");
+        } else {
+          await messenger.send("Stopping…");
+        }
+        return;
+      }
+
       const orgReady = await ensureOrgReady(messenger, channelOrgKey, undefined);
       if (!orgReady) {
         return;
       }
 
       switch (interaction.commandName) {
-        case "stop": {
-          if (!stopActiveStream(conversationKey)) {
-            await messenger.send("Nothing to stop.");
-          } else {
-            await messenger.send("Stopping…");
-          }
-          return;
-        }
         case "clear": {
+          stopActiveStream(conversationKey);
           const session = await resolveSession(conversationKey);
           await session.clear();
           await messenger.send("History cleared.");
           return;
         }
         case "compact": {
+          stopActiveStream(conversationKey);
           const session = await resolveSession(conversationKey);
           const result = await session.compact({ force: true });
           await messenger.send(
@@ -249,6 +247,7 @@ export function createChatHandler(deps: ChatHandlerDeps) {
           return;
         }
         case "new": {
+          stopActiveStream(conversationKey);
           await createAndBindSession(conversationKey);
           await messenger.send("Started a new conversation.");
           return;
@@ -259,7 +258,16 @@ export function createChatHandler(deps: ChatHandlerDeps) {
         default:
           await messenger.send("Unknown command. Try /help");
       }
-    });
+    } catch (error) {
+      // Finalize the deferred reply so Discord does not stay on "thinking…".
+      if (isIgnorableInteractionError(error)) {
+        console.warn("Slash command interaction expired before reply could be sent.");
+        return;
+      }
+
+      console.error("Slash command error:", error);
+      await messenger.send(formatError(error)).catch(() => {});
+    }
   }
 
   async function handlePairing(
@@ -704,7 +712,17 @@ async function replyChunks(messenger: DiscordMessenger, text: string): Promise<v
 
 async function withChatLock(chatId: string, fn: () => Promise<void>): Promise<void> {
   const previous = chatLocks.get(chatId) ?? Promise.resolve();
-  const next = previous.then(fn).catch(() => undefined);
-  chatLocks.set(chatId, next);
-  await next;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  chatLocks.set(chatId, gate);
+
+  await previous.catch(() => undefined);
+
+  try {
+    await fn();
+  } finally {
+    release();
+  }
 }
