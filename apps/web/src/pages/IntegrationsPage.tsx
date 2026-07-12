@@ -149,13 +149,10 @@ export function IntegrationsPage() {
           {section === "coding-agents" ? <CodingHarnessSettingsPanel embedded /> : null}
 
           {section === "composio" ? (
-            <IntegrationSection
-              title="Composio"
-              description="Enable toolkits, connect SaaS accounts with OAuth, and sync tools for profile assignment."
-            >
+            <div className="space-y-4">
               <ComposioSettingsCard />
               <ComposioConnectionsCard />
-            </IntegrationSection>
+            </div>
           ) : null}
 
           {section === "telegram" ? (
