@@ -30,10 +30,13 @@ import { formatSessionTimestamp, type ChatListItem } from "@/lib/chat-history";
 import { isPastedTextDocument } from "@/lib/pasted-text";
 import { TextAttachmentPreview } from "@/components/chat/text-attachment-preview";
 import { ImageAttachmentPreview } from "@/components/chat/image-attachment-preview";
+import { ArtifactAttachmentPreview } from "@/components/chat/artifact-attachment-preview";
+import { extractTurnArtifacts } from "@/lib/chat-artifacts";
 import { cn } from "@/lib/utils";
 
 interface ChatMessageListProps {
   messages: ChatListItem[];
+  profileId?: string | null;
   showThinking?: boolean;
   modelLabel?: string | null;
   branchingMessageId?: string | null;
@@ -53,6 +56,7 @@ type MessageTurn =
 
 export function ChatMessageList({
   messages,
+  profileId,
   showThinking = true,
   modelLabel,
   branchingMessageId,
@@ -78,6 +82,7 @@ export function ChatMessageList({
             <AssistantTurn
               key={turn.messages.map(({ message }) => message.id).join(":")}
               messages={turn.messages}
+              profileId={profileId}
               showThinking={showThinking}
               modelLabel={modelLabel}
               branchingMessageId={branchingMessageId}
@@ -121,6 +126,7 @@ function groupMessagesIntoTurns(messages: ChatListItem[]): MessageTurn[] {
 
 function AssistantTurn({
   messages,
+  profileId,
   showThinking,
   modelLabel,
   branchingMessageId,
@@ -129,6 +135,7 @@ function AssistantTurn({
   onRetryMessage,
 }: {
   messages: IndexedMessage[];
+  profileId?: string | null;
   showThinking: boolean;
   modelLabel?: string | null;
   branchingMessageId?: string | null;
@@ -138,6 +145,7 @@ function AssistantTurn({
 }) {
   const turnMessages = messages.map(({ message }) => message);
   const segments = segmentAssistantTurn(turnMessages);
+  const artifacts = extractTurnArtifacts(turnMessages);
   const anchorMessage = findAssistantTurnAnchor(turnMessages);
   const showActions = isAssistantTurnComplete(turnMessages) && anchorMessage != null;
 
@@ -155,6 +163,17 @@ function AssistantTurn({
           modelLabel={modelLabel}
         />
       ))}
+      {profileId && artifacts.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {artifacts.map((artifact) => (
+            <ArtifactAttachmentPreview
+              key={artifact.path}
+              profileId={profileId}
+              artifact={artifact}
+            />
+          ))}
+        </div>
+      ) : null}
       {showActions && anchorMessage ? (
         <AssistantMessageActions
           message={anchorMessage}

@@ -340,6 +340,7 @@ function SubAgentToolRow({
     <div className="w-full max-w-full space-y-2">
       <div className="flex min-w-0 items-start gap-2.5">
         <SubAgentMark
+          active={isRunning}
           className={cn(
             "mt-0.5 size-4 shrink-0",
             isRunning ? "text-foreground/70" : "text-muted-foreground",
@@ -395,20 +396,38 @@ function SubAgentToolRow({
   );
 }
 
-function SubAgentMark({ className }: { className?: string }) {
+function SubAgentMark({ className, active }: { className?: string; active?: boolean }) {
   return (
     <svg
       viewBox="0 0 16 16"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={className}
+      className={cn(active && "subagent-mark-active", className)}
       aria-hidden
     >
-      <circle cx="8" cy="3.5" r="1.6" fill="currentColor" />
-      <circle cx="3.5" cy="12" r="1.6" fill="currentColor" />
-      <circle cx="12.5" cy="12" r="1.6" fill="currentColor" />
+      <circle className="subagent-dot subagent-dot-top" cx="8" cy="3.5" r="1.6" fill="currentColor" />
+      <circle className="subagent-dot subagent-dot-br" cx="12.5" cy="12" r="1.6" fill="currentColor" />
+      <circle className="subagent-dot subagent-dot-bl" cx="3.5" cy="12" r="1.6" fill="currentColor" />
       <path
-        d="M7.2 4.8 4.4 10.4M8.8 4.8l2.8 5.6M5.2 12h5.6"
+        className="subagent-edge subagent-edge-top-br"
+        pathLength={1}
+        d="M8.8 4.8 11.6 10.4"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <path
+        className="subagent-edge subagent-edge-br-bl"
+        pathLength={1}
+        d="M10.8 12 5.2 12"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <path
+        className="subagent-edge subagent-edge-bl-top"
+        pathLength={1}
+        d="M4.4 10.4 7.2 4.8"
         stroke="currentColor"
         strokeWidth="1.2"
         strokeLinecap="round"

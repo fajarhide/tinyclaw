@@ -67,7 +67,7 @@ Active `MEMORY.md` has a **4096-byte** soft limit. Default and super-bot profile
 
 ## Artifact saves
 
-Persistent outputs (reports, summaries, generated text) are not a separate builtin. Agents use `write_file` with the `save-artifact` bundled skill under `artifacts/`. The skill also documents writing a `{filename}.nakama-meta.json` sidecar so the dashboard Artifacts tab shows MIME types and timestamps. Text-only — binary files are not supported in this workflow yet.
+Persistent outputs (reports, summaries, generated text) are not a separate builtin. Agents use `write_file` with the `save-artifact` bundled skill under `artifacts/`. The skill also documents writing a `{filename}.nakama-meta.json` sidecar so the dashboard Artifacts tab shows MIME types and timestamps. On web chat, completed save-artifact pairs also appear as attachment chips on the assistant message with in-chat preview. Text-only — binary files are not supported in this workflow yet.
 
 ## Coding agent
 
