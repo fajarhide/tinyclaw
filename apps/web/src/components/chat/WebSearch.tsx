@@ -172,16 +172,6 @@ export interface WebSourceCardProps {
   formatDisplayUrl?: (source: WebSearchSource) => string;
 }
 
-export interface WebSearchProps {
-  query: string;
-  sources: WebSearchSource[];
-  siteStates: WebSearchSiteState[];
-  isComplete: boolean;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  formatDisplayUrl?: (source: WebSearchSource) => string;
-}
-
 function formatWebSearchDisplayUrl(source: WebSearchSource): string {
   const href = source.href ?? source.url;
 
@@ -304,28 +294,5 @@ export function WebSourceCard({
         </div>
       ) : null}
     </div>
-  );
-}
-
-function WebSearch({
-  query,
-  sources,
-  siteStates,
-  isComplete,
-  open,
-  onOpenChange,
-  formatDisplayUrl,
-}: WebSearchProps) {
-  return (
-    <WebSourceCard
-      mode="search"
-      headerText={query}
-      sources={sources}
-      siteStates={siteStates}
-      isComplete={isComplete}
-      open={open}
-      onOpenChange={onOpenChange}
-      formatDisplayUrl={formatDisplayUrl}
-    />
   );
 }
