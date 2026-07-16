@@ -1,13 +1,15 @@
 import path from "node:path";
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { resetActiveStreamsForTests } from "./active-stream";
 import { WhatsAppAuthStore } from "./auth-store";
-import { createChatHandler } from "./chat-handler";
+import { createChatHandler, resetChatLocksForTests } from "./chat-handler";
 import { SessionStore } from "./session-store";
 import {
   createDefaultTestOrgs,
   createMockClient,
   createMultiTestOrgs,
   createTestOrgStore,
+  waitForStreamControl,
   withTempHome,
   writeWhatsAppConfigIni,
 } from "./test-helpers";
@@ -33,6 +35,11 @@ function createMockSocket() {
 }
 
 describe("createChatHandler", () => {
+  beforeEach(() => {
+    resetActiveStreamsForTests();
+    resetChatLocksForTests();
+  });
+
   test("blocks unauthorized JID from chatting", async () => {
     await withTempHome(async (homeDir) => {
       await writeWhatsAppConfigIni(homeDir, {
@@ -471,8 +478,7 @@ describe("createChatHandler", () => {
 
       const chatPromise = handleMessage({ jid: PAIRED_JID, text: "hello agent" });
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(getStreamControl()?.signal).toBeDefined();
+      await waitForStreamControl(getStreamControl);
 
       await handleMessage({ jid: PAIRED_JID, text: "/stop" });
 
