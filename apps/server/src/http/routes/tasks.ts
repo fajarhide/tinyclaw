@@ -11,7 +11,10 @@ import type {
   UpdateTaskRequest,
 } from "@nakama/core";
 import { errorResponse, json, readJson } from "../shared";
-import { requireActiveOrgIdFromContext } from "../org-guards";
+import {
+  requireActiveOrgIdFromContext,
+  requireNotViewerFromContext,
+} from "../org-guards";
 import type { HonoApp } from "../types";
 import type { ServerOptions } from "../context";
 
@@ -149,6 +152,7 @@ export function registerTaskRoutes(app: HonoApp, options: ServerOptions): void {
   });
 
   app.post("/v1/tasks/draft-prompt", async (c) => {
+    requireNotViewerFromContext(c);
     const body = await readJson<DraftTaskPromptRequest>(c.req.raw);
 
     try {
@@ -163,6 +167,7 @@ export function registerTaskRoutes(app: HonoApp, options: ServerOptions): void {
   });
 
   app.post("/v1/tasks", async (c) => {
+    requireNotViewerFromContext(c);
     const orgId = requireActiveOrgIdFromContext(c);
     const body = await readJson<CreateTaskRequest>(c.req.raw);
 
@@ -197,6 +202,7 @@ export function registerTaskRoutes(app: HonoApp, options: ServerOptions): void {
   });
 
   app.put("/v1/tasks/:taskId", async (c) => {
+    requireNotViewerFromContext(c);
     const orgId = requireActiveOrgIdFromContext(c);
     const taskId = decodeURIComponent(c.req.param("taskId"));
     const body = await readJson<UpdateTaskRequest>(c.req.raw);
@@ -224,6 +230,7 @@ export function registerTaskRoutes(app: HonoApp, options: ServerOptions): void {
   });
 
   app.delete("/v1/tasks/:taskId", async (c) => {
+    requireNotViewerFromContext(c);
     const orgId = requireActiveOrgIdFromContext(c);
     const deleted = await taskService.delete(
       decodeURIComponent(c.req.param("taskId")),
@@ -236,6 +243,7 @@ export function registerTaskRoutes(app: HonoApp, options: ServerOptions): void {
   });
 
   app.post("/v1/tasks/:taskId/run", async (c) => {
+    requireNotViewerFromContext(c);
     const orgId = requireActiveOrgIdFromContext(c);
     const taskId = decodeURIComponent(c.req.param("taskId"));
     const task = await taskService.get(taskId, orgId);
