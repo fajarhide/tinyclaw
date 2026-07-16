@@ -2,7 +2,11 @@
   "name": "nakama",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*", "apps/platform/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "apps/platform/*",
+    "packages/*"
+  ],
   "scripts": {
     "postinstall": "bun install --cwd docs/website",
     "start": "bun run apps/server/dist/index.js",
@@ -18,7 +22,8 @@
     "build:docs": "bun run --cwd docs/website build",
     "preview:docs": "bun run --cwd docs/website preview",
     "build": "bun run --workspaces --if-present build",
-    "test": "bun run --workspaces --if-present test"
+    "test": "bun run --workspaces --if-present test",
+    "doctor": "npx react-doctor@latest"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
