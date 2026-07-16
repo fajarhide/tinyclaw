@@ -74,7 +74,7 @@ export function ProfilesPageLayout(state: ProfilesPageState) {
           <div className="flex flex-col gap-3 border-b border-border p-4 lg:hidden">
             <div className="flex flex-wrap items-center gap-3">
               <Select
-                value={selectedId ?? undefined}
+                value={selectedId ?? ""}
                 disabled={busy || refreshing || profiles.length === 0}
                 onValueChange={(value) => {
                   if (value) {
@@ -84,7 +84,7 @@ export function ProfilesPageLayout(state: ProfilesPageState) {
               >
                 <SelectTrigger className="min-w-0 flex-1" aria-label="Selected profile">
                   <SelectValue placeholder="Select profile">
-                    {filteredProfiles.find((profile) => profile.id === selectedId)?.name}
+                    {profiles.find((profile) => profile.id === selectedId)?.name}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>

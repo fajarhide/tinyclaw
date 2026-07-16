@@ -6,9 +6,9 @@ export function AutomationsPage() {
   const state = useAutomationsPage();
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col">
       <AutomationsPageLayout {...state} />
       <AutomationsDialogs {...state} />
-    </>
+    </div>
   );
 }

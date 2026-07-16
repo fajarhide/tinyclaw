@@ -7,11 +7,6 @@ import type {
 
 export const sectionClass = "rounded-md border border-border bg-card";
 
-/** Stable shell height inside the scrollable main area (header + padding). */
-export const automationsShellMinHeight = "min-h-96 md:min-h-[calc(100dvh-11rem)]";
-export const runHistoryScrollClass =
-  "min-h-[14rem] flex-1 overflow-y-auto overscroll-contain lg:min-h-[18rem]";
-
 export function formatTrigger(trigger: AutomationTrigger): string {
   if (trigger.type === "manual") {
     return "Manual trigger";

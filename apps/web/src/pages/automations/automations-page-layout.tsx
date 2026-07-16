@@ -17,10 +17,7 @@ import {
   AutomationsEmptyState,
 } from "@/pages/automations/automations-components";
 import { AutomationsListSidebar } from "@/pages/automations/automations-list-sidebar";
-import {
-  automationsShellMinHeight,
-  sectionClass,
-} from "@/pages/automations/automations-page.shared";
+import { sectionClass } from "@/pages/automations/automations-page.shared";
 import type { AutomationsPageState } from "@/pages/automations/use-automations-page";
 
 export function AutomationsPageLayout(state: AutomationsPageState) {
@@ -44,10 +41,10 @@ export function AutomationsPageLayout(state: AutomationsPageState) {
   } = state;
 
   return (
-    <div className="flex min-h-full flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
       {error ? (
         <p
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          className="shrink-0 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           role="alert"
         >
           {error}
@@ -55,11 +52,7 @@ export function AutomationsPageLayout(state: AutomationsPageState) {
       ) : null}
 
       <section
-        className={cn(
-          sectionClass,
-          automationsShellMinHeight,
-          "flex flex-col overflow-hidden",
-        )}
+        className={cn(sectionClass, "flex min-h-0 flex-1 flex-col overflow-hidden")}
       >
         <div className="flex shrink-0 flex-col gap-3 border-b border-border p-4 lg:hidden">
           <div className="flex flex-wrap items-center gap-3">
@@ -121,7 +114,7 @@ export function AutomationsPageLayout(state: AutomationsPageState) {
         <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[240px_minmax(0,1fr)]">
           <AutomationsListSidebar {...state} />
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col p-4 sm:p-5">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-4 sm:p-5">
             {loading ? (
               <AutomationDetailSkeleton />
             ) : automations.length === 0 ? (

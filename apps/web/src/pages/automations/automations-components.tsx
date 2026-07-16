@@ -43,7 +43,6 @@ import {
   formatRunDuration,
   groupRunsByDay,
   runHistoryShellClass,
-  runHistoryScrollClass,
   runPreviewText,
   summarizeAutomationListMeta,
 } from "@/pages/automations/automations-page.shared";
@@ -418,9 +417,7 @@ export function AutomationDetailSkeleton() {
           <div className="h-4 w-28 animate-pulse rounded bg-muted/50" />
           <div className="mt-2 h-3 w-20 animate-pulse rounded bg-muted/35" />
         </div>
-        <div className={runHistoryScrollClass}>
-          <ListSkeleton rows={3} />
-        </div>
+        <ListSkeleton rows={3} />
       </div>
     </div>
   );

@@ -36,7 +36,7 @@ export function ProfileSkillsSection({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onCreateOpen}>
-            Add skill
+            Create skill
           </Button>
           <SkillAssignPicker
             skills={allSkills}

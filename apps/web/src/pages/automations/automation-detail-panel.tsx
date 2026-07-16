@@ -11,7 +11,6 @@ import {
   RunHistoryList,
   SoftPill,
 } from "@/pages/automations/automations-components";
-import { runHistoryScrollClass } from "@/pages/automations/automations-page.shared";
 import type { AutomationsPageState } from "@/pages/automations/use-automations-page";
 
 type DetailState = Pick<
@@ -51,8 +50,8 @@ export function AutomationDetailPanel(state: DetailState) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-5 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="flex flex-col">
+      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-h-[4.75rem] min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="type-section-title">{selected.name}</h2>
@@ -122,8 +121,8 @@ export function AutomationDetailPanel(state: DetailState) {
         ) : null}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col border-t border-border pt-5">
-        <div className="mb-4 flex h-10 shrink-0 items-center justify-between gap-3">
+      <div className="flex flex-col border-t border-border pt-5">
+        <div className="mb-4 flex h-10 items-center justify-between gap-3">
           <div className="min-w-0">
             <h3 className="type-section-title">Run history</h3>
             <p className="type-body mt-1 min-h-[1rem] text-xs">
@@ -151,20 +150,18 @@ export function AutomationDetailPanel(state: DetailState) {
           </Button>
         </div>
 
-        <div className={runHistoryScrollClass}>
-          {runsLoading ? (
-            <ListSkeleton rows={3} />
-          ) : runs.length === 0 ? (
-            <div className="flex min-h-[10rem] items-center justify-center">
-              <p className="type-body text-xs text-muted-foreground">No runs yet.</p>
-            </div>
-          ) : (
-            <RunHistoryList runs={runs} busy={busy} onDeleteRun={setDeleteRunTarget} />
-          )}
-        </div>
+        {runsLoading ? (
+          <ListSkeleton rows={3} />
+        ) : runs.length === 0 ? (
+          <div className="flex min-h-[10rem] items-center justify-center">
+            <p className="type-body text-xs text-muted-foreground">No runs yet.</p>
+          </div>
+        ) : (
+          <RunHistoryList runs={runs} busy={busy} onDeleteRun={setDeleteRunTarget} />
+        )}
       </div>
 
-      <div className="type-body mt-5 shrink-0 rounded-md border border-border bg-muted/40 p-3 text-xs lg:hidden dark:bg-muted/30">
+      <div className="type-body mt-5 rounded-md border border-border bg-muted/40 p-3 text-xs lg:hidden dark:bg-muted/30">
         <p className="font-medium text-foreground">How it works</p>
         <p className="mt-2">
           Run now triggers a manual execution. Scheduled automations run automatically when enabled.
