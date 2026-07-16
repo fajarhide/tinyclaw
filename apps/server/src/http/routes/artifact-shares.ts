@@ -36,7 +36,7 @@ export function registerArtifactShareRoutes(app: HonoApp, options: ServerOptions
         orgId,
         profileId,
         sourcePath: body.path.trim(),
-        userId: auth.userId,
+        userId: auth.user.id,
         request: c.req.raw,
       }),
       201,
