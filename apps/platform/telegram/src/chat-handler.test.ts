@@ -1,5 +1,5 @@
 import path from "node:path";
-import { describe, expect, test, spyOn, afterEach } from "bun:test";
+import { describe, expect, test, spyOn, afterEach, setDefaultTimeout } from "bun:test";
 import { TelegramAuthStore } from "./auth-store";
 import { createChatHandler } from "./chat-handler";
 import { UNSUPPORTED_DOCUMENT_TYPES_REPLY, UNSUPPORTED_MEDIA_REPLY } from "./attachments";
@@ -13,6 +13,10 @@ import {
   withTempHome,
   writeTelegramConfigIni,
 } from "./test-helpers";
+
+// These handler tests run in ~0.2s locally but occasionally exceed the 5000ms
+// default under CI's concurrent all-workspace load. Give them more headroom.
+setDefaultTimeout(10_000);
 
 async function waitForCondition(
   condition: () => boolean,
