@@ -13,6 +13,7 @@ import {
   isSubAgentTool,
   parseSubAgentResult,
 } from "@/lib/chat-stream";
+import { isArtifactMetaSidecarTool } from "@/lib/chat-artifacts";
 import { ThinkingContent } from "@/components/chat/thinking-content";
 import { cn } from "@/lib/utils";
 
@@ -65,13 +66,15 @@ function AssistantWorkGroup({
   tools: ChatListItem[];
   modelLabel?: string | null;
 }) {
-  if (tools.length === 0) {
+  const visibleTools = tools.filter((tool) => !isArtifactMetaSidecarTool(tool));
+
+  if (visibleTools.length === 0) {
     return thinking ? <ThinkingBlock message={thinking} /> : null;
   }
 
-  const hasRunningTools = tools.some((tool) => tool.toolStatus === "running");
+  const hasRunningTools = visibleTools.some((tool) => tool.toolStatus === "running");
   const isThinking = Boolean(thinking?.thinkingStreaming);
-  const subAgentOnly = tools.every((tool) => isSubAgentTool(tool.tool));
+  const subAgentOnly = visibleTools.every((tool) => isSubAgentTool(tool.tool));
   const [open, setOpen] = useState(hasRunningTools || isThinking || subAgentOnly);
 
   useEffect(() => {
@@ -84,14 +87,14 @@ function AssistantWorkGroup({
     return (
       <div className="w-full max-w-full space-y-3">
         {thinking ? <ThinkingBlock message={thinking} /> : null}
-        {tools.map((tool) => (
+        {visibleTools.map((tool) => (
           <SubAgentToolRow key={tool.id} message={tool} modelLabel={modelLabel} />
         ))}
       </div>
     );
   }
 
-  const label = formatWorkGroupLabel(tools.length);
+  const label = formatWorkGroupLabel(visibleTools.length);
 
   return (
     <div className="w-full max-w-full">
@@ -102,17 +105,17 @@ function AssistantWorkGroup({
       />
       {open ? (
         <TimelineBody>
-          {thinking ? <ThinkingInline message={thinking} isLast={tools.length === 0} /> : null}
-          {tools.map((tool, index) =>
+          {thinking ? <ThinkingInline message={thinking} isLast={visibleTools.length === 0} /> : null}
+          {visibleTools.map((tool, index) =>
             isSubAgentTool(tool.tool) ? (
-              <div key={tool.id} className={cn("relative", index < tools.length - 1 && "pb-3")}>
+              <div key={tool.id} className={cn("relative", index < visibleTools.length - 1 && "pb-3")}>
                 <SubAgentToolRow message={tool} modelLabel={modelLabel} />
               </div>
             ) : (
               <ToolTimelineItem
                 key={tool.id}
                 message={tool}
-                isLast={index === tools.length - 1}
+                isLast={index === visibleTools.length - 1}
               />
             ),
           )}

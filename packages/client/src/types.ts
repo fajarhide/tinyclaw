@@ -28,6 +28,12 @@ export type StreamHandler = (delta: string) => void;
 export interface StreamHandlers {
   onChunk: StreamHandler;
   onThinking?: StreamHandler;
+  onToolInputDelta?: (event: {
+    toolCallId: string;
+    tool: string;
+    delta: string;
+    accumulatedArguments?: string;
+  }) => void;
   onToolStart?: (event: {
     toolCallId: string;
     tool: string;

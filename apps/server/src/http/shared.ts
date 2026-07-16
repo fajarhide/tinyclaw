@@ -385,6 +385,14 @@ export function streamMessage(
           session.sendStream(input, {
             onChunk: (delta) => send({ type: "chunk", delta }),
             onThinking: (delta) => send({ type: "thinking", delta }),
+            onToolInputDelta: (event) =>
+              send({
+                type: "tool_input_delta",
+                toolCallId: event.toolCallId,
+                tool: event.tool,
+                delta: event.delta,
+                accumulatedArguments: event.accumulatedArguments,
+              }),
             onToolStart: (event) =>
               send({
                 type: "tool_start",

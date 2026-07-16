@@ -8,6 +8,7 @@ import type {
 } from "@nakama/core/contract";
 import type { StreamHandlers } from "@nakama/client";
 import type { ChatListItem } from "@/lib/chat-history";
+import { upsertStreamingToolMessage } from "@/lib/chat-stream-artifact";
 import { cn } from "@/lib/utils";
 
 export function formatBashToolResult(result: unknown): string | null {
@@ -332,6 +333,7 @@ export function finalizeStreamingMessages(messages: ChatListItem[]): ChatListIte
       ? {
           ...message,
           toolStatus: "done" as const,
+          artifactStreaming: false,
           content: `${message.tool} stopped`,
         }
       : message,
@@ -424,6 +426,15 @@ export function buildStreamHandlers(
         return next;
       });
     },
+    onToolInputDelta: (event) => {
+      setMessages((current) =>
+        upsertStreamingToolMessage(current, {
+          toolCallId: event.toolCallId,
+          tool: event.tool,
+          accumulatedArguments: event.accumulatedArguments ?? event.delta,
+        }),
+      );
+    },
     onToolStart: (event) => {
       setMessages((current) => {
         const next = current.map((message) =>
@@ -432,19 +443,33 @@ export function buildStreamHandlers(
             : message,
         );
 
-        return [
-          ...next,
-          {
-            id: event.toolCallId,
-            role: "tool",
-            createdAt: new Date().toISOString(),
-            content: event.tool,
-            toolCallId: event.toolCallId,
-            tool: event.tool,
-            toolStatus: "running",
-            toolInput: event.input,
-          },
-        ];
+        const existingIndex = next.findIndex(
+          (message) => message.toolCallId === event.toolCallId,
+        );
+
+        const toolMessage: ChatListItem = {
+          id: event.toolCallId,
+          role: "tool",
+          createdAt: new Date().toISOString(),
+          content: event.tool,
+          toolCallId: event.toolCallId,
+          tool: event.tool,
+          toolStatus: "running",
+          toolInput: event.input,
+        };
+
+        if (existingIndex >= 0) {
+          const merged = [...next];
+          merged[existingIndex] = {
+            ...merged[existingIndex],
+            ...toolMessage,
+            artifactStreaming: merged[existingIndex]?.artifactStreaming,
+            toolInputAccumulatedJson: merged[existingIndex]?.toolInputAccumulatedJson,
+          };
+          return merged;
+        }
+
+        return [...next, toolMessage];
       });
     },
     onToolEnd: (event) => {
@@ -454,6 +479,7 @@ export function buildStreamHandlers(
             ? {
                 ...message,
                 toolStatus: "done",
+                artifactStreaming: false,
                 content: `${event.tool} completed`,
                 toolResult: event.result,
               }

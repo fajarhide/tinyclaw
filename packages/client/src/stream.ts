@@ -30,6 +30,15 @@ export async function readStreamEvents(
         handlers.onThinking?.(payload.delta);
       }
 
+      if (payload.type === "tool_input_delta") {
+        handlers.onToolInputDelta?.({
+          toolCallId: payload.toolCallId,
+          tool: payload.tool,
+          delta: payload.delta,
+          accumulatedArguments: payload.accumulatedArguments,
+        });
+      }
+
       if (payload.type === "tool_start") {
         handlers.onToolStart?.({
           toolCallId: payload.toolCallId,

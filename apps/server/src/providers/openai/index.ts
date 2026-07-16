@@ -16,6 +16,7 @@ import { generateOpenAIResponsesChat } from "./responses";
 import {
   buildChatCompletionResult,
   extractOpenAITokenUsage,
+  notifyToolInputDelta,
   parseJsonRecord,
   readSseEvents,
 } from "../shared";
@@ -538,7 +539,16 @@ async function readOpenAIStream(
 
     if (delta?.tool_calls) {
       for (const toolDelta of delta.tool_calls) {
+        const argDelta = toolDelta.function?.arguments ?? "";
         mergePendingToolCall(pending, toolDelta);
+
+        if (argDelta) {
+          const current = pending.get(toolDelta.index ?? 0);
+
+          if (current) {
+            notifyToolInputDelta(handlers, current, argDelta);
+          }
+        }
       }
     }
   });

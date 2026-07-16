@@ -44,6 +44,12 @@ const MAX_TOOL_ITERATIONS = 100;
 export interface StreamHandlers {
   onChunk: (delta: string) => void;
   onThinking?: (delta: string) => void;
+  onToolInputDelta?: (event: {
+    toolCallId: string;
+    tool: string;
+    delta: string;
+    accumulatedArguments?: string;
+  }) => void;
   onToolStart?: (event: {
     toolCallId: string;
     tool: string;
@@ -453,6 +459,7 @@ async function generateReply(
     return provider.streamChat(input, {
       onChunk: handlers.onChunk,
       onThinking: handlers.onThinking,
+      onToolInputDelta: handlers.onToolInputDelta,
       onToolStart: handlers.onToolStart,
       onToolEnd: handlers.onToolEnd,
     });

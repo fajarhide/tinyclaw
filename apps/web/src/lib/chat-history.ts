@@ -113,6 +113,8 @@ export interface ChatListItem {
   tool?: string;
   toolStatus?: "running" | "done";
   toolInput?: Record<string, unknown>;
+  toolInputAccumulatedJson?: string;
+  artifactStreaming?: boolean;
   toolResult?: unknown;
 }
 

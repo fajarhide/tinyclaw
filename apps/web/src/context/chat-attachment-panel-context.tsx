@@ -41,6 +41,10 @@ export function ChatAttachmentPanelProvider({ children }: { children: ReactNode 
   }, []);
 
   const update = useCallback((id: string, patch: Partial<Omit<ChatAttachmentPanelConfig, "id">>) => {
+    if (patch.defaultWidth != null) {
+      setWidth(patch.defaultWidth);
+    }
+
     setConfig((current) => {
       if (!current || current.id !== id) {
         return current;
@@ -75,6 +79,7 @@ export function ChatAttachmentPanelProvider({ children }: { children: ReactNode 
         {config ? (
           <AttachmentDetailPanel
             title={config.title}
+            subtitle={config.subtitle}
             headerActions={config.headerActions}
             bodyClassName={config.bodyClassName}
             resizable={config.resizable ?? !config.fullscreen}

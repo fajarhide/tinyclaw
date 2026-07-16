@@ -38,6 +38,35 @@ describe("readStreamEvents", () => {
     ).rejects.toThrow("Only server keepalive events were received");
   });
 
+  test("dispatches tool_input_delta events", async () => {
+    const deltas: Array<{ toolCallId: string; delta: string; accumulatedArguments?: string }> = [];
+
+    await readStreamEvents(
+      streamFromChunks([
+        'data: {"type":"tool_input_delta","toolCallId":"call_1","tool":"write_file","delta":"{\\"path\\"","accumulatedArguments":"{\\"path\\""}\n\n',
+        'data: {"type":"done","reply":"ok"}\n\n',
+      ]),
+      {
+        onChunk: () => {},
+        onToolInputDelta: (event) => {
+          deltas.push({
+            toolCallId: event.toolCallId,
+            delta: event.delta,
+            accumulatedArguments: event.accumulatedArguments,
+          });
+        },
+      },
+    );
+
+    expect(deltas).toEqual([
+      {
+        toolCallId: "call_1",
+        delta: '{"path"',
+        accumulatedArguments: '{"path"',
+      },
+    ]);
+  });
+
   test("surfaces server error events", async () => {
     await expect(
       readStreamEvents(

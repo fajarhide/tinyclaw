@@ -540,6 +540,13 @@ export type StreamEvent =
   | { type: "chunk"; delta: string }
   | { type: "thinking"; delta: string }
   | {
+      type: "tool_input_delta";
+      toolCallId: string;
+      tool: string;
+      delta: string;
+      accumulatedArguments?: string;
+    }
+  | {
       type: "tool_start";
       toolCallId: string;
       tool: string;
@@ -1542,6 +1549,12 @@ export interface GenerateChatInput {
 export interface StreamChatHandlers {
   onChunk: (delta: string) => void;
   onThinking?: (delta: string) => void;
+  onToolInputDelta?: (event: {
+    toolCallId: string;
+    tool: string;
+    delta: string;
+    accumulatedArguments?: string;
+  }) => void;
   onToolStart?: (event: {
     toolCallId: string;
     tool: string;

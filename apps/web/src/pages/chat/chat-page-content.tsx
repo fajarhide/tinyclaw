@@ -2,6 +2,7 @@ import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { PromptInputProvider } from "@/components/ai-elements/prompt-input";
 import { ChatAttachmentPanelProvider } from "@/context/chat-attachment-panel-context";
+import { ArtifactStreamingPanelBridge } from "@/components/chat/artifact-streaming-panel-bridge";
 import { formatAgentQuestionnaireAnswersMessage } from "@nakama/core/agent-questionnaire";
 import { formatSessionChannelLabel } from "@/lib/chat-history";
 import { extractModelId } from "@/lib/models";
@@ -110,6 +111,7 @@ export function ChatPageContent(state: ChatPageState) {
 
   return (
     <ChatAttachmentPanelProvider key={session?.id ?? "new"}>
+      <ArtifactStreamingPanelBridge messages={messages} profileId={profileId} />
       <ChatPageColumn>
         <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -122,6 +124,7 @@ export function ChatPageContent(state: ChatPageState) {
               }
               branchingMessageId={branchingMessageId}
               actionsDisabled={busy || readOnlySession}
+              streamActive={busy}
               onBranchMessage={(message) => void handleBranchMessage(message)}
               onRetryMessage={(message) => void handleTryAgainMessage(message)}
             />
