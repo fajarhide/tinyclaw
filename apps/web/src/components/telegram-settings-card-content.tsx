@@ -24,24 +24,29 @@ import {
 } from "@/components/integration-settings.shared";
 import { cn } from "@/lib/utils";
 
+export type TelegramSettingsCardView = {
+  embedded: boolean;
+  configured: boolean;
+  hasLinkedUsers: boolean;
+  running: boolean;
+  showBotToken: boolean;
+  savePending: boolean;
+  isPaired: boolean;
+  regeneratePending: boolean;
+  canSave: boolean;
+};
+
 export function TelegramSettingsCardContent({
-  embedded,
+  view,
   headerSubtitle,
   statusBadge,
-  configured,
   settings,
-  hasLinkedUsers,
-  running,
   botToken,
-  showBotToken,
   onBotTokenChange,
   onToggleShowBotToken,
-  savePending,
-  isPaired,
   pairingCode,
   onCopyHandshakeCode,
   onRegenerateHandshake,
-  regeneratePending,
   allowedUserSummary,
   onManageAllowedUsers,
   profileId,
@@ -51,27 +56,19 @@ export function TelegramSettingsCardContent({
   statusLine,
   formError,
   loadError,
-  canSave,
   submitLabel,
   onSave,
 }: {
-  embedded: boolean;
+  view: TelegramSettingsCardView;
   headerSubtitle: string;
   statusBadge: string;
-  configured: boolean;
   settings: { botTokenMasked?: string | null } | null | undefined;
-  hasLinkedUsers: boolean;
-  running: boolean;
   botToken: string;
-  showBotToken: boolean;
   onBotTokenChange: (value: string) => void;
   onToggleShowBotToken: () => void;
-  savePending: boolean;
-  isPaired: boolean;
   pairingCode: string | null;
   onCopyHandshakeCode: () => void;
   onRegenerateHandshake: () => void;
-  regeneratePending: boolean;
   allowedUserSummary: string;
   onManageAllowedUsers: () => void;
   profileId: string;
@@ -81,10 +78,21 @@ export function TelegramSettingsCardContent({
   statusLine: string | null;
   formError: string | null;
   loadError: unknown;
-  canSave: boolean;
   submitLabel: string;
   onSave: () => void;
 }) {
+  const {
+    embedded,
+    configured,
+    hasLinkedUsers,
+    running,
+    showBotToken,
+    savePending,
+    isPaired,
+    regeneratePending,
+    canSave,
+  } = view;
+
   return (
     <div className="divide-y divide-border">
       {!embedded ? (
