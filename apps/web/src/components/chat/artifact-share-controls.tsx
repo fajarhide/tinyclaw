@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -38,10 +39,12 @@ export function ArtifactShareControls({
   profileId,
   artifactPath,
   compact = false,
+  asMenuItem = false,
 }: {
   profileId: string;
   artifactPath: string;
   compact?: boolean;
+  asMenuItem?: boolean;
 }) {
   const { activeOrg } = useAuth();
   const orgId = activeOrg?.id ?? "";
@@ -398,6 +401,26 @@ export function ArtifactShareControls({
       </DialogContent>
     </Dialog>
   );
+
+  if (asMenuItem) {
+    return (
+      <>
+        <DropdownMenuItem
+          className="cursor-pointer"
+          disabled={busy || !orgId}
+          onClick={handleShareClick}
+        >
+          {busy ? (
+            <Loader2Icon className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Share2Icon className="size-4" aria-hidden />
+          )}
+          Share artifact
+        </DropdownMenuItem>
+        {publishDialog}
+      </>
+    );
+  }
 
   if (compact) {
     return (

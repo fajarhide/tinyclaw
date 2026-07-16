@@ -159,71 +159,63 @@ function ToolOnlyWorkGroup({
 
   return (
     <div className={cn(thinkingStyles.root, "w-full max-w-full")}>
-      <div className="flex min-w-0 gap-2">
-        <TimelineRail showLine={expanded && tools.length > 0} />
-        <div className="min-w-0 flex-1">
-          <button
-            type="button"
-            className={cn(
-              thinkingStyles.header,
-              done && thinkingStyles.headerClickable,
-              expanded && thinkingStyles.headerExpanded,
-            )}
-            aria-expanded={expanded}
-            aria-label="Toggle tools"
-            onClick={() => done && setOpen((current) => !current)}
+      <button
+        type="button"
+        className={cn(
+          thinkingStyles.header,
+          done && thinkingStyles.headerClickable,
+          expanded && thinkingStyles.headerExpanded,
+        )}
+        aria-expanded={expanded}
+        aria-label="Toggle tools"
+        onClick={() => done && setOpen((current) => !current)}
+      >
+        {done ? (
+          <span className={thinkingStyles.label}>
+            <span className={thinkingStyles.verb}>Used</span> {toolLabel} ·{" "}
+            {formatElapsedSeconds(elapsedSeconds)}
+          </span>
+        ) : (
+          <span className={cn(thinkingStyles.label, thinkingStyles.shimmer)}>Working…</span>
+        )}
+        {done ? (
+          <svg
+            className={thinkingStyles.chevron}
+            viewBox="0 0 24 24"
+            width="12"
+            height="12"
+            aria-hidden="true"
           >
-            {done ? (
-              <span className={thinkingStyles.label}>
-                <span className={thinkingStyles.verb}>Used</span> {toolLabel} ·{" "}
-                {formatElapsedSeconds(elapsedSeconds)}
-              </span>
-            ) : (
-              <span className={cn(thinkingStyles.label, thinkingStyles.shimmer)}>Working…</span>
-            )}
-            {done ? (
-              <svg
-                className={thinkingStyles.chevron}
-                viewBox="0 0 24 24"
-                width="12"
-                height="12"
-                aria-hidden="true"
-              >
-                <path
-                  d="m4.5 15.75 7.5-7.5 7.5 7.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            ) : null}
-          </button>
+            <path
+              d="m4.5 15.75 7.5-7.5 7.5 7.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : null}
+      </button>
 
-          <div
-            className={cn(
-              thinkingStyles.collapsible,
-              !expanded && thinkingStyles.collapsibleCollapsed,
-            )}
-          >
-            <div className={thinkingStyles.inner}>
-              <div className={thinkingStyles.timeline}>
-                <div className={thinkingStyles.tools}>
-                  {tools.map((tool, index) => (
-                    <div
-                      key={tool.id}
-                      className={cn("timeline-tool-content [&_.wsRow>svg]:ml-0", index < tools.length - 1 && "pb-3")}
-                    >
-                      {isDedicatedTool(tool) ? (
-                        <DedicatedToolRow message={tool} modelLabel={modelLabel} />
-                      ) : (
-                        <ToolTimelineItem message={tool} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+      <div
+        className={cn(
+          thinkingStyles.collapsible,
+          !expanded && thinkingStyles.collapsibleCollapsed,
+        )}
+      >
+        <div className={thinkingStyles.inner}>
+          <div className={thinkingStyles.timeline}>
+            <div className={thinkingStyles.tools}>
+              {tools.map((tool, index) => (
+                <TimelineStep key={tool.id} isLast={index === tools.length - 1}>
+                  {isDedicatedTool(tool) ? (
+                    <DedicatedToolRow message={tool} modelLabel={modelLabel} />
+                  ) : (
+                    <ToolTimelineItem message={tool} />
+                  )}
+                </TimelineStep>
+              ))}
             </div>
           </div>
         </div>
@@ -600,20 +592,6 @@ function CollapsibleTrigger({
   );
 }
 
-function TimelineRail({ showLine = true }: { showLine?: boolean }) {
-  return (
-    <div className="relative w-2 shrink-0 self-stretch">
-      {showLine ? (
-        <div
-          className="pointer-events-none absolute left-1/2 top-[10px] bottom-0 w-px -translate-x-1/2 bg-border/70"
-          aria-hidden
-        />
-      ) : null}
-    </div>
-  );
-}
-
-/** Vertical connector between tool steps — line sits in a left rail, clear of icons. */
 function TimelineStep({
   children,
   isLast,
@@ -621,12 +599,7 @@ function TimelineStep({
   children: ReactNode;
   isLast: boolean;
 }) {
-  return (
-    <div className={cn("flex min-w-0 gap-2", !isLast && "pb-3")}>
-      <TimelineRail showLine={!isLast} />
-      <div className="timeline-tool-content min-w-0 flex-1 [&_.wsRow>svg]:ml-0">{children}</div>
-    </div>
-  );
+  return <div className={cn(!isLast && "pb-3")}>{children}</div>;
 }
 
 function DetailBlock({

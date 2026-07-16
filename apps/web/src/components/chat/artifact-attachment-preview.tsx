@@ -159,24 +159,24 @@ export function ArtifactAttachmentPreview({
         sizeBytes: artifact.sizeBytes,
       }),
       headerActions: (
-        <div className="inline-flex items-center gap-2">
-          <ArtifactShareControls
-            profileId={profileId}
-            artifactPath={artifact.path}
-            compact
-          />
-          <ArtifactAttachmentPanelActions
-            copied={copied}
-            loading={loading}
-            content={content}
-            fullscreen={fullscreen}
-            downloadLabel={downloadLabel}
-            downloadUrl={downloadUrl}
-            filename={artifact.filename}
-            onCopy={() => void copyArtifact()}
-            onToggleFullscreen={() => setFullscreen((current) => !current)}
-          />
-        </div>
+        <ArtifactAttachmentPanelActions
+          copied={copied}
+          loading={loading}
+          content={content}
+          fullscreen={fullscreen}
+          downloadLabel={downloadLabel}
+          downloadUrl={downloadUrl}
+          filename={artifact.filename}
+          onCopy={() => void copyArtifact()}
+          onToggleFullscreen={() => setFullscreen((current) => !current)}
+          additionalMenuItems={
+            <ArtifactShareControls
+              profileId={profileId}
+              artifactPath={artifact.path}
+              asMenuItem
+            />
+          }
+        />
       ),
       resizable: !fullscreen,
       fullscreen,

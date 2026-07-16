@@ -50,10 +50,23 @@
 .wsRowButton > svg {
   flex: none;
   color: var(--c-muted);
-  margin-left: -1px;
 }
 
-.wsRowButton:hover > svg {
+.wsIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--c-muted);
+}
+
+.wsIcon svg {
+  display: block;
+}
+
+.wsRowButton:hover .wsIcon {
   color: var(--c-muted);
 }
 
@@ -145,24 +158,13 @@
 
 .wsResults {
   position: relative;
-  display: flex;
-  gap: 6px;
-  align-items: stretch;
-}
-
-.wsRail {
-  flex: none;
-  width: 1px;
-  align-self: stretch;
-  border-left: 1px solid var(--c-border);
-  margin-left: 5.5px;
+  padding-left: 20px;
 }
 
 .wsList {
-  flex: 1;
   list-style: none;
   margin: 0;
-  padding: 4px 0 2px 6px;
+  padding: 4px 0 2px;
   display: flex;
   flex-direction: column;
   gap: 6px;

@@ -190,9 +190,14 @@ export function WebSourceCard({
   const quoteHeader = mode === "search" || !/^\d+ pages$/.test(headerText);
 
   const canExpand = sources.length > 0;
+  const leadingIcon = (
+    <span className={styles.wsIcon}>
+      {mode === "fetch" ? <LinkIcon /> : <SearchIcon />}
+    </span>
+  );
   const headerContent = (
     <>
-      {mode === "fetch" ? <LinkIcon /> : <SearchIcon />}
+      {leadingIcon}
       <span className={styles.wsLabel}>
         <span className={`${styles.wsShimmer}${isComplete ? ` ${styles.isDone}` : ""}`}>
           {headerLabel}{" "}
@@ -232,7 +237,6 @@ export function WebSourceCard({
         <div className={`${styles.wsCollapsible}${open ? "" : ` ${styles.isCollapsed}`}`}>
           <div className={styles.wsCollapsibleInner}>
             <div className={styles.wsResults}>
-              <span className={styles.wsRail} aria-hidden />
               <ul className={styles.wsList}>
                 {sources.map((source, index) => {
                   const state = siteStates[index] ?? "pending";
