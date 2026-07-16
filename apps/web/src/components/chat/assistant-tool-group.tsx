@@ -13,6 +13,11 @@ import {
   isSubAgentTool,
   parseSubAgentResult,
 } from "@/lib/chat-stream";
+import { isWebSearchTool } from "@/lib/chat-stream-web-search";
+import {
+  shouldRenderWebSearchToolRow,
+  WebSearchToolRow,
+} from "@/components/chat/WebSearchToolRow";
 import { isArtifactMetaSidecarTool } from "@/lib/chat-artifacts";
 import { ThinkingContent } from "@/components/chat/thinking-content";
 import { cn } from "@/lib/utils";
@@ -75,7 +80,9 @@ function AssistantWorkGroup({
   const hasRunningTools = visibleTools.some((tool) => tool.toolStatus === "running");
   const isThinking = Boolean(thinking?.thinkingStreaming);
   const subAgentOnly = visibleTools.every((tool) => isSubAgentTool(tool.tool));
-  const [open, setOpen] = useState(hasRunningTools || isThinking || subAgentOnly);
+  const webSearchOnly = visibleTools.every((tool) => isWebSearchTool(tool.tool));
+  const dedicatedOnly = subAgentOnly || webSearchOnly;
+  const [open, setOpen] = useState(hasRunningTools || isThinking || dedicatedOnly);
 
   useEffect(() => {
     if (hasRunningTools || isThinking) {
@@ -94,6 +101,22 @@ function AssistantWorkGroup({
     );
   }
 
+  if (webSearchOnly) {
+    return (
+      <div className="w-full max-w-full space-y-3">
+        {thinking ? <ThinkingBlock message={thinking} /> : null}
+        {visibleTools.map((tool, index) => (
+          <DedicatedToolRow
+            key={tool.id}
+            message={tool}
+            modelLabel={modelLabel}
+            isLast={index === visibleTools.length - 1}
+          />
+        ))}
+      </div>
+    );
+  }
+
   const label = formatWorkGroupLabel(visibleTools.length);
 
   return (
@@ -107,9 +130,13 @@ function AssistantWorkGroup({
         <TimelineBody>
           {thinking ? <ThinkingInline message={thinking} isLast={visibleTools.length === 0} /> : null}
           {visibleTools.map((tool, index) =>
-            isSubAgentTool(tool.tool) ? (
+            isDedicatedTool(tool) ? (
               <div key={tool.id} className={cn("relative", index < visibleTools.length - 1 && "pb-3")}>
-                <SubAgentToolRow message={tool} modelLabel={modelLabel} />
+                <DedicatedToolRow
+                  message={tool}
+                  modelLabel={modelLabel}
+                  isLast={index === visibleTools.length - 1}
+                />
               </div>
             ) : (
               <ToolTimelineItem
@@ -228,6 +255,30 @@ function useElapsedSeconds(active: boolean, startedAt?: string): number {
   }, [active, startedAt]);
 
   return elapsed;
+}
+
+function isDedicatedTool(tool: ChatListItem): boolean {
+  return isSubAgentTool(tool.tool) || shouldRenderWebSearchToolRow(tool);
+}
+
+function DedicatedToolRow({
+  message,
+  modelLabel,
+  isLast = false,
+}: {
+  message: ChatListItem;
+  modelLabel?: string | null;
+  isLast?: boolean;
+}) {
+  if (isWebSearchTool(message.tool)) {
+    if (shouldRenderWebSearchToolRow(message)) {
+      return <WebSearchToolRow message={message} />;
+    }
+
+    return <ToolTimelineItem message={message} isLast={isLast} />;
+  }
+
+  return <SubAgentToolRow message={message} modelLabel={modelLabel} />;
 }
 
 function SubAgentToolRow({
