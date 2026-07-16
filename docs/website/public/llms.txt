@@ -27,20 +27,25 @@ Match the user question to a page:
 - install, run locally, Docker, first-time setup, backup, restore, dev server → [Getting Started](https://ahmadrosid.github.io/nakama/getting-started.md)
 - connect Telegram, Telegram bot, pairing, BotFather, dev:telegram, group chat → [Telegram](https://ahmadrosid.github.io/nakama/telegram.md)
 - connect WhatsApp, WhatsApp linking, QR code, pairing code → [WhatsApp](https://ahmadrosid.github.io/nakama/whatsapp.md)
+- connect Discord, Discord bot, pairing, slash commands, server channels → [Discord](https://ahmadrosid.github.io/nakama/discord.md)
 - what is Nakama, mental model, organizations, profiles, tools, channels → [Overview](https://ahmadrosid.github.io/nakama/overview.md)
 - organizations, tenants, roles, members, invites, org admin, multi-tenant → [Multi-tenancy](https://ahmadrosid.github.io/nakama/multi-tenancy.md)
 - profiles, soul files, MEMORY.md, knowledge base, artifacts, bot behavior → [Profiles](https://ahmadrosid.github.io/nakama/profiles.md)
 - system prompt, SOUL.md, how prompts are built, agent instructions → [Agent Prompt](https://ahmadrosid.github.io/nakama/agent-prompt.md)
-- builtin tools, read_file, web_search, knowledge_base_search, email, bash → [Builtin Tools](https://ahmadrosid.github.io/nakama/builtin-tools.md)
+- builtin tools, read_file, write_file, write_docx, web_search, knowledge_base_search, email, bash, sub_agent → [Builtin Tools](https://ahmadrosid.github.io/nakama/builtin-tools.md)
+- integrations page, channel settings, bridge workers, coding-agent settings, dashboard integrations → [Integrations](https://ahmadrosid.github.io/nakama/integrations.md)
+- Composio, SaaS OAuth, external app tools, toolkit assignment → [Composio](https://ahmadrosid.github.io/nakama/composio.md)
 - skills, automations, memory skills, save-artifact, manage-skills → [Skills](https://ahmadrosid.github.io/nakama/skills.md)
 - MCP servers, external tools, MCP integration → [MCP Servers](https://ahmadrosid.github.io/nakama/mcp.md)
 - coding agent, Codex, Claude Code, OpenCode, dev:cli launch → [Coding Agent](https://ahmadrosid.github.io/nakama/coding-agent.md)
+- sub-agent, sub_agent, delegation, research, review, planning → [Builtin Tools](https://ahmadrosid.github.io/nakama/builtin-tools.md)
 
 ## Docs — Install and channels
 
 - [Getting Started](https://ahmadrosid.github.io/nakama/getting-started.md): Install Nakama with Bun or Docker, run the server, and complete first-time setup.
 - [Telegram](https://ahmadrosid.github.io/nakama/telegram.md): Set up Nakama as a Telegram bot with pairing, commands, and group behavior.
 - [WhatsApp](https://ahmadrosid.github.io/nakama/whatsapp.md): Set up Nakama on WhatsApp with linking, commands, and troubleshooting.
+- [Discord](https://ahmadrosid.github.io/nakama/discord.md): Set up Nakama as a Discord bot with pairing, slash commands, and server behavior.
 
 ## Docs — Concepts
 
@@ -52,23 +57,27 @@ Match the user question to a page:
 
 ## Docs — Operations
 
-- [Builtin Tools](https://ahmadrosid.github.io/nakama/builtin-tools.md): Review the builtin tools that Nakama profiles can use, how access is controlled, and how memory and artifact workflows use file tools plus bundled skills.
+- [Builtin Tools](https://ahmadrosid.github.io/nakama/builtin-tools.md): Review the builtin tools that Nakama profiles can use, how access is controlled, and how memory, artifact, and document workflows use file tools plus bundled skills.
 - [Skills](https://ahmadrosid.github.io/nakama/skills.md): Learn how reusable skills extend Nakama profiles, including bundled memory, artifact, automation, and skill-authoring workflows.
+- [Integrations](https://ahmadrosid.github.io/nakama/integrations.md): See which dashboard integration sections manage channels, coding-agent harnesses, Composio, and related deployment settings.
 - [Coding Agent](https://ahmadrosid.github.io/nakama/coding-agent.md): Launch Codex, Claude Code, or OpenCode from Nakama chat or the CLI, with optional inference gateway routing through your Nakama provider.
 - [MCP Servers](https://ahmadrosid.github.io/nakama/mcp.md): Connect external MCP servers to Nakama profiles and expose new tools safely.
+- [Composio](https://ahmadrosid.github.io/nakama/composio.md): Connect SaaS apps through Composio with org-scoped OAuth and profile toolkit assignment.
 
 ## All pages
 
-- [Home](https://ahmadrosid.github.io/nakama/index.md): Nakama is AI agents that work with your team — with profiles, tools, channels, and multi-tenant workspaces.
-- [Getting Started](https://ahmadrosid.github.io/nakama/getting-started.md): Install Nakama with Bun or Docker, run the server, and complete first-time setup.
-- [Overview](https://ahmadrosid.github.io/nakama/overview.md): Understand the Nakama mental model: organizations, profiles, tools, and channels.
-- [Multi-tenancy](https://ahmadrosid.github.io/nakama/multi-tenancy.md): Learn how organizations, roles, and tenant isolation work in Nakama.
-- [Profiles](https://ahmadrosid.github.io/nakama/profiles.md): See how Nakama profiles define bot behavior, soul files, memory, tools, and model selection.
 - [Agent Prompt](https://ahmadrosid.github.io/nakama/agent-prompt.md): Understand how Nakama builds the final system prompt from soul files, tools, bundled system skills, and runtime context.
-- [Builtin Tools](https://ahmadrosid.github.io/nakama/builtin-tools.md): Review the builtin tools that Nakama profiles can use, how access is controlled, and how memory and artifact workflows use file tools plus bundled skills.
-- [Skills](https://ahmadrosid.github.io/nakama/skills.md): Learn how reusable skills extend Nakama profiles, including bundled memory, artifact, automation, and skill-authoring workflows.
-- [MCP Servers](https://ahmadrosid.github.io/nakama/mcp.md): Connect external MCP servers to Nakama profiles and expose new tools safely.
+- [Builtin Tools](https://ahmadrosid.github.io/nakama/builtin-tools.md): Review the builtin tools that Nakama profiles can use, how access is controlled, and how memory, artifact, and document workflows use file tools plus bundled skills.
 - [Coding Agent](https://ahmadrosid.github.io/nakama/coding-agent.md): Launch Codex, Claude Code, or OpenCode from Nakama chat or the CLI, with optional inference gateway routing through your Nakama provider.
+- [Composio](https://ahmadrosid.github.io/nakama/composio.md): Connect SaaS apps through Composio with org-scoped OAuth and profile toolkit assignment.
+- [Discord](https://ahmadrosid.github.io/nakama/discord.md): Set up Nakama as a Discord bot with pairing, slash commands, and server behavior.
+- [Getting Started](https://ahmadrosid.github.io/nakama/getting-started.md): Install Nakama with Bun or Docker, run the server, and complete first-time setup.
+- [Home](https://ahmadrosid.github.io/nakama/index.md): Nakama is AI agents that work with your team — with profiles, tools, channels, and multi-tenant workspaces.
+- [Integrations](https://ahmadrosid.github.io/nakama/integrations.md): See which dashboard integration sections manage channels, coding-agent harnesses, Composio, and related deployment settings.
+- [MCP Servers](https://ahmadrosid.github.io/nakama/mcp.md): Connect external MCP servers to Nakama profiles and expose new tools safely.
+- [Multi-tenancy](https://ahmadrosid.github.io/nakama/multi-tenancy.md): Learn how organizations, roles, and tenant isolation work in Nakama.
+- [Overview](https://ahmadrosid.github.io/nakama/overview.md): Understand the Nakama mental model: organizations, profiles, tools, and channels.
+- [Profiles](https://ahmadrosid.github.io/nakama/profiles.md): See how Nakama profiles define bot behavior, soul files, memory, tools, and model selection.
+- [Skills](https://ahmadrosid.github.io/nakama/skills.md): Learn how reusable skills extend Nakama profiles, including bundled memory, artifact, automation, and skill-authoring workflows.
 - [Telegram](https://ahmadrosid.github.io/nakama/telegram.md): Set up Nakama as a Telegram bot with pairing, commands, and group behavior.
 - [WhatsApp](https://ahmadrosid.github.io/nakama/whatsapp.md): Set up Nakama on WhatsApp with linking, commands, and troubleshooting.
-- [Discord](https://ahmadrosid.github.io/nakama/discord.md): Set up Nakama as a Discord bot with pairing, slash commands, and server behavior.

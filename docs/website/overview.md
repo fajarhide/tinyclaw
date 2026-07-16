@@ -49,13 +49,14 @@ Profiles do not automatically get every capability.
 
 You choose which tools a profile can use, such as:
 
-- Web search
-- File access
+- Web search and web fetch
+- File access and Word document generation (`write_docx`)
 - Knowledge base search
 - Email
 - Skill creation
+- Sub-agent delegation (`sub_agent`, opt-in)
 
-Bundled skills extend profiles with system workflows such as memory writes (`update-profile-memory`), memory archives (`archive-profile-memory`), artifact saves (`save-artifact`), automations (`create-automation`), skill authoring (`manage-skills`), and the coding agent (`coding-delegation` skill). See [Skills](/skills) and [Coding agent](/coding-agent).
+Bundled skills extend profiles with system workflows such as memory writes (`update-profile-memory`), memory archives (`archive-profile-memory`), artifact saves (`save-artifact`), automations (`create-automation`), skill authoring (`manage-skills`), and the coding agent (`coding-delegation` skill). External SaaS apps connect through [Composio](/composio). See [Skills](/skills), [Coding agent](/coding-agent), and [Builtin tools](/builtin-tools).
 
 This is how you keep one bot safe and narrow while another bot can be more capable.
 

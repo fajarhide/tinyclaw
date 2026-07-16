@@ -17,7 +17,7 @@ const pageDescriptions: Record<string, string> = {
   'multi-tenancy.md': 'Learn how organizations, roles, and tenant isolation work in Nakama.',
   'profiles.md': 'See how Nakama profiles define bot behavior, soul files, memory, tools, and model selection.',
   'agent-prompt.md': 'Understand how Nakama builds the final system prompt from soul files, tools, bundled system skills, and runtime context.',
-  'builtin-tools.md': 'Review the builtin tools that Nakama profiles can use, how access is controlled, and how memory and artifact workflows use file tools plus bundled skills.',
+  'builtin-tools.md': 'Review the builtin tools that Nakama profiles can use, how access is controlled, and how memory, artifact, and document workflows use file tools plus bundled skills.',
   'skills.md': 'Learn how reusable skills extend Nakama profiles, including bundled memory, artifact, automation, and skill-authoring workflows.',
   'integrations.md': 'See which dashboard integration sections manage channels, coding-agent harnesses, Composio, and related deployment settings.',
   'mcp.md': 'Connect external MCP servers to Nakama profiles and expose new tools safely.',
@@ -104,6 +104,10 @@ function buildLlmsTxt(pages: string[]) {
       page: "whatsapp.md",
     },
     {
+      topics: "connect Discord, Discord bot, pairing, slash commands, server channels",
+      page: "discord.md",
+    },
+    {
       topics: "what is Nakama, mental model, organizations, profiles, tools, channels",
       page: "overview.md",
     },
@@ -120,12 +124,16 @@ function buildLlmsTxt(pages: string[]) {
       page: "agent-prompt.md",
     },
     {
-      topics: "builtin tools, read_file, web_search, knowledge_base_search, email, bash",
+      topics: "builtin tools, read_file, write_file, write_docx, web_search, knowledge_base_search, email, bash, sub_agent",
       page: "builtin-tools.md",
     },
     {
       topics: "integrations page, channel settings, bridge workers, coding-agent settings, dashboard integrations",
       page: "integrations.md",
+    },
+    {
+      topics: "Composio, SaaS OAuth, external app tools, toolkit assignment",
+      page: "composio.md",
     },
     {
       topics: "skills, automations, memory skills, save-artifact, manage-skills",
@@ -139,12 +147,16 @@ function buildLlmsTxt(pages: string[]) {
       topics: "coding agent, Codex, Claude Code, OpenCode, dev:cli launch",
       page: "coding-agent.md",
     },
+    {
+      topics: "sub-agent, sub_agent, delegation, research, review, planning",
+      page: "builtin-tools.md",
+    },
   ] as const
 
   const docSections = [
     {
       heading: 'Install and channels',
-      pages: ['getting-started.md', 'telegram.md', 'whatsapp.md'] as const,
+      pages: ['getting-started.md', 'telegram.md', 'whatsapp.md', 'discord.md'] as const,
     },
     {
       heading: 'Concepts',
@@ -293,6 +305,7 @@ export default defineConfig({
           { text: 'Integrations', link: '/integrations' },
           { text: 'Coding Agent', link: '/coding-agent' },
           { text: 'MCP Servers', link: '/mcp' },
+          { text: 'Composio', link: '/composio' },
         ],
       },
     ],

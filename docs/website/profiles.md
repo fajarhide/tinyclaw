@@ -144,7 +144,7 @@ Memory writes and archives use bundled skills (`update-profile-memory`, `archive
 |-------|------------------|------------------|
 | `MEMORY.md` | Yes (via soul stack) | `update-profile-memory` skill + `read_file` / `edit_file` / `write_file` |
 | `memory-archive/` | No | `archive-profile-memory` skill + file tools |
-| `artifacts/` | No (dashboard + download API) | `save-artifact` skill + `write_file` |
+| `artifacts/` | No (dashboard, download API, web chat preview) | `save-artifact` skill + `write_file` or `write_docx` |
 | Knowledge base | Via `knowledge_base_search` when assigned | Upload via dashboard; search at runtime |
 | Profile skills | Via skill matcher when relevant | `manage-skills` skill or dashboard |
 

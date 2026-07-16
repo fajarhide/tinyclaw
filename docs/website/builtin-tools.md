@@ -27,21 +27,22 @@ Give each profile the minimum tool set it needs.
 
 Nakama includes these builtins:
 
-| Tool | `default` / `super_bot` | All profiles | Notes |
-|------|-------------------------|--------------|-------|
-| `write_file` | Yes | Yes | Assigned to new custom profiles by default |
+| Tool | `default` / `super_bot` | New custom profiles | Notes |
+|------|-------------------------|---------------------|-------|
+| `write_file` | Yes | Yes | |
+| `write_docx` | Yes | No | Create real `.docx` files from Markdown |
 | `delete_file` | Yes | No | |
-| `edit_file` | Yes | Yes | Assigned to new custom profiles by default |
-| `read_file` | Yes | Yes | Assigned to new custom profiles by default |
-| `search_files` | Yes | Yes | Assigned to new custom profiles by default |
-| `knowledge_base_search` | Yes | Yes | Assigned to new custom profiles by default |
+| `edit_file` | Yes | Yes | |
+| `read_file` | Yes | Yes | |
+| `search_files` | Yes | Yes | |
+| `knowledge_base_search` | Yes | Yes | |
 | `web_search` | Yes | No | |
-| `web_fetch` | Yes | No | |
+| `web_fetch` | Yes | Yes | |
 | `email` | Yes | No | Omitted at runtime when mailbox is unconfigured |
 | `bash` | Super Bot only | No | Run shell commands in the profile workspace |
 | `sub_agent` | No | No | Opt-in: delegate to a same-profile sub-agent (see below) |
 
-**New custom profiles** receive `read_file`, `write_file`, `edit_file`, `search_files`, and `knowledge_base_search` until a platform admin assigns additional tools. Memory writes, archives, and artifact saves use bundled skills with those file tools — see [Skills](/skills#bundled-system-skills). Coding-agent workflows use `bash` with the `coding-delegation` skill — see [Coding agent](/coding-agent). The `sub_agent` tool is seeded but **not** auto-assigned — platform admins opt in per profile. System profiles (`default`, `super_bot`) get the full seeded builtin set; Super Bot also receives `bash`.
+**New custom profiles** receive `read_file`, `write_file`, `edit_file`, `search_files`, `knowledge_base_search`, and `web_fetch` until a platform admin assigns additional tools. Memory writes, archives, and artifact saves use bundled skills with those file tools — see [Skills](/skills#bundled-system-skills). Word documents use `write_docx` (system profiles only by default). Coding-agent workflows use `bash` with the `coding-delegation` skill — see [Coding agent](/coding-agent). The `sub_agent` tool is seeded but **not** auto-assigned — platform admins opt in per profile. System profiles (`default`, `super_bot`) get the full seeded builtin set; Super Bot also receives `bash`.
 
 ## Choosing tools for a profile
 
@@ -67,7 +68,19 @@ Active `MEMORY.md` has a **4096-byte** soft limit. Default and super-bot profile
 
 ## Artifact saves
 
-Persistent outputs (reports, summaries, generated text) are not a separate builtin. Agents use `write_file` with the `save-artifact` bundled skill under `artifacts/`. The skill also documents writing a `{filename}.nakama-meta.json` sidecar so the dashboard Artifacts tab shows MIME types and timestamps. On web chat, completed save-artifact pairs also appear as attachment chips on the assistant message with in-chat preview. Text-only — binary files are not supported in this workflow yet.
+Persistent outputs (reports, summaries, generated text, Word documents) are not a separate builtin. Agents use `write_file` or `write_docx` with the `save-artifact` bundled skill under `artifacts/`. The skill also documents writing a `{filename}.nakama-meta.json` sidecar so the dashboard Artifacts tab shows MIME types and timestamps.
+
+On web chat, `write_file` and `write_docx` saves under `artifacts/` appear as attachment chips on the assistant message. Click a chip to open a resizable preview panel with copy, download, and fullscreen:
+
+| Content type | Preview behavior |
+|--------------|------------------|
+| HTML (`.html`, `text/html`) | Sandboxed iframe render |
+| Markdown (`.md`, `text/markdown`) | Rendered prose |
+| Word (`.docx` from `write_docx`) | Server converts to Markdown for preview |
+| JSON, code, plain text | Syntax highlighting or monospace block |
+| Unknown extension | UTF-8 sniff — preview when the bytes look like text |
+
+Legacy `.doc` (Word 97–2003) is not supported for generation or preview. Binary formats outside these paths show a download-only message.
 
 ## Coding agent
 
@@ -89,7 +102,25 @@ Write text to a file in the profile workspace.
 
 **Scope:** `~/.nakama/orgs/{orgId}/profiles/{profileId}/` and `~/.nakama/tools/` (custom JS modules)
 
+**Restrictions:** Rejects `.docx` and `.doc` paths — a `.docx` is a ZIP archive, not UTF-8 text. Use `write_docx` instead.
+
 **Availability:** When assigned to the profile.
+
+### `write_docx`
+
+Create a real Microsoft Word (`.docx`) document from Markdown content. Headings, bold/italic, lists, tables, and code blocks are converted. Use whenever the user asks for a Word document.
+
+| Parameter | Type | Required | Notes |
+|-----------|------|----------|-------|
+| `path` | string | Yes | Must end in `.docx`; relative to profile workspace unless absolute |
+| `markdown` | string | Yes | Markdown source for the document body |
+| `cwd` | string | No | Base directory within workspace; defaults to workspace root |
+
+**Returns:** `{ path, bytesWritten }`
+
+**Scope:** Profile workspace only. Under `artifacts/`, existing files are not silently overwritten — Nakama picks a unique filename instead.
+
+**Availability:** When assigned to the profile. Assigned to system profiles (`default`, `super_bot`) by default; assign manually to custom profiles when needed.
 
 ### `delete_file`
 

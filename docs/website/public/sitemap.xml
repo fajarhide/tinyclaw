@@ -22,7 +22,19 @@
     <loc>https://ahmadrosid.github.io/nakama/builtin-tools</loc>
   </url>
   <url>
+    <loc>https://ahmadrosid.github.io/nakama/skills</loc>
+  </url>
+  <url>
+    <loc>https://ahmadrosid.github.io/nakama/integrations</loc>
+  </url>
+  <url>
+    <loc>https://ahmadrosid.github.io/nakama/coding-agent</loc>
+  </url>
+  <url>
     <loc>https://ahmadrosid.github.io/nakama/mcp</loc>
+  </url>
+  <url>
+    <loc>https://ahmadrosid.github.io/nakama/composio</loc>
   </url>
   <url>
     <loc>https://ahmadrosid.github.io/nakama/telegram</loc>
@@ -32,8 +44,5 @@
   </url>
   <url>
     <loc>https://ahmadrosid.github.io/nakama/discord</loc>
-  </url>
-  <url>
-    <loc>https://ahmadrosid.github.io/nakama/skills</loc>
   </url>
 </urlset>

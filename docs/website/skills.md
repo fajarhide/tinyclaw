@@ -168,7 +168,7 @@ New custom profiles receive the file tools and `knowledge_base_search` by defaul
 
 - **Memory write path:** read or create `MEMORY.md`, append a dated `- bullet` under the user's timezone date, keep the `# Memory Log` preamble, stay under 4096 bytes
 - **Archive path:** copy exact bullets to `memory-archive/YYYY-MM.md`, then remove them from `MEMORY.md`
-- **Artifact path:** `write_file` under `artifacts/{filename}`, then write `{filename}.nakama-meta.json` with MIME metadata for the dashboard (text-only)
+- **Artifact path:** `write_file` or `write_docx` under `artifacts/{filename}`, then write `{filename}.nakama-meta.json` with MIME metadata for the dashboard. Use `write_file` for text, Markdown, HTML, JSON, and code; use `write_docx` when the user wants a real Word document.
 
 These skills use `include-body-on-match: true`, so the full procedure loads when the user's message matches the skill description. The chat wrapper also mentions memory skills when `read_file` and `edit_file` are available, and `save-artifact` when `write_file` is available.
 
@@ -209,7 +209,7 @@ Viewers cannot invoke agents, so they cannot trigger skills either.
 - Use **`archive-profile-memory`** when the user wants to forget, tidy, or free space in active memory without deleting history
 - Use the **main profile prompt** for always-on behavior and identity
 - Use a **builtin tool** for a native capability like web search or file access
-- Use **`save-artifact`** for persistent reports, summaries, and generated text under `artifacts/`
+- Use **`save-artifact`** with **`write_file`** or **`write_docx`** for persistent reports, summaries, generated text, and Word documents under `artifacts/`
 - Use **`coding-delegation`** with **`bash`** when repo work is better handled by a dedicated coding agent ([setup](/coding-agent))
 - Use an **MCP server** for external tool integrations
 
