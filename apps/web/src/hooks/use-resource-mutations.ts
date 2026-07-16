@@ -122,7 +122,7 @@ export function useUploadProfileAvatarMutation() {
   });
 }
 
-export function useDeleteProfileAvatarMutation() {
+function useDeleteProfileAvatarMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -296,7 +296,7 @@ export function useDeleteSkillMutation() {
   });
 }
 
-export function useSyncSkillsMutation() {
+function useSyncSkillsMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -341,7 +341,7 @@ export function useUnassignSkillMutation() {
   });
 }
 
-export function useSessionsQuery(profileId: string, channel: AgentChannel = "web") {
+function useSessionsQuery(profileId: string, channel: AgentChannel = "web") {
   return useQuery({
     queryKey: queryKeys.sessions(profileId, channel),
     queryFn: async () => (await client.listSessions(profileId, channel)).sessions,

@@ -45,55 +45,49 @@ export function useWebSourceSiteStates(
   const staggerRunRef = useRef(0);
 
   useEffect(() => {
-    if (status === "running") {
-      setSiteStates(buildInitialSiteStates(sourceCount, "running", reducedMotion));
-      return;
-    }
-
-    if (sourceCount === 0) {
-      setSiteStates([]);
-      return;
-    }
-
-    if (reducedMotion) {
-      setSiteStates(Array.from({ length: sourceCount }, () => "done"));
-      return;
-    }
-
-    const runId = staggerRunRef.current + 1;
-    staggerRunRef.current = runId;
     const timers: ReturnType<typeof setTimeout>[] = [];
 
-    setSiteStates(Array.from({ length: sourceCount }, () => "pending"));
+    if (status === "running") {
+      setSiteStates(buildInitialSiteStates(sourceCount, "running", reducedMotion));
+    } else if (sourceCount === 0) {
+      setSiteStates([]);
+    } else if (reducedMotion) {
+      setSiteStates(Array.from({ length: sourceCount }, () => "done"));
+    } else {
+      const runId = staggerRunRef.current + 1;
+      staggerRunRef.current = runId;
 
-    for (let index = 0; index < sourceCount; index += 1) {
-      timers.push(
-        setTimeout(() => {
-          if (staggerRunRef.current !== runId) {
-            return;
-          }
+      setSiteStates(Array.from({ length: sourceCount }, () => "pending"));
 
-          setSiteStates((current) =>
-            current.map((value, currentIndex) =>
-              currentIndex === index ? "loading" : value,
-            ),
-          );
-        }, STAGGER_LOADING_MS * (index + 1)),
-      );
+      for (let index = 0; index < sourceCount; index += 1) {
+        timers.push(
+          setTimeout(() => {
+            if (staggerRunRef.current !== runId) {
+              return;
+            }
 
-      timers.push(
-        setTimeout(() => {
-          if (staggerRunRef.current !== runId) {
-            return;
-          }
+            setSiteStates((current) =>
+              current.map((value, currentIndex) =>
+                currentIndex === index ? "loading" : value,
+              ),
+            );
+          }, STAGGER_LOADING_MS * (index + 1)),
+        );
 
-          setSiteStates((current) =>
-            current.map((value, currentIndex) =>
-              currentIndex === index ? "done" : value,
-            ),
-          );
-        }, STAGGER_LOADING_MS * (index + 1) + STAGGER_DONE_MS),
-      );
+        timers.push(
+          setTimeout(() => {
+            if (staggerRunRef.current !== runId) {
+              return;
+            }
+
+            setSiteStates((current) =>
+              current.map((value, currentIndex) =>
+                currentIndex === index ? "done" : value,
+              ),
+            );
+          }, STAGGER_LOADING_MS * (index + 1) + STAGGER_DONE_MS),
+        );
+      }
     }
 
     return () => {

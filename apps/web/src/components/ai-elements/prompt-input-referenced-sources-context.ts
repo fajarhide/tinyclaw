@@ -11,7 +11,7 @@ export interface ReferencedSourcesContext {
 export const LocalReferencedSourcesContext =
   createContext<ReferencedSourcesContext | null>(null);
 
-export function usePromptInputReferencedSources() {
+function usePromptInputReferencedSources() {
   const ctx = useContext(LocalReferencedSourcesContext);
   if (!ctx) {
     throw new Error(

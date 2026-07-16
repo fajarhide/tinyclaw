@@ -307,7 +307,7 @@ export function WebSourceCard({
   );
 }
 
-export function WebSearch({
+function WebSearch({
   query,
   sources,
   siteStates,

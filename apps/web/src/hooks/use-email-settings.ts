@@ -16,7 +16,7 @@ export const emailSettingsQueryOptions = queryOptions({
   queryFn: () => client.getEmailSettings(),
 });
 
-export function useEmailSettings() {
+function useEmailSettings() {
   return useQuery(emailSettingsQueryOptions);
 }
 

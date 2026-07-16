@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangleIcon, PlusIcon } from "lucide-react";
 import { ProviderSetupForm } from "@/components/ProviderSetupForm";
 import {
@@ -42,9 +42,11 @@ export function ProviderSettingsCard({ formError, onFormError }: ProviderSetting
   const catalog = catalogResponse?.models ?? [];
   const isConfigured = providers.length > 0;
 
-  if (catalogQueryError) {
-    onFormError(formatError(catalogQueryError));
-  }
+  useEffect(() => {
+    if (catalogQueryError) {
+      onFormError(formatError(catalogQueryError));
+    }
+  }, [catalogQueryError, onFormError]);
 
   if (providersLoading || catalogLoading) {
     return <ProviderSettingsSkeleton />;

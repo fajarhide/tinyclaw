@@ -565,6 +565,3 @@ function DetailBlock({
     </div>
   );
 }
-
-// Keep export for any external usage/tests.
-export const AssistantToolGroup = AssistantWorkGroup;

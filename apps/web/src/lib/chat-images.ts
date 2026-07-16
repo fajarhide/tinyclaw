@@ -153,7 +153,7 @@ export function stripImageDescriptionsFromDisplayText(
     .trim();
 }
 
-export function parseLegacyImageDescriptionText(text: string): string | null {
+function parseLegacyImageDescriptionText(text: string): string | null {
   return parseImageDescriptionText(text);
 }
 
