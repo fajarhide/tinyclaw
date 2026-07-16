@@ -162,6 +162,7 @@ export function ThinkingReasoning({
   }
 
   const expanded = done ? open : true;
+  const showTimeline = sentences.length > 0 || Boolean(children);
 
   const toggle = () => {
     if (!done) {
@@ -218,13 +219,25 @@ export function ThinkingReasoning({
 
       <div className={cn(styles.collapsible, !expanded && styles.collapsibleCollapsed)}>
         <div className={styles.inner}>
-          <ThinkingReasoningViewport
-            sentences={sentences}
-            isWorkActive={isWorkActive}
-            done={done}
-            expanded={expanded}
-          />
-          {children ? <div className={styles.tools}>{children}</div> : null}
+          {showTimeline ? (
+            <div className={styles.timeline}>
+              {sentences.length > 0 ? (
+                <ThinkingReasoningViewport
+                  sentences={sentences}
+                  isWorkActive={isWorkActive}
+                  done={done}
+                  expanded={expanded}
+                />
+              ) : null}
+              {children ? (
+                <div
+                  className={cn(styles.tools, sentences.length > 0 && styles.toolsAfterReasoning)}
+                >
+                  {children}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

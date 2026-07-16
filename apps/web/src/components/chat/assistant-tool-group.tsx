@@ -114,12 +114,16 @@ function AssistantWorkGroup({
     >
       {visibleTools.map((tool, index) =>
         isDedicatedTool(tool) ? (
-          <DedicatedToolRow
+          <div
             key={tool.id}
-            message={tool}
-            modelLabel={modelLabel}
-            isLast={index === visibleTools.length - 1}
-          />
+            className={cn("relative", index < visibleTools.length - 1 && "pb-3")}
+          >
+            <DedicatedToolRow
+              message={tool}
+              modelLabel={modelLabel}
+              isLast={index === visibleTools.length - 1}
+            />
+          </div>
         ) : (
           <ToolTimelineItem
             key={tool.id}
