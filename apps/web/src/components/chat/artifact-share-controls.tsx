@@ -410,11 +410,6 @@ export function ArtifactShareControls({
           disabled={busy || !orgId}
           onClick={handleShareClick}
         >
-          {busy ? (
-            <Loader2Icon className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <Share2Icon className="size-4" aria-hidden />
-          )}
           Share artifact
         </DropdownMenuItem>
         {publishDialog}
