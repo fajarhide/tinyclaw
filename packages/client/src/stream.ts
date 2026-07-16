@@ -5,6 +5,7 @@ import type {
   StreamEvent,
 } from "@nakama/core/contract";
 import type { SendMessageArg, StreamHandler, StreamHandlers } from "./types";
+import { readBrowserOrigin } from "./browser";
 
 const DEFAULT_STREAM_IDLE_MS = 600_000;
 
@@ -224,8 +225,9 @@ export function resolveSendMessageBody(
     return body;
   }
 
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return { ...body, clientOrigin: window.location.origin };
+  const origin = readBrowserOrigin();
+  if (origin) {
+    return { ...body, clientOrigin: origin };
   }
 
   if (defaultClientOrigin?.trim()) {

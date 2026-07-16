@@ -154,6 +154,7 @@ import type {
 import { readApiErrorMessage, NakamaApiError } from "@nakama/core/api-error";
 import { loadLocalAuthToken } from "@nakama/core/local-auth";
 import { resolveServerUrl } from "@nakama/core/runtime";
+import { readBrowserOrigin, readCookie } from "./browser";
 import {
   readCodingHarnessInstallStream,
   normalizeStreamHandlers,
@@ -161,6 +162,8 @@ import {
   resolveSendMessageBody,
 } from "./stream";
 import type {
+  BinaryBufferSource,
+  FetchCredentials,
   RemoteChatSession,
   SendMessageArg,
   SendStreamOptions,
@@ -172,7 +175,7 @@ import type {
 export class NakamaClient {
   readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
-  private readonly credentials: RequestCredentials;
+  private readonly credentials: FetchCredentials;
   private readonly clientOrigin: string | null;
   private authToken: string | null;
   private orgId: string | null;
@@ -230,7 +233,7 @@ export class NakamaClient {
     };
   }
 
-  async previewDataImport(data: Blob | BufferSource | string): Promise<DataImportPreviewResponse> {
+  async previewDataImport(data: Blob | BinaryBufferSource | string): Promise<DataImportPreviewResponse> {
     const request: PreviewDataImportRequest = {
       data: await encodeArchiveData(data),
     };
@@ -241,7 +244,7 @@ export class NakamaClient {
   }
 
   async restoreDataImport(
-    data: Blob | BufferSource | string,
+    data: Blob | BinaryBufferSource | string,
     options: { confirm: boolean },
   ): Promise<RestoreDataImportResponse> {
     const request: RestoreDataImportRequest = {
@@ -1177,8 +1180,9 @@ export class NakamaClient {
   async connectComposioToolkit(toolkitSlug: string): Promise<ComposioConnectResponse> {
     const body: ComposioConnectRequest = {};
 
-    if (typeof window !== "undefined" && window.location?.origin) {
-      body.callbackOrigin = window.location.origin;
+    const callbackOrigin = readBrowserOrigin();
+    if (callbackOrigin) {
+      body.callbackOrigin = callbackOrigin;
     }
 
     return this.request<ComposioConnectResponse>(
@@ -1585,23 +1589,7 @@ function isMutatingMethod(method: string): boolean {
   return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
 }
 
-function readCookie(name: string): string | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  const prefix = `${name}=`;
-  for (const part of document.cookie.split(";")) {
-    const trimmed = part.trim();
-    if (trimmed.startsWith(prefix)) {
-      return trimmed.slice(prefix.length) || null;
-    }
-  }
-
-  return null;
-}
-
-async function encodeArchiveData(data: Blob | BufferSource | string): Promise<string> {
+async function encodeArchiveData(data: Blob | BinaryBufferSource | string): Promise<string> {
   if (typeof data === "string") {
     return data;
   }
@@ -1632,6 +1620,6 @@ function readContentDispositionFilename(headers: Headers): string | null {
   return match?.[1] ?? null;
 }
 
-function isBlobLike(value: Blob | BufferSource): value is Blob {
+function isBlobLike(value: Blob | BinaryBufferSource): value is Blob {
   return typeof Blob !== "undefined" && value instanceof Blob;
 }

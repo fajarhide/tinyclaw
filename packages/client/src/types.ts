@@ -7,11 +7,17 @@ import type {
   SendMessageInput,
 } from "@nakama/core/contract";
 
+/** Fetch `credentials` option (same values as the standard `RequestCredentials` type). */
+export type FetchCredentials = "omit" | "same-origin" | "include";
+
+/** Binary buffer input (same values as the standard `BufferSource` type). */
+export type BinaryBufferSource = ArrayBuffer | ArrayBufferView;
+
 export interface NakamaClientOptions {
   baseUrl?: string;
   fetch?: typeof fetch;
   authToken?: string;
-  credentials?: RequestCredentials;
+  credentials?: FetchCredentials;
   orgId?: string | null;
   /** Browser-style origin for OAuth callbacks when this client has no window (e.g. Telegram bridge). */
   clientOrigin?: string;
