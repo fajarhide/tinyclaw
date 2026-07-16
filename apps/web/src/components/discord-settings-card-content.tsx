@@ -1,6 +1,5 @@
 import type { ProfileSummary } from "@nakama/core/contract";
-import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 import {
   InputGroup,
   InputGroupAddon,

@@ -1,7 +1,6 @@
 import type {
   ProviderInstanceSummary,
   ProviderModelOption,
-  UpdateProviderRequest,
 } from "@nakama/core/contract";
 import type { ModelListRow } from "@/components/ModelListEditor";
 import { OpenRouterProviderModelFields } from "@/components/OpenRouterProviderModelFields";
@@ -24,6 +23,7 @@ import {
 } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import { apiKeyPlaceholder, type SelectedProvider } from "@/lib/models";
+import type { CatalogShortlistProvider } from "@/components/catalog-provider-model-fields.shared";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 export function ProviderReplaceKeyDialog({
@@ -269,7 +269,7 @@ export function ProviderCatalogManageDialog({
   open: boolean;
   busy: boolean;
   dialogError: string | null;
-  providerType: SelectedProvider;
+  providerType: CatalogShortlistProvider;
   instanceId: string;
   manageModels: ModelListRow[];
   catalogModelsForType: ProviderModelOption[];

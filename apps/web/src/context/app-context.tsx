@@ -1,8 +1,6 @@
 import type {
   ConfigureProviderRequest,
-  ConfigureProviderResponse,
   CreateProviderRequest,
-  CreateProviderResponse,
 } from "@nakama/core/contract";
 import {
   useCallback,

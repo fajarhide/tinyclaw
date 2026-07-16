@@ -10,7 +10,6 @@ import { client } from "@/lib/client";
 import { pathForPage } from "@/lib/navigation";
 
 import {
-  SETUP_STEPS,
   type SetupAccountDraft,
   type SetupStepId,
   type SetupWizardProps,

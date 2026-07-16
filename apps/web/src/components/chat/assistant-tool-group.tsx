@@ -17,7 +17,6 @@ import { ThinkingContent } from "@/components/chat/thinking-content";
 import { cn } from "@/lib/utils";
 
 import {
-  segmentAssistantTurn,
   type AssistantTurnSegment,
 } from "@/components/chat/assistant-tool-group.shared";
 export function AssistantTurnSegmentView({

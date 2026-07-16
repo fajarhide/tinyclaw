@@ -1,4 +1,4 @@
-import type { SoulStackFiles } from "@nakama/core/contract";
+import type { SoulFileStatus, SoulStackFiles } from "@nakama/core/contract";
 import { FileTextIcon, FolderIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,7 +39,7 @@ export function SoulFileEditorDialog({
   editContent: string;
   busy: boolean;
   isDirty: boolean;
-  status: { files: SoulStackFiles } | null;
+  status: { files: SoulFileStatus } | null;
   openFile: keyof SoulStackFiles | null;
   onOpenChange: (open: boolean) => void;
   onEditContentChange: (value: string) => void;

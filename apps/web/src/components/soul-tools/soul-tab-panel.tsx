@@ -1,4 +1,4 @@
-import type { SoulStackFiles } from "@nakama/core/contract";
+import type { SoulFileStatus, SoulStackFiles } from "@nakama/core/contract";
 import {
   CheckIcon,
   ChevronRightIcon,
@@ -67,7 +67,7 @@ export function SoulTabPanel({
 }: {
   embedded: boolean;
   selectedProfile: ProfileSummary | null;
-  status: { directory: string; files: SoulStackFiles } | null;
+  status: { directory: string; files: SoulFileStatus } | null;
   presentCount: number;
   busy: boolean;
   refreshing: boolean;

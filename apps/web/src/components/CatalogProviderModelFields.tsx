@@ -15,7 +15,6 @@ import { filterModelsByProvider, formatProviderLabel } from "@/lib/models";
 import { queryKeys } from "@/lib/query-keys";
 
 import {
-  CATALOG_SHORTLIST_PROVIDERS,
   type CatalogShortlistProvider,
 } from "@/components/catalog-provider-model-fields.shared";
 

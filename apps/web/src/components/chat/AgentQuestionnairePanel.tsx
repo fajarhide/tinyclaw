@@ -23,7 +23,7 @@ export function AgentQuestionnairePanel({
 }: AgentQuestionnairePanelProps) {
   const [answers, setAnswers] = useState<Record<string, DraftAnswerState>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const activeQuestionRef = useRef<HTMLElement | null>(null);
+  const activeQuestionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!questionnaire) {
