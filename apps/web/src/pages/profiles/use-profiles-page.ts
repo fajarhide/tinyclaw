@@ -63,8 +63,10 @@ export function useProfilesPage() {
   const [selectedId, setSelectedIdState] = useState<string | null>(null);
   const profileInitializedRef = useRef(false);
   const selectedIdRef = useRef(selectedId);
-  selectedIdRef.current = selectedId;
-  const [loadedDetailId, setLoadedDetailId] = useState<string | null>(null);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
   const { data: profileComposioData } = useProfileComposioToolkits(selectedId);
   const { data: allSkills = [] } = useSkillsQuery();
   const { data: modelsResponse } = useModelsQuery();
@@ -435,31 +437,31 @@ export function useProfilesPage() {
     }
   }, [profiles, searchParams, setSelectedId]);
 
-  if (detail?.id !== loadedDetailId) {
-    setLoadedDetailId(detail?.id ?? null);
-
-    if (detail) {
-      clearScheduledSave();
-      pendingSaveRef.current = false;
-      setEditName(detail.name);
-      setEditPrompt(detail.systemPrompt);
-      setEditModel(detail.model);
-      setSavedName(detail.name);
-      setSavedPrompt(detail.systemPrompt);
-      setSavedModel(detail.model);
-      editStateRef.current = {
-        ...editStateRef.current,
-        editName: detail.name,
-        editPrompt: detail.systemPrompt,
-        editModel: detail.model,
-        savedName: detail.name,
-        savedPrompt: detail.systemPrompt,
-        savedModel: detail.model,
-        detail,
-      };
-      setSaveStatus("idle");
+  useEffect(() => {
+    if (!detail) {
+      return;
     }
-  }
+
+    clearScheduledSave();
+    pendingSaveRef.current = false;
+    setEditName(detail.name);
+    setEditPrompt(detail.systemPrompt);
+    setEditModel(detail.model);
+    setSavedName(detail.name);
+    setSavedPrompt(detail.systemPrompt);
+    setSavedModel(detail.model);
+    editStateRef.current = {
+      ...editStateRef.current,
+      editName: detail.name,
+      editPrompt: detail.systemPrompt,
+      editModel: detail.model,
+      savedName: detail.name,
+      savedPrompt: detail.systemPrompt,
+      savedModel: detail.model,
+      detail,
+    };
+    setSaveStatus("idle");
+  }, [detail?.id]);
 
   useEffect(() => {
     return () => {

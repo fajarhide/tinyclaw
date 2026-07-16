@@ -92,7 +92,10 @@ export function useChatPage() {
   const loadedRouteRef = useRef<string | null>(null);
   const profileSwitchInFlightRef = useRef(false);
   const profileIdRef = useRef(profileId);
-  profileIdRef.current = profileId;
+
+  useEffect(() => {
+    profileIdRef.current = profileId;
+  }, [profileId]);
 
   const syncChatUrl = useCallback(
     (nextProfileId: string, sessionId: string) => {

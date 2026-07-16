@@ -60,8 +60,6 @@ export function KnowledgeTab({ profileId: controlledProfileId }: { profileId?: s
   } = useProfilesQuery();
   const [internalProfileId, setProfileIdState] = useState<string | null>(null);
   const profileInitializedRef = useRef(false);
-  const internalProfileIdRef = useRef(internalProfileId);
-  internalProfileIdRef.current = internalProfileId;
   const profileId = embedded ? controlledProfileId : internalProfileId;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -130,21 +128,21 @@ export function KnowledgeTab({ profileId: controlledProfileId }: { profileId?: s
       return;
     }
 
-    if (
-      urlProfile &&
-      profiles.some((profile) => profile.id === urlProfile) &&
-      urlProfile !== internalProfileIdRef.current
-    ) {
-      setProfileIdState(urlProfile);
-      return;
-    }
+    setProfileIdState((current) => {
+      if (
+        urlProfile &&
+        profiles.some((profile) => profile.id === urlProfile) &&
+        urlProfile !== current
+      ) {
+        return urlProfile;
+      }
 
-    const current = internalProfileIdRef.current;
-    if (current && profiles.some((profile) => profile.id === current)) {
-      return;
-    }
+      if (current && profiles.some((profile) => profile.id === current)) {
+        return current;
+      }
 
-    setProfileIdState(nextProfileId);
+      return nextProfileId;
+    });
   }, [embedded, profiles, searchParams]);
 
   useEffect(() => {

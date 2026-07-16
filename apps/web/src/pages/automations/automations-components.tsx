@@ -18,7 +18,7 @@ import {
   XCircleIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MessageResponse } from "@/components/ai-elements/message";
 import { TimezoneSelect } from "@/components/TimezoneSelect";
 import { Button } from "@/components/ui/button";
@@ -744,5 +744,234 @@ export function RunStatusBadge({ status }: { status: AutomationRunStatus }) {
     >
       {status}
     </span>
+  );
+}
+
+export function DeliverySettingsFields({
+  delivery,
+  busy,
+  onChange,
+}: {
+  delivery?: AutomationDelivery;
+  busy: boolean;
+  onChange: (delivery: AutomationDelivery | undefined) => void;
+}) {
+  const channel = delivery?.channel ?? "none";
+
+  return (
+    <div className="grid gap-4 rounded-md border border-border bg-muted/20 p-4">
+      <Field label="Send results to">
+        <Select
+          value={channel}
+          disabled={busy}
+          onValueChange={(value) => {
+            const next = String(value);
+
+            if (next === "none") {
+              onChange(undefined);
+              return;
+            }
+
+            onChange({
+              channel: next as AutomationDeliveryChannel,
+              ...(next === "email" && delivery?.to ? { to: delivery.to } : {}),
+              ...(delivery?.notifyOn ? { notifyOn: delivery.notifyOn } : {}),
+            });
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None (run history only)</SelectItem>
+            <SelectItem value="telegram">Telegram</SelectItem>
+            <SelectItem value="whatsapp">WhatsApp</SelectItem>
+            <SelectItem value="email">Email</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+
+      {delivery?.channel === "email" ? (
+        <Field label="Email recipient">
+          <Input
+            type="email"
+            value={delivery.to ?? ""}
+            disabled={busy}
+            placeholder="you@example.com"
+            onChange={(event) =>
+              onChange({
+                ...delivery,
+                to: event.target.value,
+              })
+            }
+          />
+        </Field>
+      ) : null}
+
+      {delivery ? (
+        <Field label="Notify on">
+          <Select
+            value={delivery.notifyOn ?? "success"}
+            disabled={busy}
+            onValueChange={(value) =>
+              onChange({
+                ...delivery,
+                notifyOn: String(value) as AutomationDelivery["notifyOn"],
+              })
+            }
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="success">Successful runs</SelectItem>
+              <SelectItem value="failure">Failed runs</SelectItem>
+              <SelectItem value="both">Success and failure</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      ) : null}
+    </div>
+  );
+}
+
+export function DeliveryStatusBadge({
+  status,
+  error,
+}: {
+  status: NonNullable<AutomationRunRecord["deliveryStatus"]>;
+  error?: string | null;
+}) {
+  const label =
+    status === "sent"
+      ? "Delivered"
+      : status === "failed"
+        ? "Delivery failed"
+        : "Delivery skipped";
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+        status === "sent" && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+        status === "failed" && "bg-destructive/10 text-destructive",
+        status === "skipped" && "bg-muted text-muted-foreground",
+      )}
+      title={error ?? undefined}
+    >
+      {label}
+    </span>
+  );
+}
+
+export function AutomationStateBadge({ enabled }: { enabled: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium",
+        enabled ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground",
+      )}
+    >
+      <span className={cn("size-1.5 rounded-full", enabled ? "bg-emerald-500" : "bg-muted-foreground/70")} />
+      {enabled ? "Enabled" : "Disabled"}
+    </span>
+  );
+}
+
+export function AutomationStateDot({ enabled }: { enabled: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-block size-2 rounded-full",
+        enabled ? "bg-emerald-500" : "bg-muted-foreground/50",
+      )}
+      aria-hidden
+    />
+  );
+}
+
+export function MetaStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "default" | "attention";
+}) {
+  return (
+    <div className="rounded-md border border-border/60 px-3 py-3">
+      <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p
+        className={cn(
+          "mt-1 text-sm font-medium",
+          tone === "attention" ? "text-primary" : "text-foreground",
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+export function SoftPill({
+  label,
+  tone = "default",
+}: {
+  label: string;
+  tone?: "default" | "success" | "danger";
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-1 text-[11px] font-medium",
+        tone === "default" && "bg-muted text-muted-foreground",
+        tone === "success" && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+        tone === "danger" && "bg-destructive/10 text-destructive",
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
+export function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-xs font-medium text-muted-foreground">{label}</label>
+      {children}
+      {hint ? (
+        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
+export function MetaRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm text-foreground" title={hint}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+export function ListSkeleton({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="space-y-2" aria-busy="true" aria-label="Loading">
+      {Array.from({ length: rows }).map((_, index) => (
+        <div key={index} className="h-10 animate-pulse rounded-md bg-muted/40" />
+      ))}
+    </div>
   );
 }
