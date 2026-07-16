@@ -126,7 +126,7 @@ export function mergeOpenRouterModelOptions(
   ];
 }
 
-export function openRouterModelDisplayName(
+function openRouterModelDisplayName(
   rows: OpenRouterModelRow[],
   modelId: string,
 ): string | undefined {

@@ -269,6 +269,7 @@ export function TasksPage() {
 
       {showHistoryPanel && focusedTask ? (
         <TaskRunHistoryPanel
+          key={focusedTask.id}
           task={focusedTask}
           profile={profileById.get(focusedTask.profileId) ?? null}
           onClose={() => setFocusedTaskId(null)}

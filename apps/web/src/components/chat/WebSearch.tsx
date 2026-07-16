@@ -182,7 +182,7 @@ export interface WebSearchProps {
   formatDisplayUrl?: (source: WebSearchSource) => string;
 }
 
-export function formatWebSearchDisplayUrl(source: WebSearchSource): string {
+function formatWebSearchDisplayUrl(source: WebSearchSource): string {
   const href = source.href ?? source.url;
 
   try {

@@ -13,16 +13,16 @@ import {
   isSubAgentTool,
   parseSubAgentResult,
 } from "@/lib/chat-stream";
-import { isWebSearchTool } from "@/lib/chat-stream-web-search";
-import { isWebFetchTool } from "@/lib/chat-stream-web-fetch";
 import {
+  isWebSearchTool,
   shouldRenderWebSearchToolRow,
-  WebSearchToolRow,
-} from "@/components/chat/WebSearchToolRow";
+} from "@/lib/chat-stream-web-search";
 import {
+  isWebFetchTool,
   shouldRenderWebFetchToolRow,
-  WebFetchToolRow,
-} from "@/components/chat/WebFetchToolRow";
+} from "@/lib/chat-stream-web-fetch";
+import { WebSearchToolRow } from "@/components/chat/WebSearchToolRow";
+import { WebFetchToolRow } from "@/components/chat/WebFetchToolRow";
 import { isArtifactMetaSidecarTool } from "@/lib/chat-artifacts";
 import { ThinkingReasoning } from "@/components/chat/ThinkingReasoning";
 import { cn } from "@/lib/utils";

@@ -37,5 +37,3 @@ export function WebFetchToolRow({ message }: { message: ChatListItem }) {
     </div>
   );
 }
-
-export { shouldRenderWebFetchToolRow };

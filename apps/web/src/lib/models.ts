@@ -364,7 +364,7 @@ export function getModelDisplayName(
   return models.find((model) => model.id === modelId)?.name ?? modelId;
 }
 
-export function resolveModelForProvider(
+function resolveModelForProvider(
   provider: SelectedProvider,
   catalogModel: string,
   customModel?: string,
