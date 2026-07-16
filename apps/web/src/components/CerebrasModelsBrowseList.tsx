@@ -21,13 +21,14 @@ interface CerebrasModelsBrowseListProps {
 
 const MODEL_ROW_HEIGHT = 73;
 const MODEL_ROW_OVERSCAN = 6;
+const EMPTY_ROWS: CerebrasModelRow[] = [];
 
 export function CerebrasModelsBrowseList({
   onSelect,
   className,
 }: CerebrasModelsBrowseListProps) {
   const { data, isLoading, error } = useCerebrasModels();
-  const rows = data?.rows ?? [];
+  const rows = data?.rows ?? EMPTY_ROWS;
   const usedFallback = data?.usedFallback ?? false;
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
