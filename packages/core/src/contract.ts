@@ -340,7 +340,7 @@ export interface ListOrgMembersResponse {
 export interface AddOrgMemberRequest {
   name: string;
   email: string;
-  phone: string;
+  phone?: string;
   role: OrgRole;
 }
 

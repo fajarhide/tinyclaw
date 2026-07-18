@@ -207,7 +207,7 @@ export class OrgService {
 
     const name = input.name.trim();
     const email = normalizeEmail(input.email);
-    const phone = input.phone.trim();
+    const phone = normalizeOptionalPhone(input.phone);
 
     if (!name) {
       throw new NakamaApiError("Member name is required.", 400);
@@ -215,10 +215,6 @@ export class OrgService {
 
     if (!EMAIL_PATTERN.test(email)) {
       throw new NakamaApiError("A valid email address is required.", 400);
-    }
-
-    if (!phone || !PHONE_PATTERN.test(phone)) {
-      throw new NakamaApiError("A valid phone number is required.", 400);
     }
 
     if (!ORG_ROLES.includes(input.role)) {
@@ -635,8 +631,8 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function normalizeOptionalPhone(phone: string): string | null {
-  const trimmed = phone.trim();
+function normalizeOptionalPhone(phone: string | null | undefined): string | null {
+  const trimmed = phone?.trim() ?? "";
   if (!trimmed) {
     return null;
   }

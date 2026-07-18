@@ -184,6 +184,26 @@ describe("OrgService", () => {
     expect(added.temporaryPassword).toHaveLength(12);
   });
 
+  test("adds a member without phone", async () => {
+    const { orgService } = createOrgService();
+    const created = await orgService.createOrganization({
+      name: "Acme",
+      slug: "acme-no-member-phone",
+    });
+
+    const added = await orgService.addMember({
+      orgId: created.organization.id,
+      name: "Member Two",
+      email: "member-no-phone@acme.com",
+      phone: "",
+      role: "member",
+    });
+
+    expect(added.member.email).toBe("member-no-phone@acme.com");
+    expect(added.member.phone).toBeNull();
+    expect(added.temporaryPassword).toHaveLength(12);
+  });
+
   test("allows changing password after provisioning", async () => {
     const { orgService } = createOrgService();
     const created = await orgService.createOrganization({

@@ -6,6 +6,7 @@ import {
   OrgMemberAddDialog,
   OrgMemberEditDialog,
   OrgMemberInviteDialog,
+  type OrgMemberAddCredentials,
 } from "@/components/settings/org-member-dialogs";
 import {
   OrgMembersCardHeader,
@@ -38,6 +39,8 @@ type OrgMembersState = {
   formError: string | null;
   secretHint: string | null;
   secretValue: string | null;
+  addCredentials: OrgMemberAddCredentials | null;
+  addCopyHint: string | null;
 };
 
 const initialOrgMembersState: OrgMembersState = {
@@ -57,6 +60,8 @@ const initialOrgMembersState: OrgMembersState = {
   formError: null,
   secretHint: null,
   secretValue: null,
+  addCredentials: null,
+  addCopyHint: null,
 };
 
 type OrgMembersAction =
@@ -84,6 +89,8 @@ function orgMembersReducer(state: OrgMembersState, action: OrgMembersAction): Or
         addPhone: "",
         addRole: "member",
         formError: null,
+        addCredentials: null,
+        addCopyHint: null,
       };
     case "reset-edit":
       return {
@@ -144,6 +151,18 @@ export function OrgMembersCard() {
     }
   }
 
+  async function copyAddCredential(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      dispatch({ type: "patch", values: { addCopyHint: "Copied to clipboard." } });
+    } catch {
+      dispatch({
+        type: "patch",
+        values: { addCopyHint: "Could not copy — select and copy manually." },
+      });
+    }
+  }
+
   function handleInviteSubmit(event: React.FormEvent) {
     event.preventDefault();
     dispatch({ type: "patch", values: { formError: null } });
@@ -177,7 +196,7 @@ export function OrgMembersCard() {
 
   function handleAddSubmit(event: React.FormEvent) {
     event.preventDefault();
-    dispatch({ type: "patch", values: { formError: null } });
+    dispatch({ type: "patch", values: { formError: null, addCopyHint: null } });
     dispatch({ type: "clear-secrets" });
 
     const name = state.addName.trim();
@@ -197,15 +216,18 @@ export function OrgMembersCard() {
             dispatch({
               type: "patch",
               values: {
-                secretValue: result.temporaryPassword,
-                secretHint:
-                  "Share this temporary password once. It will not be shown again.",
-                addOpen: false,
+                addCredentials: {
+                  email: result.member.email,
+                  temporaryPassword: result.temporaryPassword,
+                },
+                addCopyHint: null,
+                formError: null,
               },
             });
-          } else {
-            dispatch({ type: "patch", values: { addOpen: false } });
+            return;
           }
+
+          dispatch({ type: "patch", values: { addOpen: false } });
           dispatch({ type: "reset-add" });
         },
         onError: (err) =>
@@ -337,6 +359,8 @@ export function OrgMembersCard() {
         addRole={state.addRole}
         formError={state.formError}
         pending={addMutation.isPending}
+        credentials={state.addCredentials}
+        copyHint={state.addCopyHint}
         onOpenChange={(open) => {
           dispatch({ type: "patch", values: { addOpen: open } });
           if (!open) {
@@ -347,6 +371,7 @@ export function OrgMembersCard() {
         onAddEmailChange={(value) => dispatch({ type: "patch", values: { addEmail: value } })}
         onAddPhoneChange={(value) => dispatch({ type: "patch", values: { addPhone: value } })}
         onAddRoleChange={(value) => dispatch({ type: "patch", values: { addRole: value } })}
+        onCopyCredential={(value) => void copyAddCredential(value)}
         onSubmit={handleAddSubmit}
       />
 
