@@ -4,16 +4,16 @@ import { defineConfig } from 'vitepress'
 
 const SITE_NAME = 'Nakama'
 const SITE_TAGLINE = 'AI agents that work with your team.'
-const SITE_DESCRIPTION = 'Nakama is AI agents that work with your team — self-hosted, multi-tenant, and open source.'
+const SITE_DESCRIPTION = 'Nakama is AI agents that work with your team — self-hosted or on managed hosting at getnakama.cloud, multi-tenant, and open source.'
 const SITE_URL = 'https://ahmadrosid.github.io/nakama'
 const AUTHOR_NAME = 'Ahmad Rosid'
 const AUTHOR_ROLE = 'Creator and maintainer of Nakama'
 const OG_IMAGE_URL = `${SITE_URL}/nakama-demo.png`
 
 const pageDescriptions: Record<string, string> = {
-  'index.md': 'Nakama is AI agents that work with your team — with profiles, tools, channels, and multi-tenant workspaces.',
+  'index.md': 'Nakama is AI agents that work with your team — with profiles, tools, channels, multi-tenant workspaces, and managed hosting at getnakama.cloud.',
   'getting-started.md': 'Install Nakama with Bun or Docker, use managed hosting at getnakama.cloud, and complete first-time setup.',
-  'overview.md': 'Understand the Nakama mental model: organizations, profiles, tools, and channels.',
+  'overview.md': 'Understand the Nakama mental model: organizations, profiles, tools, channels, and deployment options including managed hosting.',
   'multi-tenancy.md': 'Learn how organizations, roles, and tenant isolation work in Nakama.',
   'profiles.md': 'See how Nakama profiles define bot behavior, soul files, memory, tools, and model selection.',
   'agent-prompt.md': 'Understand how Nakama builds the final system prompt from soul files, tools, bundled system skills, and runtime context.',
@@ -108,7 +108,7 @@ function buildLlmsTxt(pages: string[]) {
       page: "discord.md",
     },
     {
-      topics: "what is Nakama, mental model, organizations, profiles, tools, channels",
+      topics: "what is Nakama, mental model, organizations, profiles, tools, channels, managed hosting, deployment options",
       page: "overview.md",
     },
     {
@@ -178,7 +178,7 @@ function buildLlmsTxt(pages: string[]) {
     '',
     `> ${SITE_DESCRIPTION} ${SITE_TAGLINE}`,
     '',
-    `${SITE_NAME} is AI agents that work with your team. Each profile is an agent with its own role, soul, tools, and memory. Organizations, skills, MCP servers, and channels like web, CLI, Telegram, WhatsApp, and Discord let you run your nakama from one deployment.`,
+    `${SITE_NAME} is AI agents that work with your team. Each profile is an agent with its own role, soul, tools, and memory. Organizations, skills, MCP servers, and channels like web, CLI, Telegram, WhatsApp, and Discord let you run your nakama from one deployment — self-hosted, in Docker, or on managed hosting at https://getnakama.cloud/.`,
     '',
     `Maintainer: ${AUTHOR_NAME} (${AUTHOR_ROLE})`,
     `Website: ${SITE_URL}/`,
@@ -277,6 +277,7 @@ export default defineConfig({
     },
     nav: [
       { text: 'Docs', link: '/getting-started' },
+      { text: 'Managed hosting', link: 'https://getnakama.cloud/' },
     ],
     sidebar: [
       {

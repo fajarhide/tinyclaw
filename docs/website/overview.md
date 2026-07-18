@@ -70,6 +70,16 @@ The same Nakama profile can be used from different places:
 - WhatsApp
 - Discord
 
+## How to run Nakama
+
+Nakama can run:
+
+- On [managed hosting](https://getnakama.cloud/) — sign up, create an instance, and open your dedicated URL (for example `acme.getnakama.cloud`)
+- Locally with Bun for development
+- In Docker on your own infrastructure
+
+See [Getting Started](/getting-started) for setup steps.
+
 ## Typical setup
 
 Most deployments follow this pattern:
@@ -87,7 +97,7 @@ Nakama is a good fit when you want:
 
 - A team of AI agents, not a single general-purpose assistant
 - Each agent with a distinct role, tools, and behavior
-- Your own open-source, self-hosted agent platform
+- Your own open-source agent platform — self-hosted or on [managed hosting](https://getnakama.cloud/)
 - Team or tenant separation across organizations
 - Web and messaging channels on top of one backend
 

@@ -1,6 +1,6 @@
 # AI agents that work with your team
 
-Give each agent a role, assign tools and memory, and run your whole nakama from one self-hosted deployment.
+Give each agent a role, assign tools and memory, and run your whole nakama from one deployment — self-hosted or on managed hosting.
 
 Set up the server once, create organizations and profiles, give each agent its role, and let people collaborate with the right member of your nakama for each task.
 
