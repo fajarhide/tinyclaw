@@ -301,6 +301,7 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
 
     const response = await createBrowserSessionResponse(authService, databaseAdapter, user, {
       activeOrgId: organization.id,
+      request: c.req.raw,
     });
     const authBody = await orgService.buildAuthUserResponse(
       user,
@@ -328,7 +329,9 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
       return errorResponse("Invalid credentials", 401);
     }
 
-    const response = await createBrowserSessionResponse(authService, databaseAdapter, user);
+    const response = await createBrowserSessionResponse(authService, databaseAdapter, user, {
+      request: c.req.raw,
+    });
     const authBody = await orgService.buildAuthUserResponse(
       user,
       response.session.id,
@@ -430,7 +433,7 @@ export function registerAuthRoutes(app: HonoApp, options: ServerOptions): void {
       authService,
       databaseAdapter,
       accepted.user,
-      { activeOrgId: accepted.orgId },
+      { activeOrgId: accepted.orgId, request: c.req.raw },
     );
 
     return json<AcceptOrgInviteResponse>(
