@@ -93,8 +93,29 @@ function isMutatingMethod(method: string): boolean {
   return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
 }
 
-function isSecureCookieRequest(): boolean {
-  return process.env.NODE_ENV === "production";
+/**
+ * Cookies must only carry the Secure flag when the browser is on HTTPS.
+ * NODE_ENV=production alone is not enough — Docker serves HTTP by default and
+ * browsers drop Secure cookies on http:// hosts (#112).
+ *
+ * X-Forwarded-Proto can upgrade http backends behind TLS terminators, but must
+ * never downgrade an https request URL (spoofed/forwarded "http").
+ */
+function isSecureCookieRequest(request: Request): boolean {
+  const forwardedProto = request.headers
+    .get("x-forwarded-proto")
+    ?.split(",")[0]
+    ?.trim()
+    .toLowerCase();
+
+  let urlIsHttps = false;
+  try {
+    urlIsHttps = new URL(request.url).protocol === "https:";
+  } catch {
+    urlIsHttps = false;
+  }
+
+  return urlIsHttps || forwardedProto === "https";
 }
 
 export interface RequestAuthContext {
@@ -225,11 +246,12 @@ function applyBrowserSessionCookies(
   headers: Headers,
   sessionToken: string,
   csrfToken: string,
+  request: Request,
 ): void {
   const cookieBase = {
     path: "/",
     sameSite: "Lax" as const,
-    secure: isSecureCookieRequest(),
+    secure: isSecureCookieRequest(request),
   };
 
   appendSetCookie(
@@ -254,7 +276,7 @@ export async function createBrowserSessionResponse(
   authService: AuthService,
   databaseAdapter: DatabaseAdapter,
   user: StoredUserRecord,
-  options: { activeOrgId?: string | null } = {},
+  options: { activeOrgId?: string | null; request: Request },
 ): Promise<{
   body: { email: string };
   headers: Headers;
@@ -277,7 +299,12 @@ export async function createBrowserSessionResponse(
   await databaseAdapter.createBrowserSession(record);
 
   const headers = new Headers();
-  applyBrowserSessionCookies(headers, session.sessionToken, session.csrfToken);
+  applyBrowserSessionCookies(
+    headers,
+    session.sessionToken,
+    session.csrfToken,
+    options.request,
+  );
 
   return {
     body: { email: user.email },
@@ -290,25 +317,29 @@ export function clearBrowserSessionCookies(headers: Headers): void {
   const cookieBase = {
     path: "/",
     sameSite: "Lax" as const,
-    secure: isSecureCookieRequest(),
   };
 
-  appendSetCookie(
-    headers,
-    buildCookie(SESSION_COOKIE_NAME, "", {
-      ...cookieBase,
-      httpOnly: true,
-      maxAge: 0,
-    }),
-  );
-
-  appendSetCookie(
-    headers,
-    buildCookie(CSRF_COOKIE_NAME, "", {
-      ...cookieBase,
-      maxAge: 0,
-    }),
-  );
+  // Clear both Secure and non-Secure variants so logout still works if the
+  // Secure decision differs between login and logout (proxy header drift).
+  for (const secure of [true, false] as const) {
+    appendSetCookie(
+      headers,
+      buildCookie(SESSION_COOKIE_NAME, "", {
+        ...cookieBase,
+        httpOnly: true,
+        maxAge: 0,
+        secure,
+      }),
+    );
+    appendSetCookie(
+      headers,
+      buildCookie(CSRF_COOKIE_NAME, "", {
+        ...cookieBase,
+        maxAge: 0,
+        secure,
+      }),
+    );
+  }
 }
 
 export async function readJson<T>(request: Request): Promise<T> {
