@@ -117,10 +117,6 @@ Across runs, sessions are **fresh** by default: no sticky cookies or restored lo
 | Clicks miss or fail after navigation | Agent should take a **fresh snapshot** before using refs again |
 | Daemon seems stuck | Ask the agent to run `agent-browser close` or `agent-browser close --all` (or `agent-browser doctor`) |
 
-## Optional: stealth Chromium (CloakBrowser)
-
-Stock Chrome from `agent-browser install` is enough for many sites. For stronger bot detection, operators can point agent-browser at [CloakBrowser](https://github.com/CloakHQ/CloakBrowser) using Cloak’s documented env vars (`AGENT_BROWSER_EXECUTABLE_PATH` / `AGENT_BROWSER_ARGS`). First-class Nakama support for that path is tracked separately — see [issue #121](https://github.com/ahmadrosid/nakama/issues/121).
-
 ## Next steps
 
 - [Skills](/skills) — bundled skills catalog and assignment
