@@ -67,6 +67,9 @@ export const queryKeys = {
   codingHarnesses: {
     settings: ["codingHarnesses", "settings"] as const,
   },
+  agentBrowser: {
+    settings: ["agentBrowser", "settings"] as const,
+  },
   whatsapp: {
     settings: ["whatsapp", "settings"] as const,
   },

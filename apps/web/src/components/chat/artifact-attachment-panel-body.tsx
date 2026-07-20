@@ -51,27 +51,62 @@ function renderTextContent({
 
 export function ArtifactAttachmentPanelBody({
   isHtml,
+  isImage = false,
   isMarkdown,
   language,
   loading,
   error,
   content,
+  imagePreviewUrl = null,
   canPreview,
   artifact,
   streaming = false,
   htmlSandbox = ARTIFACT_HTML_IFRAME_SANDBOX,
 }: {
   isHtml: boolean;
+  isImage?: boolean;
   isMarkdown: boolean;
   language: string | null;
   loading: boolean;
   error: string | null;
   content: string | null;
+  imagePreviewUrl?: string | null;
   canPreview: boolean;
   artifact: ChatArtifactRef;
   streaming?: boolean;
   htmlSandbox?: string;
 }) {
+  if (isImage) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        {loading ? (
+          <div className="flex flex-1 items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
+            <Spinner className="size-4" />
+            Loading preview…
+          </div>
+        ) : null}
+
+        {error ? <p className="p-4 text-sm text-destructive">{error}</p> : null}
+
+        {!loading && !error && imagePreviewUrl ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center p-4">
+            <img
+              src={imagePreviewUrl}
+              alt={artifact.filename}
+              className="max-h-[min(70vh,48rem)] max-w-full rounded-lg border border-border bg-muted/20 object-contain"
+            />
+          </div>
+        ) : null}
+
+        {!loading && !error && !imagePreviewUrl && !canPreview ? (
+          <p className="p-4 text-sm text-muted-foreground">
+            Preview is not available for this file type. Download the artifact instead.
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   if (isHtml) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">

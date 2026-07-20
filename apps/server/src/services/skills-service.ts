@@ -11,6 +11,7 @@ import type {
 } from "@nakama/core";
 import {
   BUNDLED_SKILL_NAMES,
+  composeAgentBrowserCapabilityPrompt,
   composeMatchedSkillsPrompt,
   composeSkillsCatalog,
   createId,
@@ -169,6 +170,14 @@ export class SkillsService {
   async composeCatalogForProfile(orgId: string, profileId: string): Promise<string> {
     const assigned = await this.getAssignedDiscoveredSkills(orgId, profileId);
     return composeSkillsCatalog(assigned);
+  }
+
+  async composeAgentBrowserCapabilityForProfile(
+    orgId: string,
+    profileId: string,
+  ): Promise<string> {
+    const assigned = await this.getAssignedDiscoveredSkills(orgId, profileId);
+    return composeAgentBrowserCapabilityPrompt(assigned);
   }
 
   async formatMatchedSkillsForPrompt(

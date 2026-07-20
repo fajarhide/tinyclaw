@@ -51,6 +51,7 @@ import type {
   SyncSkillsResponse,
   SoulStatusResponse,
   CodingHarnessSettingsResponse,
+  AgentBrowserStatusResponse,
   CodingAgentLaunchPlanResponse,
   PrepareCodingAgentLaunchRequest,
   TelegramSettingsResponse,
@@ -202,6 +203,7 @@ import {
   saveCodingAgentWorkspaceSettings,
   verifyCodingAgentHarness,
 } from "./coding-agent-harness-service";
+import { getAgentBrowserStatus } from "./agent-browser-service";
 import {
   buildCodingAgentCommandTemplate,
   formatCodingAgentCommandContext,
@@ -875,6 +877,10 @@ export class AgentService {
 
   async verifyCodingHarness(harnessId?: string): Promise<VerifyCodingHarnessResponse> {
     return verifyCodingAgentHarness(this.db, harnessId);
+  }
+
+  async getAgentBrowserStatus(): Promise<AgentBrowserStatusResponse> {
+    return getAgentBrowserStatus();
   }
 
   async prepareCodingAgentLaunch(
@@ -2606,6 +2612,13 @@ export class AgentService {
 
       if (skillsCatalog.trim()) {
         systemPrompt = `${systemPrompt.trim()}\n\n${skillsCatalog.trim()}`;
+      }
+
+      const agentBrowserCapability =
+        await this.skillsService.composeAgentBrowserCapabilityForProfile(orgId, profileId);
+
+      if (agentBrowserCapability.trim()) {
+        systemPrompt = `${systemPrompt.trim()}\n\n${agentBrowserCapability.trim()}`;
       }
     }
 

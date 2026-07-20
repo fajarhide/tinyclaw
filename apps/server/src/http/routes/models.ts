@@ -15,6 +15,7 @@ import {
   type ComposioSettingsResponse,
   type CodingHarnessSettingsResponse,
   type CodingHarnessInstallRequest,
+  type AgentBrowserStatusResponse,
   type EmailSettingsResponse,
   type SendEmailTestRequest,
   type SendEmailTestResponse,
@@ -47,7 +48,8 @@ import type { ServerOptions } from "../context";
 import { errorResponse, json, readJson } from "../shared";
 import { requireOrgAdminFromContext } from "../org-guards";
 import { installCodingAgentHarness } from "../../services/coding-agent-harness-service";
-import { streamCodingHarnessInstall } from "../coding-harness-install-stream";
+import { installAgentBrowser } from "../../services/agent-browser-service";
+import { streamAgentBrowserInstall, streamCodingHarnessInstall } from "../coding-harness-install-stream";
 
 export function registerModelRoutes(app: HonoApp, options: ServerOptions): void {
   const { agent, workerManager, databaseAdapter } = options;
@@ -92,6 +94,14 @@ export function registerModelRoutes(app: HonoApp, options: ServerOptions): void 
     .object({})
     .passthrough()
     .openapi("CodingHarnessInstallEvent");
+  const agentBrowserStatusSchema = z
+    .object({})
+    .passthrough()
+    .openapi("AgentBrowserStatusResponse");
+  const agentBrowserInstallEventSchema = z
+    .object({})
+    .passthrough()
+    .openapi("AgentBrowserInstallEvent");
   const sendEmailTestRequestSchema = z.object({ to: z.string().optional() }).openapi("SendEmailTestRequest");
   const sendEmailTestResponseSchema = z.object({ ok: z.literal(true), to: z.string(), messageId: z.string() }).openapi("SendEmailTestResponse");
   const updateEmailRequestSchema = z.object({}).passthrough().openapi("UpdateEmailSettingsRequest");
@@ -438,6 +448,22 @@ export function registerModelRoutes(app: HonoApp, options: ServerOptions): void 
   }));
   app.openAPIRegistry.registerPath(createRoute({
     method: "get",
+    path: "/v1/settings/agent-browser",
+    tags: ["Models"],
+    summary: "Get agent-browser readiness",
+    operationId: "getAgentBrowserStatus",
+    responses: { 200: { description: "Agent-browser status", content: { "application/json": { schema: agentBrowserStatusSchema } } }, 403: { description: "Forbidden", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "post",
+    path: "/v1/settings/agent-browser/install",
+    tags: ["Models"],
+    summary: "Install agent-browser CLI and Chrome",
+    operationId: "installAgentBrowser",
+    responses: { 200: { description: "Agent-browser install stream", content: { "application/json": { schema: agentBrowserInstallEventSchema } } }, 400: { description: "Error", content: { "application/json": { schema: errorSchema } } }, 403: { description: "Forbidden", content: { "application/json": { schema: errorSchema } } } },
+  }));
+  app.openAPIRegistry.registerPath(createRoute({
+    method: "get",
     path: "/v1/settings/whatsapp",
     tags: ["Models"],
     summary: "Get WhatsApp settings",
@@ -690,6 +716,31 @@ export function registerModelRoutes(app: HonoApp, options: ServerOptions): void 
       });
     }, {
       timeoutMessage: "Install timed out while waiting for the coding harness installer.",
+    });
+  });
+
+  app.get("/v1/settings/agent-browser", async (c) => {
+    requireOrgAdminFromContext(c);
+    return json<AgentBrowserStatusResponse>(await agent.getAgentBrowserStatus());
+  });
+
+  app.post("/v1/settings/agent-browser/install", async (c) => {
+    requireOrgAdminFromContext(c);
+
+    return streamAgentBrowserInstall(async (send) => {
+      const status = await installAgentBrowser((progress) => {
+        send({
+          type: "progress",
+          message: progress.message,
+        });
+      });
+
+      send({
+        type: "done",
+        status,
+      });
+    }, {
+      timeoutMessage: "Install timed out while waiting for the agent-browser installer.",
     });
   });
 

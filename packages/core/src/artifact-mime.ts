@@ -120,6 +120,17 @@ export function isTextArtifactMimeType(mimeType: string): boolean {
   );
 }
 
+/** Raster images previewable with `<img>`; SVG stays in the text path. */
+export function isImageArtifactMimeType(mimeType: string): boolean {
+  const normalized = normalizeMimeType(mimeType);
+
+  if (!normalized.startsWith("image/") || normalized === "image/svg+xml") {
+    return false;
+  }
+
+  return true;
+}
+
 /** True when the type carries no information about how to render the bytes. */
 export function isUnknownArtifactMimeType(mimeType: string): boolean {
   return normalizeMimeType(mimeType) === UNKNOWN_MIME_TYPE;

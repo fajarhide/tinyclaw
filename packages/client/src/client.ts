@@ -79,6 +79,8 @@ import type {
   CodingHarnessSettingsResponse,
   CodingHarnessInstallRequest,
   CodingHarnessStatus,
+  AgentBrowserStatusResponse,
+  AgentBrowserInstallEvent,
   EmailSettingsResponse,
   SendEmailTestRequest,
   SendEmailTestResponse,
@@ -163,6 +165,7 @@ import { resolveServerUrl } from "@nakama/core/runtime";
 import { readBrowserOrigin, readCookie } from "./browser";
 import {
   readCodingHarnessInstallStream,
+  readAgentBrowserInstallStream,
   normalizeStreamHandlers,
   readStreamEvents,
   resolveSendMessageBody,
@@ -1340,6 +1343,37 @@ export class NakamaClient {
     }
 
     return readCodingHarnessInstallStream(response.body, handlers, options?.signal);
+  }
+
+  async getAgentBrowserStatus(): Promise<AgentBrowserStatusResponse> {
+    return this.request<AgentBrowserStatusResponse>("/v1/settings/agent-browser");
+  }
+
+  async installAgentBrowser(
+    handlers: {
+      onProgress?: (message: string) => void;
+      onDone?: (status: AgentBrowserStatusResponse) => void;
+    } = {},
+    options?: { signal?: AbortSignal },
+  ): Promise<AgentBrowserStatusResponse> {
+    const response = await this.fetchImpl(`${this.baseUrl}/v1/settings/agent-browser/install`, {
+      method: "POST",
+      headers: this.buildHeaders("POST", {
+        Accept: "text/event-stream",
+      }),
+      signal: options?.signal,
+      credentials: this.credentials,
+    });
+
+    if (!response.ok) {
+      throw await createApiError(response, "/v1/settings/agent-browser/install");
+    }
+
+    if (!response.body) {
+      throw new Error("Server returned an empty stream.");
+    }
+
+    return readAgentBrowserInstallStream(response.body, handlers, options?.signal);
   }
 
   async prepareCodingAgentLaunch(

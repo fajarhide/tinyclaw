@@ -6,6 +6,7 @@ export {
   inferArtifactMimeType,
   isDocxFile,
   isHtmlArtifactMimeType,
+  isImageArtifactMimeType,
   isLegacyDocFile,
   isMarkdownArtifactMimeType,
   isTextArtifactMimeType,

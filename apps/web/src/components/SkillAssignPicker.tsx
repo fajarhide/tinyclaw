@@ -3,9 +3,13 @@ import {
   BUNDLED_SKILL_NAMES,
   RUNTIME_ONLY_BUNDLED_SKILL_NAMES,
 } from "@nakama/core/skills/bundled-names";
-import { CheckIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { CheckIcon, DownloadIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState, type SyntheticEvent } from "react";
 import { Link } from "react-router-dom";
+import {
+  useAgentBrowserSettings,
+  useInstallAgentBrowser,
+} from "@/hooks/use-agent-browser-settings";
 import { useCodingHarnessSettings } from "@/hooks/use-coding-harness-settings";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,10 +28,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
+import { formatError } from "@/lib/client";
 import { cn } from "@/lib/utils";
 
 const bundledSkillNames = new Set<string>(BUNDLED_SKILL_NAMES);
 const runtimeOnlySkillNames = new Set<string>(RUNTIME_ONLY_BUNDLED_SKILL_NAMES);
+const AGENT_BROWSER_SKILL_NAME = "agent-browser";
 
 function isUserLibrarySkill(skill: SkillSummary): boolean {
   return !bundledSkillNames.has(skill.name);
@@ -40,6 +47,8 @@ interface SkillAssignPickerProps {
   buttonLabel?: string;
   onAssign: (skillId: string) => void | Promise<void>;
   onDelete?: (skillId: string) => void | Promise<void>;
+  bashAssigned?: boolean;
+  onAssignBash?: () => void | Promise<void>;
   className?: string;
 }
 
@@ -87,20 +96,72 @@ export function SkillAssignPicker({
   buttonLabel = "Add skill",
   onAssign,
   onDelete,
+  bashAssigned = true,
+  onAssignBash,
   className,
 }: SkillAssignPickerProps) {
   const [open, setOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const { data: codingHarnessSettings } = useCodingHarnessSettings(open);
+  const [assigningBash, setAssigningBash] = useState(false);
+  const [agentBrowserInstallProgress, setAgentBrowserInstallProgress] = useState<string | null>(null);
+  const [agentBrowserInstallError, setAgentBrowserInstallError] = useState<string | null>(null);
 
   const librarySkills = skills.filter((skill) => !runtimeOnlySkillNames.has(skill.name));
+  const hasAgentBrowserSkill = librarySkills.some((skill) => skill.name === AGENT_BROWSER_SKILL_NAME);
+  const { data: codingHarnessSettings } = useCodingHarnessSettings(open);
+  const { data: agentBrowserSettings } = useAgentBrowserSettings(open && hasAgentBrowserSkill);
+  const installAgentBrowserMutation = useInstallAgentBrowser();
+
   const availableSkills = librarySkills.filter((skill) => !assignedSkillIds.has(skill.id));
   const onProfileSkills = librarySkills.filter((skill) => assignedSkillIds.has(skill.id));
   const canDeleteLibrarySkills = Boolean(onDelete);
+  const agentBrowserNeedsInstall = hasAgentBrowserSkill && agentBrowserSettings?.ready === false;
+  const bashNeedsAssign = hasAgentBrowserSkill && !bashAssigned;
+  const showAgentBrowserPrereqs = hasAgentBrowserSkill && (agentBrowserNeedsInstall || bashNeedsAssign);
+  const installingAgentBrowser = installAgentBrowserMutation.isPending;
+
+  function isAgentBrowserDisabled(skill: SkillSummary): boolean {
+    return (
+      skill.name === AGENT_BROWSER_SKILL_NAME &&
+      (agentBrowserSettings?.ready === false || !bashAssigned)
+    );
+  }
+
+  function isCommandItemDisabled(skill: SkillSummary): boolean {
+    if (disabled) {
+      return true;
+    }
+
+    if (skill.name === "coding-delegation" && codingHarnessSettings?.configured === false) {
+      return true;
+    }
+
+    // Keep agent-browser rows interactive so Install / Add bash buttons stay clickable.
+    return false;
+  }
 
   function isSkillDisabled(skill: SkillSummary): boolean {
-    return skill.name === "coding-delegation" && codingHarnessSettings?.configured === false;
+    return (
+      (skill.name === "coding-delegation" && codingHarnessSettings?.configured === false) ||
+      isAgentBrowserDisabled(skill)
+    );
+  }
+
+  function agentBrowserRowAction(skill: SkillSummary): "add-bash" | "install" | "add" {
+    if (skill.name !== AGENT_BROWSER_SKILL_NAME) {
+      return "add";
+    }
+
+    if (bashNeedsAssign && onAssignBash) {
+      return "add-bash";
+    }
+
+    if (agentBrowserNeedsInstall) {
+      return "install";
+    }
+
+    return "add";
   }
 
   function canDeleteSkill(skill: SkillSummary): boolean {
@@ -129,6 +190,53 @@ export function SkillAssignPicker({
     }
   }
 
+  function handleInstallAgentBrowser(event: SyntheticEvent) {
+    stopCommandItemSelect(event);
+    if (disabled || installingAgentBrowser || !bashAssigned) {
+      return;
+    }
+
+    setAgentBrowserInstallError(null);
+    setAgentBrowserInstallProgress(null);
+
+    installAgentBrowserMutation.mutate(
+      {
+        onProgress: (message) => {
+          setAgentBrowserInstallProgress(message);
+        },
+      },
+      {
+        onSuccess: (status) => {
+          setAgentBrowserInstallProgress(null);
+          if (!status.ready) {
+            setAgentBrowserInstallError(
+              status.statusMessage ??
+                "Install finished, but agent-browser is not ready yet. Try again or install manually.",
+            );
+          }
+        },
+        onError: (error) => {
+          setAgentBrowserInstallProgress(null);
+          setAgentBrowserInstallError(formatError(error));
+        },
+      },
+    );
+  }
+
+  async function handleAssignBash(event: SyntheticEvent) {
+    stopCommandItemSelect(event);
+    if (!onAssignBash || disabled || bashAssigned || assigningBash) {
+      return;
+    }
+
+    setAssigningBash(true);
+    try {
+      await onAssignBash();
+    } finally {
+      setAssigningBash(false);
+    }
+  }
+
   if (librarySkills.length === 0) {
     return null;
   }
@@ -153,10 +261,12 @@ export function SkillAssignPicker({
           if (!nextOpen) {
             setPendingDelete(null);
             setDeleting(false);
+            setAgentBrowserInstallProgress(null);
+            setAgentBrowserInstallError(null);
           }
         }}
       >
-        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-xl">
+        <DialogContent className="min-w-0 gap-0 overflow-x-hidden p-0 sm:max-w-xl">
           <DialogHeader className="gap-1 border-b border-border px-6 py-4 text-left">
             <DialogTitle>{pendingDelete ? "Delete skill?" : "Manage skills"}</DialogTitle>
             <DialogDescription>
@@ -187,6 +297,47 @@ export function SkillAssignPicker({
             </div>
           ) : (
             <>
+              {showAgentBrowserPrereqs ? (
+                <div className="min-w-0 space-y-2 overflow-hidden border-b border-border/60 px-6 py-3 text-xs text-amber-600 dark:text-amber-300">
+                  {agentBrowserNeedsInstall ? (
+                    <p className="min-w-0 break-words">
+                      Install the agent-browser CLI and Chrome on this server before assigning this
+                      skill.
+                    </p>
+                  ) : null}
+                  {bashNeedsAssign ? (
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <span className="min-w-0 break-words">This profile also needs the bash tool.</span>
+                      {onAssignBash ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          disabled={disabled || assigningBash}
+                          onClick={(event) => void handleAssignBash(event)}
+                        >
+                          {assigningBash ? <Spinner className="size-3.5" /> : <PlusIcon aria-hidden />}
+                          Add bash
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {agentBrowserInstallProgress ? (
+                    <div className="min-w-0 max-w-full overflow-hidden rounded-md bg-amber-500/5 px-2 py-1.5">
+                      <p
+                        className="line-clamp-3 min-w-0 break-all font-mono text-[11px] leading-snug text-amber-700/90 dark:text-amber-200/90"
+                        title={agentBrowserInstallProgress}
+                      >
+                        {agentBrowserInstallProgress}
+                      </p>
+                    </div>
+                  ) : null}
+                  {agentBrowserInstallError ? (
+                    <p className="min-w-0 break-words text-destructive">{agentBrowserInstallError}</p>
+                  ) : null}
+                </div>
+              ) : null}
+
               {codingHarnessSettings?.configured === false ? (
                 <div className="border-b border-border/60 px-6 py-3 text-xs text-amber-600 dark:text-amber-300">
                   Install and verify a coding agent in Integrations before assigning this skill.
@@ -202,11 +353,11 @@ export function SkillAssignPicker({
                 </div>
               ) : null}
 
-              <Command className="rounded-none bg-transparent">
-                <div className="border-b border-border/60 px-2 py-2 [&_[data-slot=command-input-wrapper]]:p-0">
+              <Command className="min-w-0 rounded-none bg-transparent">
+                <div className="min-w-0 border-b border-border/60 px-2 py-2 [&_[data-slot=command-input-wrapper]]:p-0">
                   <CommandInput placeholder="Search skills…" />
                 </div>
-                <CommandList className="max-h-72 p-2">
+                <CommandList className="max-h-72 min-w-0 p-2">
                   <CommandEmpty>No skills found.</CommandEmpty>
 
                   {availableSkills.length > 0 ? (
@@ -219,9 +370,10 @@ export function SkillAssignPicker({
                           <CommandItem
                             key={skill.id}
                             value={`${skill.name} ${skill.description}`}
-                            disabled={disabled || isSkillDisabled(skill)}
+                            disabled={isCommandItemDisabled(skill)}
                             className={cn(
                               "items-center gap-3 px-3 py-2.5",
+                              isAgentBrowserDisabled(skill) && "cursor-default",
                               onDelete && "[&>svg:last-child]:hidden",
                             )}
                             onSelect={() => {
@@ -247,32 +399,72 @@ export function SkillAssignPicker({
                               ) : null}
                               {isSkillDisabled(skill) ? (
                                 <p className="text-xs text-amber-600 dark:text-amber-300">
-                                  Set up a coding agent first.
+                                  {skill.name === AGENT_BROWSER_SKILL_NAME
+                                    ? !bashAssigned
+                                      ? "Add the bash tool to this profile first."
+                                      : "Install agent-browser on this server first."
+                                    : "Set up a coding agent first."}
                                 </p>
                               ) : null}
                             </div>
                             <div
-                              className="flex shrink-0 items-center gap-1"
+                              className="pointer-events-auto flex shrink-0 items-center gap-1"
                               onPointerDown={stopCommandItemSelect}
                               onClick={stopCommandItemSelect}
                             >
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="xs"
-                                disabled={disabled || isSkillDisabled(skill)}
-                                className="[&_svg]:pointer-events-auto"
-                                onClick={(event) => {
-                                  stopCommandItemSelect(event);
-                                  if (isSkillDisabled(skill)) {
-                                    return;
-                                  }
-                                  assignSkill(skill.id, onAssign, setOpen);
-                                }}
-                              >
-                                <PlusIcon aria-hidden />
-                                Add
-                              </Button>
+                              {agentBrowserRowAction(skill) === "add-bash" ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="xs"
+                                  disabled={disabled || assigningBash}
+                                  className="[&_svg]:pointer-events-auto"
+                                  onPointerDown={stopCommandItemSelect}
+                                  onClick={(event) => void handleAssignBash(event)}
+                                >
+                                  {assigningBash ? (
+                                    <Spinner className="size-3.5" />
+                                  ) : (
+                                    <PlusIcon aria-hidden />
+                                  )}
+                                  Add bash
+                                </Button>
+                              ) : agentBrowserRowAction(skill) === "install" ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="xs"
+                                  disabled={disabled || installingAgentBrowser}
+                                  className="[&_svg]:pointer-events-auto"
+                                  onPointerDown={stopCommandItemSelect}
+                                  onClick={handleInstallAgentBrowser}
+                                >
+                                  {installingAgentBrowser ? (
+                                    <Spinner className="size-3.5" />
+                                  ) : (
+                                    <DownloadIcon aria-hidden />
+                                  )}
+                                  Install
+                                </Button>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="xs"
+                                  disabled={disabled || isSkillDisabled(skill)}
+                                  className="[&_svg]:pointer-events-auto"
+                                  onClick={(event) => {
+                                    stopCommandItemSelect(event);
+                                    if (isSkillDisabled(skill)) {
+                                      return;
+                                    }
+                                    assignSkill(skill.id, onAssign, setOpen);
+                                  }}
+                                >
+                                  <PlusIcon aria-hidden />
+                                  Add
+                                </Button>
+                              )}
                               {onDelete ? (
                                 <Button
                                   type="button"

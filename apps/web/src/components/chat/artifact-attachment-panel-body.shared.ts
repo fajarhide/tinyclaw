@@ -2,6 +2,7 @@ import {
   artifactCodeLanguage,
   isDocxFile,
   isHtmlArtifactMimeType,
+  isImageArtifactMimeType,
   isLegacyDocFile,
   isMarkdownArtifactMimeType,
 } from "@/lib/chat-artifacts";
@@ -15,12 +16,13 @@ export function artifactPanelDefaultWidth(
   mimeType: string,
 ): number {
   const isHtml = isHtmlArtifactMimeType(mimeType);
+  const isImage = isImageArtifactMimeType(mimeType);
   const isWordDocument =
     isDocxFile(filename, mimeType) || isLegacyDocFile(filename, mimeType);
   const isMarkdown = isMarkdownArtifactMimeType(mimeType) || isWordDocument;
   const language = artifactCodeLanguage(filename);
 
-  return isHtml || isMarkdown || language
+  return isHtml || isImage || isMarkdown || language
     ? WIDE_ARTIFACT_PANEL_WIDTH
     : NARROW_ARTIFACT_PANEL_WIDTH;
 }
@@ -56,6 +58,10 @@ export function downloadActionLabel(mimeType: string): string {
 
   if (isMarkdownArtifactMimeType(mimeType)) {
     return "Download as Markdown";
+  }
+
+  if (isImageArtifactMimeType(mimeType)) {
+    return "Download image";
   }
 
   if (mimeType === "application/json") {

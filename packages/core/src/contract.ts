@@ -959,6 +959,29 @@ export type CodingHarnessInstallEvent =
       error: string;
     };
 
+export interface AgentBrowserStatusResponse {
+  installed: boolean;
+  version: string | null;
+  ready: boolean;
+  installCommand: string;
+  statusMessage: string | null;
+  nextStep: "install" | null;
+}
+
+export type AgentBrowserInstallEvent =
+  | {
+      type: "progress";
+      message: string;
+    }
+  | {
+      type: "done";
+      status: AgentBrowserStatusResponse;
+    }
+  | {
+      type: "error";
+      error: string;
+    };
+
 export interface UpdateCodingHarnessSettingsRequest {
   selectedHarnessId?: string | null;
   harnesses?: Array<{

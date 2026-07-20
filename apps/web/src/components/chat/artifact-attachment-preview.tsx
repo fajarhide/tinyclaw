@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileTextIcon } from "lucide-react";
+import { FileTextIcon, ImageIcon } from "lucide-react";
 import { ArtifactAttachmentPanelActions } from "@/components/chat/artifact-attachment-panel-actions";
 import {
   ArtifactShareMenuItem,
@@ -16,6 +16,7 @@ import {
   buildArtifactContentUrl,
   isDocxFile,
   isHtmlArtifactMimeType,
+  isImageArtifactMimeType,
   isLegacyDocFile,
   isMarkdownArtifactMimeType,
   isTextArtifactMimeType,
@@ -49,22 +50,41 @@ export function ArtifactAttachmentPreview({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [content, setContent] = useState<string | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const downloadUrl = `${client.baseUrl}${buildArtifactContentUrl(profileId, artifact.path)}`;
   const mimeType = resolveArtifactMimeType(artifact.mimeType, artifact.filename);
   const isHtml = isHtmlArtifactMimeType(mimeType);
+  const isImage = isImageArtifactMimeType(mimeType);
   const isWordDocument =
     isDocxFile(artifact.filename, mimeType) || isLegacyDocFile(artifact.filename, mimeType);
   const isMarkdown = isMarkdownArtifactMimeType(mimeType) || isWordDocument;
   const language = artifactCodeLanguage(artifact.filename);
   const canPreview =
     isHtml ||
+    isImage ||
     isWordDocument ||
     isTextArtifactMimeType(mimeType) ||
     isUnknownArtifactMimeType(mimeType);
   const downloadLabel = downloadActionLabel(mimeType);
 
   useEffect(() => {
-    if (!open || !canPreview || content !== null) {
+    return () => {
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl]);
+
+  useEffect(() => {
+    if (!open || !canPreview) {
+      return;
+    }
+
+    if (isImage) {
+      if (imagePreviewUrl !== null) {
+        return;
+      }
+    } else if (content !== null) {
       return;
     }
 
@@ -84,6 +104,17 @@ export function ArtifactAttachmentPreview({
 
         const contentType = resolveArtifactMimeType(result.contentType, artifact.filename);
         const servedAsHtml = isHtmlArtifactMimeType(contentType);
+        const servedAsImage = isImageArtifactMimeType(contentType);
+
+        if (isImage) {
+          if (!servedAsImage) {
+            setError("Preview is not available for this file type. Download instead.");
+            return;
+          }
+
+          setImagePreviewUrl(URL.createObjectURL(new Blob([result.data], { type: contentType })));
+          return;
+        }
 
         if (isHtml ? !servedAsHtml : servedAsHtml) {
           setError("Preview is not available for this file type. Download instead.");
@@ -119,7 +150,9 @@ export function ArtifactAttachmentPreview({
     open,
     canPreview,
     content,
+    imagePreviewUrl,
     isHtml,
+    isImage,
     isWordDocument,
     profileId,
     artifact.path,
@@ -145,11 +178,13 @@ export function ArtifactAttachmentPreview({
     return (
       <ArtifactAttachmentPanelBody
         isHtml={isHtml}
+        isImage={isImage}
         isMarkdown={isMarkdown}
         language={language}
         loading={loadingOverride ?? loading}
         error={error}
         content={content}
+        imagePreviewUrl={imagePreviewUrl}
         canPreview={canPreview}
         artifact={artifact}
       />
@@ -169,6 +204,7 @@ export function ArtifactAttachmentPreview({
             copied={copied}
             loading={loading}
             content={content}
+            copyDisabled={isImage}
             fullscreen={fullscreen}
             downloadLabel={downloadLabel}
             downloadUrl={downloadUrl}
@@ -185,7 +221,8 @@ export function ArtifactAttachmentPreview({
       ),
       resizable: !fullscreen,
       fullscreen,
-      bodyClassName: isHtml ? "flex flex-col overflow-hidden p-0" : undefined,
+      bodyClassName:
+        isHtml || isImage ? "flex flex-col overflow-hidden p-0" : undefined,
       content: buildPanelBody(),
     };
   }
@@ -204,12 +241,14 @@ export function ArtifactAttachmentPreview({
     artifact,
     fullscreen,
     isHtml,
+    isImage,
     isMarkdown,
     language,
     mimeType,
     loading,
     error,
     content,
+    imagePreviewUrl,
     canPreview,
     copied,
     downloadLabel,
@@ -219,6 +258,10 @@ export function ArtifactAttachmentPreview({
   ]);
 
   async function copyArtifact() {
+    if (isImage) {
+      return;
+    }
+
     try {
       let text = content;
       if (!text) {
@@ -246,7 +289,11 @@ export function ArtifactAttachmentPreview({
       defaultWidth: artifactPanelDefaultWidth(artifact.filename, mimeType),
       resizable: true,
       fullscreen: false,
-      content: buildPanelBody(canPreview && content === null && error === null),
+      content: buildPanelBody(
+        canPreview &&
+          (isImage ? imagePreviewUrl === null : content === null) &&
+          error === null,
+      ),
       onClose: () => {
         setFullscreen(false);
         setCopied(false);
@@ -264,7 +311,11 @@ export function ArtifactAttachmentPreview({
       onClick={openPanel}
     >
       <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-background">
-        <FileTextIcon className="size-4 text-muted-foreground" aria-hidden />
+        {isImage ? (
+          <ImageIcon className="size-4 text-muted-foreground" aria-hidden />
+        ) : (
+          <FileTextIcon className="size-4 text-muted-foreground" aria-hidden />
+        )}
       </div>
       <div className="min-w-0 max-w-[12rem]">
         <p className="truncate text-xs font-medium text-foreground">{artifact.filename}</p>

@@ -1,4 +1,5 @@
 import { Trash2Icon } from "lucide-react";
+import { BASH_TOOL_ID } from "@nakama/core/tools/protected";
 import { SkillAssignPicker } from "@/components/SkillAssignPicker";
 import { Button } from "@/components/ui/button";
 import type { ProfileDetail, SkillSummary } from "@nakama/core/contract";
@@ -14,6 +15,7 @@ export function ProfileSkillsSection({
   onDelete,
   onViewDetail,
   onRemove,
+  onAssignBash,
 }: {
   detail: ProfileDetail;
   busy: boolean;
@@ -24,6 +26,7 @@ export function ProfileSkillsSection({
   onDelete: (skillId: string) => void;
   onViewDetail: (skillId: string) => void;
   onRemove: (target: RemoveAssignmentTarget) => void;
+  onAssignBash: () => void | Promise<void>;
 }) {
   return (
     <div className="pt-5">
@@ -45,6 +48,8 @@ export function ProfileSkillsSection({
             buttonLabel="Add skills"
             onAssign={onAssign}
             onDelete={onDelete}
+            bashAssigned={detail.tools.some((tool) => tool.id === BASH_TOOL_ID)}
+            onAssignBash={onAssignBash}
           />
         </div>
       </div>
