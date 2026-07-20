@@ -1,6 +1,6 @@
 ---
 name: agent-browser
-description: Use when the user needs interactive browser automation — login to websites, fill forms, click through pages, scrape login-walled or client-rendered content, or drive a real browser. Do not use for ordinary public-page reading or open-ended research without interaction.
+description: Use for login-walled portals and headless browser automation with agent-browser. Skip public HTTP reading and explain-only questions.
 include-body-on-match: true
 ---
 

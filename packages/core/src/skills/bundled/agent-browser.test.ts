@@ -48,7 +48,7 @@ describe("bundled agent-browser skill", () => {
     expect(
       matchSkillsForMessage(
         [discovered],
-        "Login to our vendor portal and check the latest order status in the browser",
+        "Open our login-walled vendor portal in the browser and check order status",
       ).map((skill) => skill.name),
     ).toEqual(["agent-browser"]);
 
@@ -63,6 +63,26 @@ describe("bundled agent-browser skill", () => {
         [discovered],
         "Fetch https://example.com and summarize the homepage",
       ).map((skill) => skill.name),
+    ).toEqual([]);
+
+    expect(
+      matchSkillsForMessage([discovered], "Research the competitors and summarize findings").map(
+        (skill) => skill.name,
+      ),
+    ).toEqual([]);
+
+    expect(
+      matchSkillsForMessage([discovered], "How do React forms work?").map((skill) => skill.name),
+    ).toEqual([]);
+
+    expect(
+      matchSkillsForMessage([discovered], "Fix the login page copy").map((skill) => skill.name),
+    ).toEqual([]);
+
+    expect(
+      matchSkillsForMessage([discovered], "Drive the migration plan forward").map(
+        (skill) => skill.name,
+      ),
     ).toEqual([]);
   });
 
