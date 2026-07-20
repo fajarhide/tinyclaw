@@ -46,7 +46,7 @@ import type { HonoApp } from "../types";
 import type { ServerOptions } from "../context";
 import { errorResponse, json, readJson, getRequestAuth } from "../shared";
 import { requireOrgAdminFromContext } from "../org-guards";
-import { installCodingAgentHarness } from "../../services/coding-harness-service";
+import { installCodingAgentHarness } from "../../services/coding-agent-harness-service";
 import { streamCodingHarnessInstall } from "../coding-harness-install-stream";
 
 export function registerModelRoutes(app: HonoApp, options: ServerOptions): void {
