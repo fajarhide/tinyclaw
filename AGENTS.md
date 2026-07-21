@@ -135,16 +135,6 @@ Custom JS tools should resolve relative paths against `context.workspaceRoot` �
 | Tools playground | `POST /v1/tools/:toolId/run` → `apps/server/src/http/routes/tools.ts` → `agent.runToolPlayground()` | Profile: first assignee of tool, else org default — `resolvePlaygroundProfileId()` in `agent-service.ts` |
 | Param suggest | `POST /v1/tools/:toolId/params/suggest` | Same service, no execution |
 
-### Tools playground (web)
-
-| What | Where |
-|---|---|
-| Page route | `/system/playground/:toolId` — `apps/web/src/pages/ToolPlaygroundPage.tsx` |
-| Run UI | `apps/web/src/components/tools/ToolPlaygroundPanel.tsx` |
-| Tools list link | `apps/web/src/components/soul-tools/ToolsTab.tsx` |
-| Path helpers | `toolPlaygroundPath()`, `toolsTabPath()` in `apps/web/src/lib/navigation.ts` |
-| Access | Org admin or platform admin — `canUseToolPlayground()` in `navigation.ts` |
-
 ### Debugging checklist
 
 1. Read the custom tool module in `~/.nakama/tools/` — check how it resolves paths.
