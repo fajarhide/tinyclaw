@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   breadcrumb,
   buildCrashReport,
@@ -7,19 +10,42 @@ import {
   currentCrashContext,
   fingerprintError,
   MAX_BREADCRUMBS,
+  readPendingCrashReports,
   reportError,
   reportInvariant,
+  resetCrashReportConsentCache,
   runWithCrashContext,
   setCrashContextIds,
   setCrashLogger,
+  setCrashSink,
 } from "./crash-report";
 
-beforeEach(() => {
+let configDir = "";
+let previousConfigDir: string | undefined;
+
+beforeEach(async () => {
+  previousConfigDir = process.env.NAKAMA_CONFIG_DIR;
+  configDir = await mkdtemp(join(tmpdir(), "nakama-crash-report-"));
+  process.env.NAKAMA_CONFIG_DIR = configDir;
+  delete process.env.NAKAMA_CRASH_REPORTS;
+  delete process.env.DO_NOT_TRACK;
+  resetCrashReportConsentCache();
   setCrashLogger(() => {});
 });
 
-afterEach(() => {
+afterEach(async () => {
+  if (previousConfigDir === undefined) {
+    delete process.env.NAKAMA_CONFIG_DIR;
+  } else {
+    process.env.NAKAMA_CONFIG_DIR = previousConfigDir;
+  }
+
+  delete process.env.NAKAMA_CRASH_REPORTS;
+  delete process.env.DO_NOT_TRACK;
+  resetCrashReportConsentCache();
   setCrashLogger(null);
+  setCrashSink(null);
+  await rm(configDir, { force: true, recursive: true });
 });
 
 test("breadcrumbs are scoped to the running context", () => {
@@ -155,7 +181,51 @@ test("a logger that throws never surfaces to the caller", async () => {
   ).resolves.toBeDefined();
 });
 
-test("the local log always runs", async () => {
+test("a sink that throws never surfaces to the caller", async () => {
+  process.env.NAKAMA_CRASH_REPORTS = "1";
+  resetCrashReportConsentCache();
+  setCrashSink(() => {
+    throw new Error("sink is down");
+  });
+
+  await expect(
+    reportError(new Error("boom"), { source: "server" })
+  ).resolves.toBeDefined();
+});
+
+// The uncaught handler calls process.exit as soon as reportError resolves, so a sink
+// that is merely started here is a sink that never finishes.
+test("delivery is awaited, not left racing process.exit", async () => {
+  process.env.NAKAMA_CRASH_REPORTS = "1";
+  resetCrashReportConsentCache();
+
+  let delivered = false;
+  setCrashSink(async () => {
+    await Bun.sleep(20);
+    delivered = true;
+  });
+
+  await reportError(new Error("boom"), { source: "server" });
+
+  expect(delivered).toBe(true);
+});
+
+test("a report that could not be delivered is held, not lost", async () => {
+  process.env.NAKAMA_CRASH_REPORTS = "1";
+  resetCrashReportConsentCache();
+  setCrashSink(() => {
+    throw new Error("ingest is down");
+  });
+
+  await reportError(new Error("boom"), { source: "server" });
+
+  const pending = await readPendingCrashReports();
+
+  expect(pending).toHaveLength(1);
+  expect(pending[0]?.source).toBe("server");
+});
+
+test("the local log always runs, consent or not", async () => {
   const logged: CrashReport[] = [];
   setCrashLogger((report) => {
     logged.push(report);

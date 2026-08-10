@@ -1,12 +1,23 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomUUID } from "node:crypto";
 import { homedir } from "node:os";
+import { join } from "node:path";
 import { NAKAMA_API_VERSION } from "./contract";
+import { parseIni, readTextOrNull, writePrivateTextFile } from "./fs";
+import { getUserConfigDir } from "./user-config";
 
 export type CrashReportKind = "crash" | "invariant";
+export type CrashReportConsent = "granted" | "denied" | "unset";
+export type CrashSink = (report: CrashReport) => void | Promise<void>;
 export type CrashLogger = (report: CrashReport, error: unknown) => void;
 
 export const MAX_BREADCRUMBS = 50;
+export const MAX_PENDING_CRASH_REPORTS = 3;
+// A Sentry DSN is designed to be public and is rate limited at the ingest, which is why
+// this can ship in an open repo where a webhook URL could not. Point it at a project the
+// nakama maintainers own before this lands.
+export const DEFAULT_CRASH_REPORT_DSN =
+  "https://a9d0037386bb48ff984bc7909712e298@app.glitchtip.com/26619";
 
 export type Breadcrumb = { at: number; kind: string };
 export type CrashContext = {
@@ -34,15 +45,25 @@ export type CrashReport = {
   stack?: string;
   userIdHash?: string;
 };
+export type CrashReportConfig = {
+  consent: CrashReportConsent;
+  dsn: string | null;
+  installId: string | null;
+};
 export type ReportErrorOptions = {
   context?: CrashContext;
   kind?: CrashReportKind;
   source?: string;
 };
+export type SentryDsn = { endpoint: string; publicKey: string };
 
 const storage = new AsyncLocalStorage<CrashContext>();
 const installedSources = new Set<string>();
+const TRUTHY = new Set(["1", "true", "on", "yes"]);
+const FALSY = new Set(["0", "false", "off", "no"]);
 const MAX_TEXT_LENGTH = 4000;
+const SEND_TIMEOUT_MS = 3000;
+const SENTRY_CLIENT = "nakama/1";
 const SECRET_PATTERNS: Array<[RegExp, string]> = [
   [/\bBearer\s+[A-Za-z0-9._~+/-]{8,}={0,2}/gi, "Bearer <redacted>"],
   [
@@ -70,6 +91,43 @@ const SECRET_PATTERNS: Array<[RegExp, string]> = [
 ];
 
 let logger: CrashLogger = defaultLogger;
+let sink: CrashSink | null = null;
+let cachedConfig: Promise<CrashReportConfig> | null = null;
+
+const configFile = () => join(getUserConfigDir(), "crash-reports.ini");
+const pendingFile = () =>
+  join(getUserConfigDir(), "crash-reports-pending.json");
+const lastFile = () => join(getUserConfigDir(), "crash-report-last.json");
+
+export const getCrashReportConfigPath = configFile;
+export const getPendingCrashReportsPath = pendingFile;
+export const getLastCrashReportPath = lastFile;
+
+async function writeJson(path: string, value: unknown): Promise<void> {
+  await writePrivateTextFile(path, `${JSON.stringify(value, null, 2)}\n`, {
+    ensureDir: getUserConfigDir(),
+  });
+}
+
+async function readJson<T>(
+  path: string,
+  fallback: T,
+  guard: (v: unknown) => v is T
+): Promise<T> {
+  const raw = await readTextOrNull(path);
+
+  if (raw === null) {
+    return fallback;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+
+    return guard(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 export function hashId(value: string | null | undefined): string | undefined {
   const trimmed = value?.trim();
@@ -122,6 +180,278 @@ export function scrubText(value: string): string {
   return out.length > MAX_TEXT_LENGTH
     ? `${out.slice(0, MAX_TEXT_LENGTH)}…`
     : out;
+}
+
+export function readCrashReportEnvOverride(
+  env: Record<string, string | undefined> = process.env
+): CrashReportConsent | null {
+  if (TRUTHY.has(env.DO_NOT_TRACK?.trim().toLowerCase() ?? "")) {
+    return "denied";
+  }
+
+  const raw = env.NAKAMA_CRASH_REPORTS?.trim().toLowerCase();
+
+  if (!raw) {
+    return null;
+  }
+
+  if (TRUTHY.has(raw)) {
+    return "granted";
+  }
+
+  if (FALSY.has(raw)) {
+    return "denied";
+  }
+
+  return null;
+}
+
+export async function loadCrashReportConfig(): Promise<CrashReportConfig> {
+  const raw = await readTextOrNull(configFile());
+
+  if (raw === null) {
+    return { consent: "unset", dsn: null, installId: null };
+  }
+
+  const values = parseIni(raw);
+  const consent = values.consent?.trim().toLowerCase();
+
+  return {
+    consent: consent === "granted" || consent === "denied" ? consent : "unset",
+    dsn: values.dsn?.trim() || null,
+    installId: values.install_id?.trim() || null,
+  };
+}
+
+export function resolveCrashReportConsent(
+  file: CrashReportConfig,
+  env: Record<string, string | undefined> = process.env
+): CrashReportConsent {
+  return readCrashReportEnvOverride(env) ?? file.consent;
+}
+
+export function resolveCrashReportDsn(
+  file: CrashReportConfig,
+  env: Record<string, string | undefined> = process.env
+): string | null {
+  // An empty NAKAMA_CRASH_REPORT_DSN is a way to turn delivery off, so an env var that is
+  // set but blank has to win over the built-in default.
+  if (env.NAKAMA_CRASH_REPORT_DSN !== undefined) {
+    return env.NAKAMA_CRASH_REPORT_DSN.trim() || null;
+  }
+
+  return file.dsn || DEFAULT_CRASH_REPORT_DSN || null;
+}
+
+export function resetCrashReportConsentCache(): void {
+  cachedConfig = null;
+}
+
+export async function loadCachedCrashReportConfig(): Promise<CrashReportConfig> {
+  cachedConfig ??= loadCrashReportConfig();
+
+  return cachedConfig;
+}
+
+export async function saveCrashReportConsent(
+  consent: Exclude<CrashReportConsent, "unset">
+): Promise<CrashReportConfig> {
+  const existing = await loadCrashReportConfig();
+  // The install id is minted at the moment consent is granted, and dropped again on deny,
+  // so a machine that never said yes has no identifier to send.
+  const next: CrashReportConfig = {
+    consent,
+    dsn: existing.dsn,
+    installId:
+      consent === "granted" ? (existing.installId ?? randomUUID()) : null,
+  };
+
+  await writePrivateTextFile(
+    configFile(),
+    [
+      "# Nakama crash reports",
+      `consent=${next.consent}`,
+      ...(next.installId ? [`install_id=${next.installId}`] : []),
+      ...(next.dsn ? [`dsn=${next.dsn}`] : []),
+      "",
+    ].join("\n"),
+    { ensureDir: getUserConfigDir() }
+  );
+  resetCrashReportConsentCache();
+
+  return next;
+}
+
+export async function currentCrashReportConsent(): Promise<CrashReportConsent> {
+  try {
+    return resolveCrashReportConsent(await loadCachedCrashReportConfig());
+  } catch {
+    // An unreadable config is not permission to send.
+    return "denied";
+  }
+}
+
+export async function isCrashReportingAllowed(): Promise<boolean> {
+  return (await currentCrashReportConsent()) === "granted";
+}
+
+/**
+ * Re-scrubbed on read, not trusted from disk. The file may have been written by an older
+ * build whose scrubber missed a pattern this one catches.
+ */
+export async function readPendingCrashReports(): Promise<CrashReport[]> {
+  const entries = await readJson(pendingFile(), [], Array.isArray);
+
+  return entries.filter(isCrashReport).map(scrubStoredCrashReport);
+}
+
+export async function appendPendingCrashReport(
+  report: CrashReport
+): Promise<void> {
+  const existing = await readPendingCrashReports();
+
+  if (existing.some((entry) => entry.fingerprint === report.fingerprint)) {
+    return;
+  }
+
+  await writeJson(
+    pendingFile(),
+    [...existing, report].slice(-MAX_PENDING_CRASH_REPORTS)
+  );
+}
+
+export async function clearPendingCrashReports(): Promise<void> {
+  await writeJson(pendingFile(), []);
+}
+
+export async function recordLastCrashReport(
+  report: CrashReport
+): Promise<void> {
+  await writeJson(lastFile(), report);
+}
+
+export async function readLastCrashReport(): Promise<CrashReport | null> {
+  const report = await readJson(lastFile(), null, (v): v is CrashReport =>
+    isCrashReport(v)
+  );
+
+  return report ? scrubStoredCrashReport(report) : null;
+}
+
+function isCrashReport(value: unknown): value is CrashReport {
+  if (!(value && typeof value === "object")) {
+    return false;
+  }
+
+  const report = value as Record<string, unknown>;
+
+  return (
+    typeof report.fingerprint === "string" &&
+    typeof report.message === "string" &&
+    typeof report.name === "string" &&
+    typeof report.at === "string" &&
+    typeof report.source === "string" &&
+    (report.kind === "crash" || report.kind === "invariant") &&
+    Array.isArray(report.breadcrumbs)
+  );
+}
+
+function scrubStoredCrashReport(report: CrashReport): CrashReport {
+  return {
+    ...report,
+    message: scrubText(report.message),
+    ...(report.stack ? { stack: scrubText(report.stack) } : {}),
+  };
+}
+
+export function parseSentryDsn(dsn: string): SentryDsn | null {
+  try {
+    const url = new URL(dsn.trim());
+    const publicKey = url.username;
+    const segments = url.pathname.split("/").filter(Boolean);
+    const projectId = segments.pop();
+
+    if (!(publicKey && projectId)) {
+      return null;
+    }
+
+    const prefix = segments.length > 0 ? `/${segments.join("/")}` : "";
+
+    return {
+      endpoint: `${url.protocol}//${url.host}${prefix}/api/${projectId}/store/`,
+      publicKey,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function toSentryEvent(
+  report: CrashReport,
+  options: { installId: string | null } = { installId: null }
+): Record<string, unknown> {
+  return {
+    event_id: randomUUID().replace(/-/g, ""),
+    exception: { values: [{ type: report.name, value: report.message }] },
+    fingerprint: [report.fingerprint],
+    level: report.kind === "invariant" ? "warning" : "error",
+    logger: "nakama",
+    platform: "node",
+    timestamp: report.at,
+    ...(options.installId ? { user: { id: options.installId } } : {}),
+    tags: {
+      kind: report.kind,
+      os: report.runtime.platform,
+      source: report.source,
+    },
+    ...(report.stack ? { extra: { stack: report.stack } } : {}),
+  };
+}
+
+export async function sendSentryEvent(
+  dsn: SentryDsn,
+  event: Record<string, unknown>,
+  timeoutMs = SEND_TIMEOUT_MS
+): Promise<boolean> {
+  try {
+    const response = await fetch(dsn.endpoint, {
+      body: JSON.stringify(event),
+      headers: {
+        "Content-Type": "application/json",
+        "X-Sentry-Auth": `Sentry sentry_version=7, sentry_client=${SENTRY_CLIENT}, sentry_key=${dsn.publicKey}`,
+      },
+      method: "POST",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export function createCrashReportSink(): CrashSink {
+  return async (report) => {
+    const config = await loadCachedCrashReportConfig();
+    const dsn = parseSentryDsn(resolveCrashReportDsn(config) ?? "");
+
+    if (!dsn) {
+      throw new Error("crash report DSN is not configured");
+    }
+
+    const ok = await sendSentryEvent(
+      dsn,
+      toSentryEvent(report, { installId: config.installId })
+    );
+
+    if (!ok) {
+      throw new Error("crash report delivery failed");
+    }
+  };
+}
+
+export function installCrashReportSink(): void {
+  setCrashSink(createCrashReportSink());
 }
 
 export function createCrashContext(seed: {
@@ -299,9 +629,18 @@ export function setCrashLogger(next: CrashLogger | null): void {
   logger = next ?? defaultLogger;
 }
 
+export function setCrashSink(next: CrashSink | null): void {
+  sink = next;
+}
+
 /**
- * The one entry point. Always logs locally and in full; the scrubbed report is what a
- * later change may ship somewhere else.
+ * The one entry point. Always logs locally and in full; only the scrubbed report is
+ * eligible to leave, and only with consent.
+ *
+ * Delivery is awaited rather than fired and forgotten: the uncaught-exception handler
+ * calls process.exit as soon as this resolves, and an unawaited fetch would be killed
+ * mid-flight on exactly the crashes this exists to report. Callers that must not block,
+ * such as the HTTP error handler, use `void reportError(...)`.
  */
 export async function reportError(
   error: unknown,
@@ -315,7 +654,72 @@ export async function reportError(
     // A broken logger must not take the process down on top of the original error.
   }
 
+  const currentSink = sink;
+
+  if (!currentSink) {
+    return report;
+  }
+
+  try {
+    await recordLastCrashReport(report);
+  } catch {
+    // Storing a copy for `nakama report --show` is best effort.
+  }
+
+  const consent = await currentCrashReportConsent();
+
+  if (consent === "denied") {
+    return report;
+  }
+
+  if (consent === "granted") {
+    try {
+      await currentSink(report);
+
+      return report;
+    } catch {
+      // Held and retried on the next flush rather than dropped.
+    }
+  }
+
+  try {
+    await appendPendingCrashReport(report);
+  } catch {
+    // Nothing left to fall back to; the local log already has it.
+  }
+
   return report;
+}
+
+export async function flushPendingCrashReports(): Promise<number> {
+  const currentSink = sink;
+
+  if (!(currentSink && (await isCrashReportingAllowed()))) {
+    return 0;
+  }
+
+  const pending = await readPendingCrashReports();
+
+  if (pending.length === 0) {
+    return 0;
+  }
+
+  const remaining: CrashReport[] = [];
+  let sent = 0;
+
+  for (const report of pending) {
+    try {
+      await currentSink(report);
+      sent += 1;
+    } catch {
+      remaining.push(report);
+    }
+  }
+
+  // A failed ingest must not wipe the queue, or the first offline flush loses everything.
+  await writeJson(pendingFile(), remaining);
+
+  return sent;
 }
 
 /**

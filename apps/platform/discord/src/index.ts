@@ -3,7 +3,10 @@ import {
   ChannelOrgStore,
   getChannelOrgSelectionPath,
 } from "@nakama/core/channel-org";
-import { installCrashHandlers } from "@nakama/core/crash-report";
+import {
+  installCrashHandlers,
+  installCrashReportSink,
+} from "@nakama/core/crash-report";
 import {
   clearDiscordWorkerHeartbeat,
   isHeartbeatAlive,
@@ -24,6 +27,7 @@ import { SessionStore } from "./session-store";
 import { ThreadStore } from "./thread-store";
 
 installCrashHandlers("worker:discord");
+installCrashReportSink();
 
 let spawnedChild: Bun.Subprocess | null = null;
 let clientStop: (() => void) | null = null;

@@ -1,10 +1,14 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { installCrashHandlers } from "@nakama/core/crash-report";
+import {
+  installCrashHandlers,
+  installCrashReportSink,
+} from "@nakama/core/crash-report";
 import { ensureProcessPath } from "./lib/ensure-process-path";
 
 ensureProcessPath();
 installCrashHandlers("server");
+installCrashReportSink();
 
 import { mergeOrgMemoryWithApprovedBullet } from "@nakama/agent";
 import {

@@ -3,7 +3,10 @@ import {
   ChannelOrgStore,
   getChannelOrgSelectionPath,
 } from "@nakama/core/channel-org";
-import { installCrashHandlers } from "@nakama/core/crash-report";
+import {
+  installCrashHandlers,
+  installCrashReportSink,
+} from "@nakama/core/crash-report";
 import {
   ensureServerRunning,
   stopSpawnedServer,
@@ -22,6 +25,7 @@ import { loadConfig } from "./config";
 import { SessionStore } from "./session-store";
 
 installCrashHandlers("worker:telegram");
+installCrashReportSink();
 
 let spawnedChild: Bun.Subprocess | null = null;
 let botStop: (() => void) | null = null;
