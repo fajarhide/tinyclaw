@@ -75,9 +75,9 @@ When you save for the first time, Nakama can generate a pairing code for linking
 
 Each agent can own one Telegram bot. Its chats, pairing, worker controls, and logs belong only to that agent. The same bot cannot be connected to another agent, even in another organization.
 
-Organization admins and platform admins manage connections. **Stop** keeps the connection for later. **Disconnect** removes its credentials and pairings while keeping chat history. Disconnect channels before moving an agent to another organization. Cloning or exporting an agent does not copy its connections.
+Organization admins and platform admins manage connections. **Stop** keeps the connection for later. **Disconnect** removes its credentials, pairings, and saved channel sessions. Disconnect channels before moving an agent to another organization. Cloning or exporting an agent does not copy its connections.
 
-Existing connections move automatically when Nakama can identify their owner. If ownership is unclear, the worker stays stopped. Open **Integrations → Telegram**, choose an agent, and claim the existing connection. Only a platform admin can claim an installation-wide connection.
+Existing connections move automatically when Nakama can identify their owner. If ownership is unclear, it stays stopped until it is claimed for an agent through the API (`POST /v1/settings/channel-legacy/claim`). The dashboard has no claim control. Only a platform admin can claim an installation-wide connection.
 
 ## Step 3: Enable audio transcription for voice chat
 
@@ -178,6 +178,22 @@ If you want mention-based group usage to work reliably:
 5. Add it back again
 
 That re-add step matters because Telegram may keep the old delivery behavior for bots already in the group.
+
+## Rotating the bot token
+
+After you replace the bot token, restart this agent's Telegram worker. A running worker keeps the token it loaded at startup, so saving alone does not rotate the connection.
+
+## Running the worker directly
+
+The dashboard sets the organization and agent for a worker it starts. A direct run must set both, or the worker cannot find the connection:
+
+```bash
+NAKAMA_CHANNEL_ORG_ID="org_your_org" \
+NAKAMA_CHANNEL_PROFILE_ID="your-profile" \
+bun run dev:telegram
+```
+
+Save the Telegram connection in the same Nakama config directory first. Set `NAKAMA_SERVER_URL` and `NAKAMA_CONFIG_DIR` when the server or config root is not the local default.
 
 ## Next steps
 

@@ -92,14 +92,14 @@ Nakama supports two ways to link:
 4. Go to **Settings → Linked Devices**
 5. Tap **Link a Device** and scan the QR code
 
-After linking succeeds, Nakama shows the linked account and the bridge can receive messages.
+After linking succeeds, Nakama shows the linked account and the bridge can receive messages. The linked account itself is always allowed, so its owner needs no further pairing.
 
 ## Chat behavior
 
 WhatsApp works in **private chats** and **groups**.
 
 - direct chats send every message to the agent
-- group chats reply to a mention of the linked number, a reply to a Nakama message, or a `/command`. Turn off **Require @mention in groups** in **Agents → your agent → Connections → WhatsApp** if anyone in the group should talk without tagging the bot
+- group chats reply to a mention of the linked number, a reply to a Nakama message, or a `/command`. Turn off **Require @mention in groups** in **Agents → your agent → Connections → WhatsApp** if anyone in the group should talk without tagging the bot. With it off, every group member can talk to the agent, including people who are not paired or listed under **Allowed numbers**
 - each private chat and each group keeps its own Nakama session
 - an organization-owned number stays in its owning organization; `/org` cannot switch it to another organization
 - pairing still happens in a private chat first
@@ -180,11 +180,23 @@ The sender must be the linked WhatsApp number, or a number listed under **Agents
 
 ### Check connection ownership
 
-Open the agent’s **Connections → WhatsApp** settings. Conversations always belong to this agent. **Stop** keeps its linked account. **Disconnect** removes credentials and pairings but keeps chat history. Disconnect before moving the agent to another organization. Cloning or exporting an agent does not copy its connection.
+Open the agent’s **Connections → WhatsApp** settings. Conversations always belong to this agent. **Stop** keeps its linked account. **Disconnect** removes credentials, pairings, and saved channel sessions. Disconnect before moving the agent to another organization. Cloning or exporting an agent does not copy its connection.
 
 ## Existing installations
 
-Nakama preserves a linked account when its existing settings identify one owner. Ambiguous connections stay stopped. Open **Integrations → WhatsApp**, select an agent, and claim the connection. Installation-wide connections require a platform admin. Stop manually launched workers before claiming them.
+Nakama preserves a linked account when its existing settings identify one owner. An ambiguous connection is different: it stays stopped until it is claimed for an agent through the API (`POST /v1/settings/channel-legacy/claim`). The dashboard has no claim control. Installation-wide connections require a platform admin. Stop manually launched workers before claiming them.
+
+## Running the worker directly
+
+The dashboard sets the organization and agent for a worker it starts. A direct run must set both, or the worker cannot find the connection:
+
+```bash
+NAKAMA_CHANNEL_ORG_ID="org_your_org" \
+NAKAMA_CHANNEL_PROFILE_ID="your-profile" \
+bun run dev:whatsapp
+```
+
+Save the WhatsApp connection in the same Nakama config directory first. Set `NAKAMA_SERVER_URL` and `NAKAMA_CONFIG_DIR` when the server or config root is not the local default.
 
 ## Next steps
 

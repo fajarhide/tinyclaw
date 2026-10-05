@@ -16,6 +16,18 @@ Use **Integrations** in the Nakama dashboard to connect channels, bridge workers
 - [Error tracking](/error-tracking): send this instance's own crashes to your Sentry, GlitchTip, Bugsink, or Rustrak project
 - **Coding agents**: choose Nakama provider passthrough (default) or harness login on this server — see [Coding agent](/coding-agent#provider-passthrough)
 
+## Direct worker runs
+
+Each channel connection belongs to one organization and one agent. The dashboard passes both when it starts a worker. A direct run must set them itself:
+
+```bash
+export NAKAMA_CHANNEL_ORG_ID="org_your_org"
+export NAKAMA_CHANNEL_PROFILE_ID="your-profile"
+bun run dev:telegram   # or dev:whatsapp, dev:discord, dev:slack
+```
+
+Save the connection in the same Nakama config directory first. A running worker keeps the token it loaded at startup, so restart it after rotating a credential. **Disconnect** removes the connection's credentials, pairings, and saved channel sessions.
+
 ## What lives in Integrations
 
 The dashboard groups together deployment-level and organization-level configuration that is not tied to a single profile page.

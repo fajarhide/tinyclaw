@@ -16,7 +16,7 @@ The mental model is simple:
 With Discord enabled, users can:
 
 - chat with a Nakama profile in a private DM
-- use the bot in server channels and threads after DM pairing
+- use the bot in server channels and threads after DM pairing or allowlisting
 - keep every conversation attached to the connection’s agent
 - stop, clear, compact, or restart conversations
 - receive streaming replies with typing indicators and live todo progress
@@ -60,11 +60,10 @@ Keep the token secret. If you enable Message Content Intent after the bot is alr
 
 ## Step 2: Save in Nakama
 
-Sign in as a platform admin and open **Agents → your agent → Connections → Discord**, then:
+Sign in as an organization admin or platform admin and open **Agents → your agent → Connections → Discord**, then:
 
 1. Paste the bot token
-2. Choose the default Nakama profile for Discord replies
-3. Save — Nakama generates a pairing code on the same page
+2. Save. Nakama generates a pairing code on the same page
 
 ## Step 3: Pair your Discord account
 
@@ -73,7 +72,7 @@ Pairing links your Discord user to Nakama so unlinked users cannot use the bot.
 1. Copy the pairing code from **Agents → your agent → Connections → Discord** (click **Regenerate** if needed)
 2. Open a private DM with your bot and send the code as a plain text message
 
-After a successful match, that user is linked and the code is cleared. Server channels require DM pairing first.
+After a successful match, that user is linked and the code is cleared. Server channels require the user to pair in a DM or be on the allowed-user list.
 
 ## Step 4: Start the Discord bridge
 
@@ -150,10 +149,12 @@ Session controls keep conversations within the owning agent.
 | `/resume` | Slash | Resume a conversation by the short ID `/sessions` shows |
 | `/close` | Slash | Close (archive) this bot conversation thread |
 | `/status` | Slash | Show server and model status |
-| `/org` | Text | Report the fixed organization |
-| `/profile` | Text | Report the fixed agent |
+| `/org` | Slash | Report the fixed organization |
+| `/profile` | Slash | Report the fixed agent |
 
-In servers, `@mention` the bot (or a role it holds) or reply to it to chat — each mention in a parent channel opens a new thread. Complete DM pairing first.
+In servers, `@mention` the bot (or a role it holds) or reply to it to chat. Each mention in a parent channel opens a new thread. Pair in a DM or get allowlisted first.
+
+A paired user can add another Discord user to the allowed list with the `/allow` slash command.
 
 ## Reply formatting
 
@@ -177,9 +178,25 @@ Only successful artifact saves produce share links or attachments.
 
 Each agent owns its bot, pairings, conversations, worker controls, and logs. Threads stay with that agent. Organization admins and platform admins can manage the connection. A bot already connected to another agent cannot be reused.
 
-**Stop** keeps the configuration. **Disconnect** removes credentials and pairings; chat history remains. Disconnect before moving an agent to another organization. Clones and exports do not include connections.
+**Stop** keeps the configuration. **Disconnect** removes credentials, pairings, and saved channel sessions. Disconnect before moving an agent to another organization. Clones and exports do not include connections.
 
-If an older connection cannot be assigned automatically, it stays stopped. Claim it for an agent from **Integrations → Discord**. Installation-wide connections require a platform admin.
+If an older connection cannot be assigned automatically, it stays stopped until it is claimed for an agent through the API (`POST /v1/settings/channel-legacy/claim`). The dashboard has no claim control. Installation-wide connections require a platform admin.
+
+## Rotating the bot token
+
+After you replace the bot token, restart this agent's Discord worker. A running worker keeps the token it loaded at startup, so saving alone does not rotate the connection.
+
+## Running the worker directly
+
+The dashboard sets the organization and agent for a worker it starts. A direct run must set both, or the worker cannot find the connection:
+
+```bash
+NAKAMA_CHANNEL_ORG_ID="org_your_org" \
+NAKAMA_CHANNEL_PROFILE_ID="your-profile" \
+bun run dev:discord
+```
+
+Save the Discord connection in the same Nakama config directory first. Set `NAKAMA_SERVER_URL` and `NAKAMA_CONFIG_DIR` when the server or config root is not the local default.
 
 ## Troubleshooting
 
@@ -213,7 +230,7 @@ Usually one of these is true:
 - **Message Content Intent** is off — turn the toggle on under **Bot → Privileged Gateway Intents** (see Step 1a)
 - the bot was invited before Message Content Intent was enabled — re-invite with a fresh URL (Step 1b)
 - the message was not a slash command, reply, bot `@mention`, or `@mention` of a role the bot holds
-- the user has not completed DM pairing yet
+- the user has not paired or been allowlisted
 
 ### Mentions do not work in servers
 

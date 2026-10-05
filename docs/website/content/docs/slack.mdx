@@ -67,7 +67,9 @@ If your workspace requires admin approval for new apps, the install step sends a
 On **Agents → your agent → Connections → Slack**:
 
 1. Paste the bot token and the app token
-2. Click **Save**. Nakama checks both tokens with Slack before saving, including that both come from the same Slack app, and shows Slack's error if one is wrong.
+2. Click **Save**
+
+Nakama checks the bot token with Slack's `auth.test` and checks the app token by opening a Socket Mode connection, which fails without the `connections:write` scope. It also compares the two tokens' app IDs through `bots.info`. That comparison is skipped when the bot lacks the `users:read` scope.
 
 After the first save, Nakama generates a pairing code on the same page.
 
@@ -77,9 +79,19 @@ These settings belong to this agent. Another agent sees Slack as not connected u
 
 Use the worker controls on **Agents → your agent → Connections → Slack** to start the worker. The agent's Connections list shows Slack as **Connected** once the bridge is running and at least one member can chat.
 
-For local development only, you can instead run `bun run dev:slack` from the repo root.
+For local development only, you can instead run `bun run dev:slack` from the repo root. A direct run must name the organization and agent, or the worker cannot find the connection:
+
+```bash
+NAKAMA_CHANNEL_ORG_ID="org_your_org" \
+NAKAMA_CHANNEL_PROFILE_ID="your-profile" \
+bun run dev:slack
+```
+
+Save the Slack connection in the same Nakama config directory first. Set `NAKAMA_SERVER_URL` and `NAKAMA_CONFIG_DIR` when the server or config root is not the local default.
 
 If you change a token later, restart the bridge worker so it picks up the new one.
+
+**Stop** keeps the Slack connection. **Disconnect** removes its credentials, pairings, and saved channel sessions.
 
 ## Step 5: Pair your Slack account
 
@@ -177,7 +189,7 @@ Each agent needs its own Slack app. Create a new app from the manifest for this 
 
 ### Save says the tokens come from different Slack apps
 
-The bot token and the app token were copied from two different apps. Copy both from the same app's settings page.
+The bot token and the app token were copied from two different apps. Copy both from the same app's settings page. Nakama can only detect this when the bot has the `users:read` scope.
 
 ### Save fails with `invalid_auth`
 
