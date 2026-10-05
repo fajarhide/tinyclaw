@@ -2536,7 +2536,17 @@ export class AgentService {
       throw new Error("Provider is not configured.");
     }
 
-    return createAutomationFromPrompt(this.createWorkspaceHarness(orgId), {
+    const activeInstance = getActiveProviderInstance(this.userConfig);
+    const harness = this.createHarness({
+      modelId: activeInstance
+        ? resolveDefaultModelForInstance(activeInstance)
+        : null,
+      orgId,
+      provider: createProviderFromActiveConfig(this.userConfig, process.env),
+      providerInstance: activeInstance,
+      thinking: this.resolveWorkspaceThinkingDefaults(),
+    });
+    return createAutomationFromPrompt(harness, {
       channel,
       prompt,
     });
@@ -3840,24 +3850,6 @@ export class AgentService {
       ),
       provider: trackedProvider ?? undefined,
     };
-  }
-
-  /**
-   * The workspace provider has no profile to inherit a tenant from, so the
-   * org-scoped callers (the automation drafter) pass their own.
-   */
-  private createWorkspaceHarness(orgId: string | null): AgentDependencies {
-    const activeInstance = getActiveProviderInstance(this.userConfig);
-
-    return this.createHarness({
-      modelId: activeInstance
-        ? resolveDefaultModelForInstance(activeInstance)
-        : null,
-      orgId,
-      provider: createProviderFromActiveConfig(this.userConfig, process.env),
-      providerInstance: activeInstance,
-      thinking: this.resolveWorkspaceThinkingDefaults(),
-    });
   }
 
   getUsageStatusFields(): {
